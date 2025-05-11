@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>登入 - 原生Node記事本</title>
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+    <header>
+        <h1>原生 Node.js 記事本</h1>
+    </header>
+    <div class="container">
+        <h2>使用者登入</h2>
+        {{#if error_message}}
+        <div class="error-message" id="errorMessage">{{error_message}}</div>
+        {{/if}}
+        <form id="loginForm" method="POST" action="/login">
+            <div>
+                <label for="username">使用者名稱:</label>
+                <input type="text" id="username" name="username" value="{{username_value}}" required>
+            </div>
+            <div>
+                <label for="password">密碼 (普通使用者可為空):</label>
+                <input type="password" id="password" name="password">
+            </div>
+            <button type="submit">登入</button>
+        </form>
+        <p style="margin-top: 20px; font-size: 0.9em; color: #666;">
+            提示：首次使用請用 `admin` / `admin` 登入。<br>
+            普通使用者密碼可以為空。管理員密碼不能為空。
+        </p>
+    </div>
+    <footer>
+        <p>&copy; 2025 原生Node記事本。僅供演示。</p>
+    </footer>
+    <script>
+        // 簡單的前端處理，例如清除錯誤訊息
+        const form = document.getElementById('loginForm');
+        const errorMessageDiv = document.getElementById('errorMessage');
+        if (form && errorMessageDiv) {
+            form.addEventListener('input', () => {
+                if (errorMessageDiv.textContent !== '') {
+                    // errorMessageDiv.style.display = 'none'; // 或清除內容
+                }
+            });
+        }
+        // 如果伺服器端沒有注入 error_message，則隱藏該 div
+        if (errorMessageDiv && !errorMessageDiv.textContent.trim()) {
+            errorMessageDiv.style.display = 'none';
+        }
+        // 檢查是否有 URL 參數指示登出成功
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.has('logged_out')) {
+            const successMsgDiv = document.createElement('div');
+            successMsgDiv.className = 'success-message';
+            successMsgDiv.textContent = '您已成功登出。';
+            const container = document.querySelector('.container');
+            container.insertBefore(successMsgDiv, form);
+        }
+    </script>
+</body>
+</html>
