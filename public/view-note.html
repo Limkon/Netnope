@@ -51,7 +51,9 @@
             <a href="/uploads/{{noteAttachmentPath}}" target="_blank" title="下载 {{noteAttachmentOriginalName}}">
                 {{noteAttachmentOriginalName}}
             </a>
+            {{#if noteAttachmentSizeKB}}
             <span>({{noteAttachmentSizeKB}} KB)</span>
+            {{/if}}
         </div>
         {{/if}}
 
@@ -72,14 +74,23 @@
     </footer>
     <script src="/js/main.js"></script>
     <script>
-        const currentUsernameFromServer = "{{username}}"; // 由服务器注入
-        const currentUserRoleFromServer = "{{userRole}}";   // 由服务器注入
-        const currentUserIdFromServer = "{{userId}}";     // 由服务器注入
+        // 从服务器端模板获取初始用户信息 (如果已登录)
+        // 这些变量由后端在渲染此页面时通过 serveHtmlWithPlaceholders 注入
+        const currentUsernameFromServer = "{{username}}"; 
+        const currentUserRoleFromServer = "{{userRole}}";   
+        const currentUserIdFromServer = "{{userId}}";     
 
         document.addEventListener('DOMContentLoaded', () => {
+            // setupNavigation 在 main.js 中定义，它会处理匿名和登录用户的情况
             setupNavigation(currentUsernameFromServer, currentUserRoleFromServer, currentUserIdFromServer);
-            // 页面标题已由服务器渲染，如果需要动态更新，可以在此进行
-            // document.title = `${document.getElementById('noteViewTitle').textContent} - 记事本`;
+            
+            // 页面标题已由服务器渲染，如果需要动态更新或确保一致性，可以在此进行
+            const noteTitleElement = document.getElementById('noteViewTitle');
+            if (noteTitleElement && noteTitleElement.textContent) {
+                 document.title = `${noteTitleElement.textContent} - 记事本`;
+            } else if ("{{noteTitle}}") { // Fallback if element not found but placeholder has value
+                 document.title = `{{noteTitle}} - 记事本`;
+            }
         });
     </script>
 </body>
