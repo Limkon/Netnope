@@ -1,4 +1,4 @@
-/* public/css/style.css - 控制Select寬度和工具列緊湊性 */
+/* public/css/style.css - 工具列控制項統一高度 */
 body {
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
     line-height: 1.6;
@@ -267,7 +267,7 @@ form input[type="text"], form input[type="password"], form select, form textarea
 /* 富文本编辑器工具栏 */
 #richTextToolbar {
     margin-bottom: 0;
-    padding: 4px; /* 进一步减小内边距 */
+    padding: 5px; 
     background-color: #f1f3f4; 
     border: 1px solid #dadce0;
     border-bottom: none;
@@ -275,30 +275,33 @@ form input[type="text"], form input[type="password"], form select, form textarea
     border-top-right-radius: 0.3rem;
     display: flex; 
     flex-wrap: wrap; 
-    align-items: center; 
-    gap: 3px; /* 进一步减小间隙 */
+    align-items: center; /* 确保所有项目垂直居中 */
+    gap: 4px; 
 }
 
-/* 工具栏中的直接子元素 */
+/* 工具栏中的直接子元素 - 统一高度的关键 */
 #richTextToolbar > button,
 #richTextToolbar > select,
 #richTextToolbar > input[type="color"],
-#richTextToolbar > label.sr-only { /* 确保 sr-only label 不影响布局 */
-    display: inline-block; 
+#richTextToolbar > label.sr-only { 
+    display: inline-flex; /* 改为 inline-flex 以便内部内容（如按钮文字）也能垂直居中 */
+    align-items: center; /* 垂直居中按钮/选择框内的文字 */
+    justify-content: center; /* 水平居中按钮内的文字 (如果需要) */
     vertical-align: middle; 
-    margin: 1px; /* 统一外边距，非常小 */
-    padding: 2px 4px; /* 非常紧凑的内边距 */
-    font-size: 0.75rem; /* 非常小的字体 */
+    margin: 1px; 
+    padding: 0 5px; /* 调整内边距以适应统一高度 */
+    font-size: 0.85rem; /* 稍微调整字体大小 */
     background-color: #ffffff;
     color: #3c4043;
     border: 1px solid #bdc1c6;
     border-radius: 0.2rem; 
-    height: 26px; /* 统一高度 */
+    height: 28px; /* 设定统一高度 */
+    line-height: 26px; /* 确保文字在按钮内大致居中，略小于高度 */
     box-sizing: border-box;
     box-shadow: none;
     transition: background-color 0.1s ease, border-color 0.1s ease;
     flex-grow: 0; 
-    flex-shrink: 1; /* 允许收缩 */
+    flex-shrink: 1; 
     flex-basis: auto; 
 }
 
@@ -309,23 +312,24 @@ form input[type="text"], form input[type="password"], form select, form textarea
     border-color: #adb1b5;
 }
 
+/* 特殊调整颜色选择器，确保其视觉高度与其他元素一致 */
 #richTextToolbar > input[type="color"] {
-    padding: 1px; 
-    width: 26px; /* 固定宽度 */
-    height: 26px; 
+    padding: 1px; /* 颜色选择器通常不需要很多内边距 */
+    width: 28px; /* 使其宽高与高度一致，形成方形 */
+    /* height: 28px; 已在上面统一设置 */
 }
 
+/* 特殊调整下拉选择框 */
 #richTextToolbar > select {
-    min-width: 50px; /* 尝试更小的最小宽度 */
-    max-width: 100px; /* 添加最大宽度限制 */
-    padding-right: 15px; /* 为下拉箭头留出空间 */
-    /* 尝试移除或减小 select 的左右 padding，如果浏览器允许 */
-    padding-left: 3px; 
-    /* padding-right: 3px; (如果下拉箭头是伪元素，这个可能不需要) */
+    min-width: 55px; /* 稍微调整最小宽度 */
+    max-width: 110px; /* 调整最大宽度 */
+    /* padding-right: 15px;  浏览器通常会处理下拉箭头，如果需要可调整 */
+    /* padding-left: 3px; */
+    /* line-height: normal; 如果继承的 line-height 导致文字不居中，可以尝试重设 */
 }
 
 .sr-only { 
-  position: absolute !important; /* 确保它完全脱离文档流 */
+  position: absolute !important;
   width: 1px !important;
   height: 1px !important;
   padding: 0 !important;
