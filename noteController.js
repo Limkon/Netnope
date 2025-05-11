@@ -3,23 +3,23 @@ const storage = require('./storage');
 const {
     serveHtmlWithPlaceholders,
     serveJson,
-    redirect,
+    redirect, 
     sendError,
     sendNotFound,
     sendForbidden,
     sendBadRequest
 } = require('./responseUtils');
 const path = require('path');
-const fs = require('fs');
+const fs = require('fs'); 
 
 const PUBLIC_DIR = path.join(__dirname, 'public');
 const UPLOADS_DIR = storage.UPLOADS_DIR;
 
-// 辅助函数，用于获取传递给模板的导航数据 (与 userController.js 中的类似)
 function getNavData(session) {
     return {
         username: session ? session.username : '访客',
-        userRole: session ? session.role : 'anonymous'
+        userRole: session ? session.role : 'anonymous',
+        userId: session ? session.userId : '' 
     };
 }
 
@@ -45,39 +45,98 @@ module.exports = {
             return sendForbidden(context.res, "匿名用户不能访问此页面。请先登录。");
         }
         serveHtmlWithPlaceholders(context.res, path.join(PUBLIC_DIR, 'note.html'), {
-            ...getNavData(context.session), // 添加导航数据
+            ...getNavData(context.session),
             noteId: noteIdToEdit || '',
             pageTitle: noteIdToEdit ? '编辑记事' : '新建记事'
         });
     },
 
+    // 新增：获取并渲染单个记事查看页面
+    getNoteViewPage: (context) => {
+        const noteId = context.query.id;
+        if (!noteId) {
+            return sendBadRequest(context.res, "缺少记事ID。");
+        }
+        const note = storage.findNoteById(noteId);
+        if (!note) {
+            return sendNotFound(context.res, "找不到指定的记事。");
+        }
+
+        const sessionRole = context.session ? context.session.role : 'anonymous_fallback';
+        const sessionUserId = context.session ? context.session.userId : null;
+
+        // 权限检查：匿名用户、管理员或记事所有者可以查看
+        let canView = false;
+        if (sessionRole === 'anonymous' || sessionRole === 'anonymous_fallback' || sessionRole === 'admin') {
+            canView = true;
+        } else if (sessionUserId && note.userId === sessionUserId) {
+            canView = true;
+        }
+
+        if (!canView) {
+            return sendForbidden(context.res, "您无权查看此记事。");
+        }
+
+        const owner = storage.findUserById(note.userId);
+        const templateData = {
+            ...getNavData(context.session),
+            noteTitle: note.title,
+            noteContent: note.content, // 富文本内容，模板中需用 {{{ }}}
+            noteId: note.id,
+            noteOwnerUsername: owner ? owner.username : '未知用户',
+            noteCreatedAt: new Date(note.createdAt).toLocaleString('zh-CN'),
+            noteUpdatedAt: new Date(note.updatedAt).toLocaleString('zh-CN'),
+            noteAttachmentPath: note.attachment ? note.attachment.path : null,
+            noteAttachmentOriginalName: note.attachment ? note.attachment.originalName : null,
+            noteAttachmentSizeKB: note.attachment ? (note.attachment.size / 1024).toFixed(1) : null,
+            canEdit: context.session && context.session.role !== 'anonymous' && (context.session.role === 'admin' || note.userId === context.session.userId)
+        };
+        serveHtmlWithPlaceholders(context.res, path.join(PUBLIC_DIR, 'view-note.html'), templateData);
+    },
+
+
     getAllNotes: (context) => {
         const sessionRole = context.session ? context.session.role : 'anonymous_fallback';
         const sessionUserId = context.session ? context.session.userId : null;
+        const searchTerm = context.query.search ? context.query.search.toLowerCase() : null;
+
         let notes = storage.getNotes();
+
+        if (searchTerm) {
+            notes = notes.filter(note => {
+                const titleMatch = note.title.toLowerCase().includes(searchTerm);
+                const contentText = note.content.replace(/<[^>]+>/g, ''); // 简单移除HTML标签进行内容搜索
+                const contentMatch = contentText.toLowerCase().includes(searchTerm);
+                return titleMatch || contentMatch;
+            });
+        }
+
         if (sessionRole === 'admin' || sessionRole === 'anonymous' || sessionRole === 'anonymous_fallback') {
             notes = notes.map(note => {
                 const owner = storage.findUserById(note.userId);
                 return { ...note, ownerUsername: owner ? owner.username : '未知用户' };
             }).sort((a,b) => new Date(b.updatedAt) - new Date(a.updatedAt));
-        } else {
+        } else { 
             notes = notes.filter(note => note.userId === sessionUserId)
                          .sort((a,b) => new Date(b.updatedAt) - new Date(a.updatedAt));
         }
         serveJson(context.res, notes);
     },
 
-    getNoteById: (context) => {
+    getNoteById: (context) => { // 这个API主要用于编辑时加载数据，查看页面由 getNoteViewPage 处理
         const noteId = context.pathname.split('/').pop();
         const note = storage.findNoteById(noteId);
         if (!note) return sendNotFound(context.res, "找不到指定的记事。");
+        
         const sessionRole = context.session ? context.session.role : 'anonymous_fallback';
         const sessionUserId = context.session ? context.session.userId : null;
+
+        // 匿名用户不应通过此API获取记事，他们通过 getNoteViewPage 查看
         if (sessionRole === 'anonymous' || sessionRole === 'anonymous_fallback') {
-            return serveJson(context.res, note);
+            return sendForbidden(context.res, "匿名用户无权直接访问此API。");
         }
         if (sessionRole !== 'admin' && note.userId !== sessionUserId) {
-            return sendForbidden(context.res, "您无权查看此记事。");
+            return sendForbidden(context.res, "您无权访问此记事数据。");
         }
         serveJson(context.res, note);
     },
