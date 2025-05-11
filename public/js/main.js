@@ -27,8 +27,6 @@ async function fetchData(url, options = {}) {
             const errorMessage = (typeof errorData === 'object' && errorData !== null && errorData.message) ? errorData.message : (errorData || response.statusText);
             if ((response.status === 401 || response.status === 403) && currentUserRoleGlobal !== 'anonymous') {
                  alert('操作未授权或会话已过期，请重新登录。');
-                 // window.location.href = '/login'; // 仅在401时跳转可能更好
-                 // return null;
             }
             throw new Error(`服务器响应错误: ${response.status} ${errorMessage}`);
         }
@@ -40,11 +38,11 @@ async function fetchData(url, options = {}) {
     } catch (error) {
         console.error('Fetch API 调用失败:', error);
         const messageToDisplay = error.message || '与服务器通讯时发生错误。';
-        let msgElementId = 'globalMessageArea';
-        if (document.getElementById('formMessage')) msgElementId = 'formMessage';
-        if (document.getElementById('adminMessages')) msgElementId = 'adminMessages';
-        if (document.getElementById('registerMessage')) msgElementId = 'registerMessage';
-        if (document.getElementById('changePasswordMessage')) msgElementId = 'changePasswordMessage';
+        let msgElementId = 'globalMessageArea'; // 默认首页
+        if (document.getElementById('formMessage')) msgElementId = 'formMessage'; // 笔记表单页
+        if (document.getElementById('adminMessages')) msgElementId = 'adminMessages'; // 管理员页
+        if (document.getElementById('registerMessage')) msgElementId = 'registerMessage'; // 注册页
+        if (document.getElementById('changePasswordMessage')) msgElementId = 'changePasswordMessage'; // 修改密码页
         displayMessage(messageToDisplay, 'error', msgElementId);
         return null;
     }
@@ -67,10 +65,10 @@ function escapeHtml(unsafe) {
     return unsafe.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
 }
 
-function setupNavigation(username, role, userId) { // 添加 userId 参数
+function setupNavigation(username, role, userId) {
     currentUsernameGlobal = username || '访客';
     currentUserRoleGlobal = role || 'anonymous';
-    currentUserIdGlobal = userId || ''; // 存储当前用户ID
+    currentUserIdGlobal = userId || '';
 
     const navContainer = document.getElementById('mainNav');
     if (!navContainer) {
@@ -92,7 +90,6 @@ function setupNavigation(username, role, userId) { // 添加 userId 参数
         if (window.location.pathname !== '/change-password') {
             navHtml += `<a href="/change-password" class="button-action">修改密码</a>`;
         }
-        // 只有当不在首页时才显示“返回列表”
         if (window.location.pathname !== '/' && window.location.pathname !== '/index.html') {
              navHtml += `<a href="/" class="button-action">返回列表</a>`;
         }
@@ -122,27 +119,42 @@ async function handleLogout() {
     }
 }
 
-async function loadNotes() {
+async function loadNotes(searchTerm = '') { 
     const notesContainer = document.getElementById('notesContainer');
     const globalMessageArea = document.getElementById('globalMessageArea');
+    const clearSearchButton = document.getElementById('clearSearchButton');
+
     if (globalMessageArea) displayMessage('', 'info', 'globalMessageArea');
     if (!notesContainer) return;
     notesContainer.innerHTML = '<p>正在加载记事...</p>';
-    const notesData = await fetchData('/api/notes');
+
+    let apiUrl = '/api/notes';
+    if (searchTerm) {
+        apiUrl += `?search=${encodeURIComponent(searchTerm)}`;
+    }
+
+    const notesData = await fetchData(apiUrl);
     if (!notesData) {
-        notesContainer.innerHTML = '<p class="error-message">无法加载记事。请检查网络连接或稍后再试。</p>';
+        notesContainer.innerHTML = `<p class="error-message">无法加载记事。${searchTerm ? '请尝试其他关键字或清除搜索。' : '请检查网络连接或稍后再试。'}</p>`;
+        if (searchTerm && clearSearchButton) clearSearchButton.style.display = 'inline-flex';
         return;
     }
     const notes = Array.isArray(notesData) ? notesData : [];
     if (notes.length === 0) {
-        let noNotesMessage = '<p>当前没有记事。';
-        if (currentUserRoleGlobal !== 'anonymous') {
+        let noNotesMessage = `<p>${searchTerm ? `没有找到与“${escapeHtml(searchTerm)}”相关的记事。` : '当前没有记事。'}`;
+        if (currentUserRoleGlobal !== 'anonymous' && !searchTerm) { 
             noNotesMessage += ' <a href="/note/new" class="button-action">创建您的第一篇记事！</a>';
         }
         noNotesMessage += '</p>';
         notesContainer.innerHTML = noNotesMessage;
+        if (searchTerm && clearSearchButton) { // 确保在搜索无结果时也显示清除按钮
+            clearSearchButton.style.display = 'inline-flex';
+        } else if (clearSearchButton) {
+            clearSearchButton.style.display = 'none';
+        }
         return;
     }
+
     const ul = document.createElement('ul');
     ul.className = 'note-list';
     notes.forEach(note => {
@@ -150,10 +162,20 @@ async function loadNotes() {
         li.className = 'note-item';
         li.id = `note-${note.id}`;
         let ownerInfo = (currentUserRoleGlobal === 'admin' || currentUserRoleGlobal === 'anonymous') && note.ownerUsername ? `<span class="note-owner">(所有者: ${escapeHtml(note.ownerUsername)})</span>` : '';
+        
+        let titleHtml = escapeHtml(note.title);
+        // 简单地移除HTML标签来做内容预览，然后高亮
         const tempDiv = document.createElement("div");
-        tempDiv.innerHTML = note.content;
-        const textContentPreview = tempDiv.textContent || tempDiv.innerText || "";
-        const preview = textContentPreview.substring(0, 100) + (textContentPreview.length > 100 ? '...' : '');
+        tempDiv.innerHTML = note.content; // 将HTML内容放入临时div
+        const textContentForPreview = tempDiv.textContent || tempDiv.innerText || ""; // 获取纯文本
+        let contentPreviewHtml = escapeHtml(textContentForPreview.substring(0, 150) + (textContentForPreview.length > 150 ? '...' : ''));
+
+        if (searchTerm) {
+            const regex = new RegExp(`(${escapeHtml(searchTerm).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+            titleHtml = titleHtml.replace(regex, '<mark>$1</mark>');
+            contentPreviewHtml = contentPreviewHtml.replace(regex, '<mark>$1</mark>');
+        }
+        
         let attachmentHtml = '';
         if (note.attachment && note.attachment.path && currentUserRoleGlobal !== 'anonymous') {
             const attachmentUrl = `/uploads/${encodeURIComponent(note.attachment.path)}`;
@@ -169,12 +191,12 @@ async function loadNotes() {
         }
         li.innerHTML = `
             <div>
-                <h3>${escapeHtml(note.title)} ${ownerInfo}</h3>
+                <h3>${titleHtml} ${ownerInfo}</h3>
                 <div class="note-meta">
                     最后更新: ${new Date(note.updatedAt).toLocaleString('zh-CN')}
                     (创建于: ${new Date(note.createdAt).toLocaleString('zh-CN')})
                 </div>
-                <div class="note-content-preview">${escapeHtml(preview)}</div>
+                <div class="note-content-preview">${contentPreviewHtml}</div>
                 ${attachmentHtml}
             </div>
             ${actionsHtml}
@@ -183,6 +205,11 @@ async function loadNotes() {
     });
     notesContainer.innerHTML = '';
     notesContainer.appendChild(ul);
+    if (searchTerm && clearSearchButton) {
+        clearSearchButton.style.display = 'inline-flex';
+    } else if (clearSearchButton) {
+        clearSearchButton.style.display = 'none';
+    }
 }
 
 async function deleteNote(noteId, noteTitle) {
@@ -190,10 +217,12 @@ async function deleteNote(noteId, noteTitle) {
     const result = await fetchData(`/api/notes/${noteId}`, { method: 'DELETE' });
     if (result && result.message) {
         displayMessage(result.message, 'success', 'globalMessageArea');
-        loadNotes();
+        const searchInput = document.getElementById('searchInput');
+        loadNotes(searchInput ? searchInput.value.trim() : ''); 
     } else if (result) {
         displayMessage('记事已删除，但服务器未返回确认消息。正在刷新列表...', 'info', 'globalMessageArea');
-        loadNotes();
+        const searchInput = document.getElementById('searchInput');
+        loadNotes(searchInput ? searchInput.value.trim() : '');
     }
 }
 
@@ -298,7 +327,7 @@ async function loadNoteForEditing(noteId) {
     }
 }
 
-async function loadUsersForAdmin(currentAdminId) {
+async function loadUsersForAdmin(currentAdminId) { 
     const userListUl = document.getElementById('userList');
     if (!userListUl) return;
     userListUl.innerHTML = '<li>正在加载用户列表...</li>';
@@ -324,7 +353,7 @@ async function loadUsersForAdmin(currentAdminId) {
         actionsDiv.className = 'user-item-actions';
         actionsDiv.style.display = 'flex';
         actionsDiv.style.gap = '10px';
-        if (user.id !== currentAdminId) {
+        if (user.id !== currentAdminId) { 
             const resetPassButton = document.createElement('button');
             resetPassButton.className = 'button-action';
             resetPassButton.textContent = '重设密码';
@@ -421,7 +450,7 @@ async function handleUpdatePasswordByAdmin(event, userId, username) {
     }
 }
 
-let isAdminAddingUser = false; // 添加标志位
+let isAdminAddingUser = false; 
 function setupAdminUserForm() {
     const addUserForm = document.getElementById('addUserForm');
     const addUserButton = addUserForm ? addUserForm.querySelector('button[type="submit"]') : null;
@@ -429,7 +458,7 @@ function setupAdminUserForm() {
     if (addUserForm && addUserButton) {
         addUserForm.addEventListener('submit', async (event) => {
             event.preventDefault();
-            if (isAdminAddingUser) return; // 防止重复提交
+            if (isAdminAddingUser) return; 
 
             isAdminAddingUser = true;
             addUserButton.disabled = true;
@@ -451,7 +480,7 @@ function setupAdminUserForm() {
                 addUserButton.textContent = '新建用户';
                 return;
             }
-            displayMessage('', 'info', 'adminMessages'); // 清除旧消息
+            displayMessage('', 'info', 'adminMessages'); 
             const result = await fetchData('/api/admin/users', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -464,8 +493,7 @@ function setupAdminUserForm() {
             } else if (result && result.message) {
                  displayMessage(result.message, 'error', 'adminMessages');
             }
-            // 如果 fetchData 返回 null，错误已由 fetchData 内部的 displayMessage 处理
-
+            
             isAdminAddingUser = false;
             addUserButton.disabled = false;
             addUserButton.textContent = '新建用户';
@@ -571,15 +599,17 @@ function setupChangeOwnPasswordForm() {
 
 document.addEventListener('DOMContentLoaded', () => {
     const path = window.location.pathname;
-    // 从HTML模板的内联脚本中获取这些值
-    const usernameFromServer = (typeof currentUsername !== 'undefined' && currentUsername !== "{{username}}") ? currentUsername : (document.body.dataset.username || '访客');
-    const roleFromServer = (typeof currentUserRole !== 'undefined' && currentUserRole !== "{{userRole}}") ? currentUserRole : (document.body.dataset.userrole || 'anonymous');
-    const userIdFromServer = (typeof currentUserId !== 'undefined' && currentUserId !== "{{userId}}") ? currentUserId : (document.body.dataset.userid || ''); // 新增
-    const adminIdFromServer = (typeof currentAdminId !== 'undefined' && currentAdminId !== "{{adminUserId}}") ? currentAdminId : (document.body.dataset.adminid || '');
-
+    
+    // 从HTML模板的内联脚本中获取这些值 (如果存在)
+    // 这些值由服务器在渲染HTML时通过 serveHtmlWithPlaceholders 注入
+    // <script> const currentUsername = "{{username}}"; ... </script>
+    const usernameFromServer = (typeof currentUsername !== 'undefined' && currentUsername !== "{{username}}") ? currentUsername : '访客';
+    const roleFromServer = (typeof currentUserRole !== 'undefined' && currentUserRole !== "{{userRole}}") ? currentUserRole : 'anonymous';
+    const userIdFromServer = (typeof currentUserId !== 'undefined' && currentUserId !== "{{userId}}") ? currentUserId : ''; 
+    const adminIdFromServer = (typeof currentAdminId !== 'undefined' && currentAdminId !== "{{adminUserId}}") ? currentAdminId : '';
 
     currentAdminIdGlobal = adminIdFromServer;
-    currentUserIdGlobal = userIdFromServer; // 设置全局当前用户ID
+    currentUserIdGlobal = userIdFromServer; 
 
     const mainNav = document.getElementById('mainNav');
     if (mainNav) {
@@ -592,7 +622,20 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     if (path === '/' || path === '/index.html') {
-        loadNotes();
+        const urlParams = new URLSearchParams(window.location.search);
+        const initialSearchTerm = urlParams.get('search') || '';
+        const searchInput = document.getElementById('searchInput');
+        if (searchInput && initialSearchTerm) {
+            searchInput.value = initialSearchTerm;
+        }
+        loadNotes(initialSearchTerm);
+        const clearSearchButton = document.getElementById('clearSearchButton');
+        if (initialSearchTerm && clearSearchButton) {
+            clearSearchButton.style.display = 'inline-flex';
+        } else if (clearSearchButton) {
+            clearSearchButton.style.display = 'none';
+        }
+
     } else if (path.startsWith('/note/')) {
         initializeRichTextEditor();
         setupNoteForm();
@@ -611,7 +654,9 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     document.querySelectorAll('#logoutButton:not([data-listener-attached])').forEach(button => {
-        button.addEventListener('click', handleLogout);
-        button.setAttribute('data-listener-attached', 'true');
+        if (!button.closest('#mainNav')) { 
+            button.addEventListener('click', handleLogout);
+            button.setAttribute('data-listener-attached', 'true');
+        }
     });
 });
