@@ -10,73 +10,65 @@ import noteRoutes from './routes/notes.js';
 import authRoutes from './routes/auth.js';
 import adminRoutes from './routes/admin.js';
 
-// 工具函数和中间件导入
-// 确保这些函数在 fileStore.js 中已正确导出并且能够处理目录创建
-import { ensureUploadsDir, ensureNotesDataDir } from './utils/fileStore.js';
-// 从 authMiddleware.js 导入 setLocals 中间件
+// 中间件和工具函数导入
 import { setLocals } from './middleware/authMiddleware.js';
+// fileStore.js 中的目录确保函数通常在模块加载时自行调用，或者由 server.js 更早调用。
+// 确保这些函数（如 ensureUploadsDir, ensureNotesDataDir）在 fileStore.js 中被正确调用或导出后在此处调用。
+// 为了减少 server.js 的复杂性，建议这些目录检查逻辑主要在各自的模块（如 fileStore.js）初始化时处理。
+// import { ensureUploadsDir, ensureNotesDataDir } from './utils/fileStore.js';
 
-// 配置 dotenv，加载 .env 文件中的环境变量
 dotenv.config();
 
-// ES Modules 中获取 __filename 和 __dirname 的方法
 const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+const __dirname = path.dirname(__filename); // 这是 server.js 文件所在的目录
 
-// 初始化 Express 应用
 const app = express();
 const PORT = process.env.PORT || 8100;
 
-// 启动时确保必要的目录存在
-// fileStore.js 和 userStore.js 内部也可能有自己的目录检查逻辑，确保它们不会冲突并能正确执行
-// 这些函数应该是异步的，如果它们在模块加载时执行，请确保应用在它们完成后再处理请求
-// 或者，如果它们是同步的，或者只在需要时创建目录，则此处的调用可能不是必须的，
-// 取决于您在 fileStore.js 中的实现。
-// 为了安全起见，确保这些目录创建逻辑在服务器启动时或者首次需要时被触发。
-// 我们假设 fileStore.js 已经处理了这些。
-// ensureUploadsDir().catch(err => console.error("启动时确保上传目录失败:", err));
-// ensureNotesDataDir().catch(err => console.error("启动时确保笔记数据目录失败:", err));
+// --- 核心中间件设置 ---
 
-
-// --- 中间件设置 ---
-
-// EJS 视图引擎设置
+// 1. 设置视图引擎为 EJS
 app.set('view engine', 'ejs');
-// 设置视图文件的查找目录为项目根目录下的 "views" 文件夹
+// 2. 设置视图文件的查找目录 (例如 /home/std/views)
 app.set('views', path.join(__dirname, 'views'));
 
-// Express 内置中间件
-app.use(express.urlencoded({ extended: true })); // 解析 URL-encoded 请求体 (例如来自HTML表单)
-app.use(express.json());                         // 解析 JSON 请求体
-
-// method-override 中间件，用于支持 PUT 和 DELETE 等HTTP方法 (通过 _method 查询参数)
-app.use(methodOverride('_method'));
-
-// 静态文件服务中间件 (用于 public 目录下的 CSS, JS, 图片等)
-// 确保此路径正确，它使得 public 目录成为静态资源的根目录
+// 3. 静态文件服务中间件 (非常重要，应尽早注册)
+// 将 /home/std/public 目录下的内容作为静态资源提供
+// 例如，浏览器请求 /css/style.css 将会从 /home/std/public/css/style.css 获取
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Session 配置 (应该在访问 session 的路由和中间件之前)
+// 4. 解析请求体的中间件
+app.use(express.urlencoded({ extended: true })); // 解析 x-www-form-urlencoded 数据
+app.use(express.json());                         // 解析 application/json 数据
+
+// 5. method-override 中间件，用于支持 PUT 和 DELETE 等HTTP方法
+app.use(methodOverride('_method'));
+
+// 6. Session 配置 (必须在需要 session 的路由和中间件之前)
+if (!process.env.SESSION_SECRET) {
+  console.error('错误：SESSION_SECRET 未在 .env 文件中定义！应用无法安全启动。');
+  process.exit(1); // 关键安全配置缺失，退出
+}
 app.use(session({
   secret: process.env.SESSION_SECRET,
   resave: false,
-  saveUninitialized: false,
+  saveUninitialized: false, // 对登录会话通常设为 false
   cookie: {
-    secure: process.env.NODE_ENV === 'production',
-    httpOnly: true,
-    maxAge: 24 * 60 * 60 * 1000
+    secure: process.env.NODE_ENV === 'production', // 生产环境应为 true (HTTPS)
+    httpOnly: true, // 增强安全性，防止客户端 JS 访问 cookie
+    maxAge: 24 * 60 * 60 * 1000 // cookie 有效期: 24 小时
   }
 }));
 
-// 自定义中间件: 将用户信息和 flash 消息传递给所有视图
-// 此中间件应在 session 初始化之后，路由处理之前
+// 7. 自定义中间件: 将用户信息和 flash 消息传递给所有视图
+// 必须在 session 初始化之后，路由处理之前
 app.use(setLocals);
 
 
-// --- 路由挂载 ---
-// 根路径重定向逻辑
+// --- 应用路由 ---
+// 根路径重定向
 app.get('/', (req, res) => {
-  if (req.session.user) {
+  if (res.locals.currentUser) { // 使用 res.locals.currentUser (由 setLocals 设置)
     res.redirect('/notes');
   } else {
     res.redirect('/auth/login');
@@ -88,40 +80,40 @@ app.use('/notes', noteRoutes);
 app.use('/admin', adminRoutes);
 
 
-// --- 错误处理中间件 ---
-// 404 错误处理 (应在所有正常路由之后)
+// --- 错误处理路由 (必须在所有正常路由之后) ---
+// 404 错误处理
 app.use((req, res, next) => {
-  // 从 res.locals 获取 currentUser，而不是 req.session.user，因为 setLocals 可能已经处理
-  res.status(404).render('partials/404', {
-    pageTitle: '404 - 页面未找到',
-    // currentUser: res.locals.currentUser // 如果 setLocals 已正确设置，模板中可直接用 currentUser
+  console.warn(`404 - 未找到路由: ${req.method} ${req.originalUrl}`);
+  res.status(404).render('partials/404', { // 确保 views/partials/404.ejs 存在
+    pageTitle: '404 - 页面未找到'
+    // currentUser 已经通过 res.locals.currentUser 在模板中可用
   });
 });
 
 // 全局错误处理中间件 (必须有四个参数: err, req, res, next)
 app.use((err, req, res, next) => {
-  console.error("全局错误处理器捕获到错误:", err);
-  
+  console.error("全局错误处理器捕获到错误:", err); // 在服务器控制台记录完整错误
+
   const statusCode = err.status || 500;
   const isDevelopment = process.env.NODE_ENV === 'development';
+  const errMessage = err.message || '服务器发生内部错误，请稍后再试。';
 
-  // 尝试渲染错误页面
-  // 如果错误本身就是视图查找错误，渲染另一个简单的错误页面可能会失败
-  // 在这种情况下，可能需要一个非常基础的HTML错误响应
-  if (err.view && err.message.includes('Failed to lookup view')) {
-      // 如果是视图查找错误，返回一个纯文本或简单HTML错误，避免再次尝试渲染不存在的视图
-      console.error("渲染错误页面时发生视图查找错误:", err.message);
-      return res.status(500).send(`服务器内部错误：无法加载错误页面模板。详情: ${err.message}`);
+  // 如果错误是由于视图查找失败，提供更明确的反馈
+  if (err.view && err.message && err.message.includes('Failed to lookup view')) {
+      console.error(`视图查找错误: 无法在 ${err.view.root} 中找到视图 ${err.view.name}`);
+      const specificViewError = `服务器内部错误：无法加载页面模板。请求的视图 '${err.view.name}' 在目录 '${err.view.root}' 中未找到。请检查服务器日志和视图文件路径。`;
+      return res.status(500).send(isDevelopment ? `${specificViewError}\n\n${err.stack}` : specificViewError);
   }
 
+  // 尝试渲染 views/partials/error.ejs
   res.status(statusCode).render('partials/error', {
     pageTitle: `错误 ${statusCode}`,
     error: {
-      message: err.message || '服务器发生内部错误，请稍后再试。',
+      message: errMessage,
       status: statusCode,
-      stack: isDevelopment ? err.stack : undefined
-    },
-    // currentUser: res.locals.currentUser // 如果 setLocals 已正确设置，模板中可直接用 currentUser
+      stack: isDevelopment ? err.stack : undefined // 仅在开发模式显示堆栈
+    }
+    // currentUser 已经通过 res.locals.currentUser 在模板中可用
   });
 });
 
