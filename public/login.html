@@ -24,35 +24,44 @@
                 <label for="password">密碼:</label>
                 <input type="password" id="password" name="password">
             </div>
-            <button type="submit" class="button-primary">登入</button>
+            <div class="form-actions">
+                <button type="submit" class="button-action">登入</button>
+                <a href="/register" class="button-action" style="background-color: #6c757d; border-color: #6c757d;">註冊新帳戶</a>
+            </div>
         </form>
     </div>
     <footer>
         <p>&copy; 2025 記事本。僅供演示。</p>
     </footer>
     <script>
-        // 简单的前端处理，例如清除错误讯息
         const form = document.getElementById('loginForm');
         const errorMessageDiv = document.getElementById('errorMessage');
         if (form && errorMessageDiv) {
-            form.addEventListener('input', () => {
-                // No need to hide, server will re-render or not include it
-            });
+            form.addEventListener('input', () => {});
         }
-        // 如果伺服器端没有注入 error_message，则隐藏该 div (CSS can also handle this if empty)
         if (errorMessageDiv && !errorMessageDiv.textContent.trim()) {
             errorMessageDiv.style.display = 'none';
         }
-        // 检查是否有 URL 参数指示登出成功
         const urlParams = new URLSearchParams(window.location.search);
         if (urlParams.has('logged_out')) {
             const successMsgDiv = document.createElement('div');
             successMsgDiv.className = 'success-message';
             successMsgDiv.textContent = '您已成功登出。';
             const container = document.querySelector('.container');
-            if (form) { // Insert before form if form exists
+            if (form) {
                 container.insertBefore(successMsgDiv, form);
-            } else { // Otherwise, append to container
+            } else {
+                container.appendChild(successMsgDiv);
+            }
+        }
+        if (urlParams.has('registered')) {
+            const successMsgDiv = document.createElement('div');
+            successMsgDiv.className = 'success-message';
+            successMsgDiv.textContent = '註冊成功！現在您可以登入了。';
+            const container = document.querySelector('.container');
+             if (form) {
+                container.insertBefore(successMsgDiv, form);
+            } else {
                 container.appendChild(successMsgDiv);
             }
         }
