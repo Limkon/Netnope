@@ -1,37 +1,37 @@
 <!DOCTYPE html>
-<html lang="zh-TW">
+<html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>登入 - 記事本</title>
+    <title>登录 - 记事本</title>
     <link rel="stylesheet" href="/css/style.css">
 </head>
 <body>
     <header>
-        <h1>記事本</h1>
+        <h1>记事本</h1>
     </header>
     <div class="container">
-        <h2>使用者登入</h2>
+        <h2>用户登录</h2>
         {{#if error_message}}
         <div class="error-message" id="errorMessage">{{error_message}}</div>
         {{/if}}
         <form id="loginForm" method="POST" action="/login">
             <div>
-                <label for="username">使用者名稱:</label>
+                <label for="username">用户名:</label>
                 <input type="text" id="username" name="username" value="{{username_value}}" required>
             </div>
             <div>
-                <label for="password">密碼:</label>
+                <label for="password">密码:</label>
                 <input type="password" id="password" name="password">
             </div>
             <div class="form-actions">
-                <button type="submit" class="button-action">登入</button>
-                <a href="/register" class="button-action" style="background-color: #6c757d; border-color: #6c757d;">註冊新帳戶</a>
+                <button type="submit" class="button-action">登录</button>
+                <a href="/register" class="button-action" style="background-color: #6c757d; border-color: #6c757d;">注册新账户</a>
             </div>
         </form>
     </div>
     <footer>
-        <p>&copy; 2025 記事本。僅供演示。</p>
+        <p>&copy; 2025 记事本。仅供演示。</p>
     </footer>
     <script>
         const form = document.getElementById('loginForm');
@@ -57,7 +57,7 @@
         if (urlParams.has('registered')) {
             const successMsgDiv = document.createElement('div');
             successMsgDiv.className = 'success-message';
-            successMsgDiv.textContent = '註冊成功！現在您可以登入了。';
+            successMsgDiv.textContent = '注册成功！现在您可以登录了。';
             const container = document.querySelector('.container');
              if (form) {
                 container.insertBefore(successMsgDiv, form);
