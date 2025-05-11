@@ -1,4 +1,4 @@
-// public/js/main.js - 客户端 JavaScript 逻辑
+// public/js/main.js - 客户端 JavaScript 逻辑 (简体中文)
 
 // --- 通用函数 ---
 async function fetchData(url, options = {}) {
@@ -216,7 +216,7 @@ function setupNoteForm() {
                     displayMessage(noteId ? '记事已成功更新！' : '记事已成功创建！', 'success', 'formMessage');
                     setTimeout(() => { window.location.href = '/'; }, 1500);
                 } else if (result.message) displayMessage(result.message, 'error', 'formMessage');
-                else if (typeof result === 'string' && result.includes("成功")) {
+                else if (typeof result === 'string' && result.includes("成功")) { // 后端可能直接返回文本成功消息
                      displayMessage(result, 'success', 'formMessage');
                      setTimeout(() => { window.location.href = '/'; }, 1500);
                 }
@@ -251,19 +251,16 @@ async function loadNoteForEditing(noteId) {
 }
 
 // --- 管理员用户管理 ---
-// let allUsersDataForAdmin = []; // 不再需要存储密码在前端
-
 async function loadUsersForAdmin(currentAdminId) {
     const userListUl = document.getElementById('userList');
     if (!userListUl) return;
     userListUl.innerHTML = '<li>正在加载用户列表...</li>';
-    const usersData = await fetchData('/api/admin/users'); // API 不再返回密码
+    const usersData = await fetchData('/api/admin/users');
      if (!usersData) {
         if(!userListUl.querySelector('.error-message')) userListUl.innerHTML = '<li class="error-message">无法加载用户列表。</li>';
         return;
     }
     const users = Array.isArray(usersData) ? usersData : [];
-    // allUsersDataForAdmin = users; // 只存储基本信息
     if (users.length === 0) {
         userListUl.innerHTML = '<li>当前没有其他用户。</li>';
         return;
@@ -286,8 +283,6 @@ async function loadUsersForAdmin(currentAdminId) {
             resetPassButton.textContent = '重设密码';
             resetPassButton.style.padding = '0.3rem 0.6rem';
             resetPassButton.style.fontSize = '0.85rem';
-            // resetPassButton.style.backgroundColor = '#ffc107'; // 可以用一个不同的颜色
-            // resetPassButton.style.borderColor = '#ffc107';
             resetPassButton.onclick = () => showPasswordResetForm(user.id, user.username, li);
             actionsDiv.appendChild(resetPassButton);
             const deleteButton = document.createElement('button');
@@ -332,8 +327,6 @@ function showPasswordResetForm(userId, username, listItemElement) {
     passwordInput.type = 'password';
     passwordInput.id = `newPass-${userId}`;
     passwordInput.name = 'newPassword';
-    // 对于管理员重设，新密码通常是必需的，除非也允许设为空
-    // passwordInput.required = true; 
     passwordInput.placeholder = "输入新密码 (普通用户可为空)";
     passwordInput.style.marginBottom = '10px';
     passwordInput.style.width = 'calc(100% - 16px)';
@@ -344,7 +337,7 @@ function showPasswordResetForm(userId, username, listItemElement) {
     saveButton.style.marginRight = '10px';
     const cancelButton = document.createElement('button');
     cancelButton.type = 'button';
-    cancelButton.className = 'button-action button-cancel';
+    cancelButton.className = 'button-action button-cancel'; // 确保取消按钮也使用统一的操作按钮样式
     cancelButton.textContent = '取消';
     cancelButton.onclick = () => formContainer.remove();
     form.appendChild(currentUserP);
@@ -366,7 +359,6 @@ async function handleUpdatePasswordByAdmin(event, userId, username) {
     const newPasswordInput = form.newPassword;
     const newPassword = newPasswordInput.value;
     const messageContainerId = 'adminMessages';
-    // 后端会校验管理员的新密码是否为空
     displayMessage('正在更新密码...', 'info', messageContainerId);
     const result = await fetchData(`/api/admin/users/${userId}/password`, {
         method: 'PUT',
@@ -404,7 +396,7 @@ function setupAdminUserForm() {
             if (result && result.id) {
                 displayMessage(`用户 "${escapeHtml(result.username)}" 已成功创建。`, 'success', 'adminMessages');
                 addUserForm.reset();
-                loadUsersForAdmin(document.body.dataset.currentAdminId || currentAdminIdGlobal); // 使用全局变量
+                loadUsersForAdmin(currentAdminIdGlobal);
             } else if (result && result.message) {
                  displayMessage(result.message, 'error', 'adminMessages');
             }
@@ -418,7 +410,7 @@ async function deleteUserByAdmin(userId, username) {
     const result = await fetchData(`/api/admin/users/${userId}`, { method: 'DELETE' });
     if (result && result.message && (result.message.includes("成功") || !result.message.toLowerCase().includes("错误") && !result.message.toLowerCase().includes("失败"))) {
         displayMessage(result.message, 'success', 'adminMessages');
-        loadUsersForAdmin(document.body.dataset.currentAdminId || currentAdminIdGlobal); // 使用全局变量
+        loadUsersForAdmin(currentAdminIdGlobal);
     } else if (result && result.message) {
          displayMessage(result.message, 'error', 'adminMessages');
     }
@@ -466,7 +458,6 @@ function setupRegistrationForm() {
     }
 }
 
-// --- 新增：用户修改自己的密码表单处理 ---
 let isChangingOwnPassword = false;
 function setupChangeOwnPasswordForm() {
     const form = document.getElementById('changeOwnPasswordForm');
@@ -477,13 +468,10 @@ function setupChangeOwnPasswordForm() {
         form.addEventListener('submit', async (event) => {
             event.preventDefault();
             if (isChangingOwnPassword) return;
-
             const currentPassword = document.getElementById('currentPassword').value;
             const newPassword = document.getElementById('newPasswordUser').value;
             const confirmNewPassword = document.getElementById('confirmNewPasswordUser').value;
-
-            displayMessage('', 'info', messageContainerId); // 清除旧消息
-
+            displayMessage('', 'info', messageContainerId);
             if (!currentPassword || !newPassword || !confirmNewPassword) {
                 displayMessage('所有密码字段都不能为空。', 'error', messageContainerId);
                 return;
@@ -492,29 +480,23 @@ function setupChangeOwnPasswordForm() {
                 displayMessage('新密码和确认密码不匹配。', 'error', messageContainerId);
                 return;
             }
-
             isChangingOwnPassword = true;
             submitButton.disabled = true;
             submitButton.textContent = '正在提交...';
-
             const result = await fetchData('/api/users/me/password', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ currentPassword, newPassword, confirmNewPassword })
             });
-
             if (result && result.message && result.message.includes("成功")) {
                 displayMessage(result.message + ' 您可能需要重新登录。', 'success', messageContainerId);
                 form.reset();
                 setTimeout(() => {
-                     // 可选：登出用户或直接跳转到首页
-                     handleLogout(); // 修改密码后强制重新登录是个好做法
+                     handleLogout();
                 }, 2500);
             } else if (result && result.message) {
                 displayMessage(result.message, 'error', messageContainerId);
             }
-            // fetchData 内部已处理其他网络/服务器错误
-
             isChangingOwnPassword = false;
             submitButton.disabled = false;
             submitButton.textContent = '确认修改';
@@ -522,14 +504,11 @@ function setupChangeOwnPasswordForm() {
     }
 }
 
-// 全局登出按钮
 document.querySelectorAll('#logoutButton').forEach(button => {
     button.addEventListener('click', handleLogout);
 });
 
-// 确保在 admin 页面加载时，currentAdminIdGlobal 能正确传递给 loadUsersForAdmin
-// 这个变量在 admin.html 的内联脚本中定义
-let currentAdminIdGlobal = ''; // 将在 admin.html 的内联脚本中被赋值
-if (document.getElementById('adminUsernameDisplay') && typeof currentAdminId !== 'undefined') { // currentAdminId 是 admin.html 内联脚本定义的
+let currentAdminIdGlobal = '';
+if (document.getElementById('adminUsernameDisplay') && typeof currentAdminId !== 'undefined') {
     currentAdminIdGlobal = currentAdminId;
 }
