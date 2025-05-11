@@ -1,298 +1,422 @@
-/* public/css/style.css - 基本樣式 */
+/* public/css/style.css - 视觉和按钮样式更新 */
 body {
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
     line-height: 1.6;
     margin: 0;
     padding: 0;
-    background-color: #f4f4f4;
-    color: #333;
+    background-color: #f8f9fa; /* Slightly lighter background */
+    color: #212529; /* Darker text for better contrast */
     display: flex;
     flex-direction: column;
     min-height: 100vh;
 }
 
 .container {
-    width: 80%;
-    max-width: 960px;
-    margin: 20px auto;
-    padding: 20px;
-    background-color: #fff;
-    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    width: 90%; /* Increase width slightly */
+    max-width: 1024px; /* Max width for larger screens */
+    margin: 30px auto; /* More margin */
+    padding: 25px;
+    background-color: #ffffff;
+    box-shadow: 0 2px 15px rgba(0, 0, 0, 0.08); /* Softer shadow */
     border-radius: 8px;
     flex-grow: 1;
 }
 
 header {
-    background-color: #333;
-    color: #fff;
-    padding: 1rem 0;
+    background-color: #343a40; /* Darker header */
+    color: #ffffff;
+    padding: 1.2rem 0;
     text-align: center;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
 
 header h1 {
     margin: 0;
-    font-size: 1.8rem;
+    font-size: 2rem; /* Larger title */
+    font-weight: 500;
 }
 
 header nav {
-    margin-top: 10px;
+    margin-top: 12px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 15px; /* Space between nav items */
 }
-
-header nav a, header nav button {
-    color: #fff;
-    text-decoration: none;
-    margin: 0 10px;
-    padding: 5px 10px;
-    border-radius: 4px;
-    background: none;
-    border: 1px solid #fff;
-    cursor: pointer;
+.welcome-user {
+    color: #adb5bd; /* Lighter text for welcome message */
     font-size: 0.9rem;
 }
-header nav button:hover, header nav a:hover {
-    background-color: #555;
+.welcome-user strong {
+    color: #ffffff;
+}
+
+/* Common button styling */
+.button, button, input[type="submit"], .button-like, .button-header {
+    display: inline-block;
+    font-weight: 400;
+    color: #ffffff;
+    text-align: center;
+    vertical-align: middle;
+    cursor: pointer;
+    user-select: none;
+    background-color: transparent;
+    border: 1px solid transparent;
+    padding: 0.5rem 1rem; /* Standardized padding */
+    font-size: 0.95rem; /* Standardized font size */
+    line-height: 1.5; /* Standardized line height */
+    border-radius: 0.3rem; /* Standardized border radius */
+    transition: color 0.15s ease-in-out, background-color 0.15s ease-in-out, border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+    text-decoration: none; /* For <a> tags styled as buttons */
+    min-width: 80px; /* Minimum width for smaller buttons */
+}
+
+/* Primary Button (e.g., Save, Login, Add) */
+.button-primary, input[type="submit"] { /* Target login button too */
+    color: #ffffff;
+    background-color: #007bff;
+    border-color: #007bff;
+}
+.button-primary:hover {
+    color: #ffffff;
+    background-color: #0069d9;
+    border-color: #0062cc;
+}
+.button-primary:focus {
+    box-shadow: 0 0 0 0.2rem rgba(38, 143, 255, 0.5);
+}
+
+/* Secondary Button (e.g., Cancel, Edit) */
+.button-secondary {
+    color: #ffffff;
+    background-color: #6c757d;
+    border-color: #6c757d;
+}
+.button-secondary:hover {
+    color: #ffffff;
+    background-color: #5a6268;
+    border-color: #545b62;
+}
+.button-secondary:focus {
+    box-shadow: 0 0 0 0.2rem rgba(130, 138, 145, 0.5);
+}
+
+/* Danger Button (e.g., Delete, Logout) */
+.button-danger, button.danger { /* Target existing .danger class */
+    color: #ffffff;
+    background-color: #dc3545;
+    border-color: #dc3545;
+}
+.button-danger:hover, button.danger:hover {
+    color: #ffffff;
+    background-color: #c82333;
+    border-color: #bd2130;
+}
+.button-danger:focus, button.danger:focus {
+    box-shadow: 0 0 0 0.2rem rgba(225, 83, 97, 0.5);
+}
+
+/* Header Buttons */
+.button-header {
+    color: #f8f9fa;
+    border-color: #6c757d; /* Subtler border */
+    padding: 0.375rem 0.75rem;
+    font-size: 0.9rem;
+}
+.button-header:hover {
+    color: #ffffff;
+    background-color: #495057;
+    border-color: #495057;
+}
+.button-header.danger { /* Logout in header */
+    border-color: #dc3545;
+}
+.button-header.danger:hover {
+    background-color: #c82333;
+    border-color: #bd2130;
 }
 
 
 h2 {
-    color: #333;
-    border-bottom: 2px solid #eee;
-    padding-bottom: 10px;
+    color: #343a40;
+    border-bottom: 1px solid #dee2e6; /* Lighter border */
+    padding-bottom: 12px;
     margin-top: 0;
+    margin-bottom: 25px; /* More space after heading */
+    font-weight: 500;
 }
 
-/* 表單樣式 */
-form div {
-    margin-bottom: 15px;
+/* Form styling */
+.form-styled div, form div { /* Target both general and specific forms */
+    margin-bottom: 1.2rem; /* More space between form groups */
 }
 
-form label {
+.form-styled label, form label {
     display: block;
-    margin-bottom: 5px;
-    font-weight: bold;
+    margin-bottom: 0.5rem;
+    font-weight: 500; /* Slightly bolder labels */
+    color: #495057;
+}
+.checkbox-label { /* For "Remove attachment" */
+    display: inline-block !important;
+    font-weight: normal !important;
+    margin-left: 0.3rem;
+    vertical-align: middle;
 }
 
-form input[type="text"],
-form input[type="password"],
-form select,
-form textarea {
-    width: calc(100% - 22px); /* 考慮 padding 和 border */
-    padding: 10px;
-    border: 1px solid #ddd;
-    border-radius: 4px;
-    box-sizing: border-box; /* 確保 padding 和 border 不會增加總寬度 */
+
+.form-styled input[type="text"], .form-styled input[type="password"], .form-styled select, .form-styled textarea,
+form input[type="text"], form input[type="password"], form select, form textarea {
+    display: block;
+    width: 100%;
+    padding: 0.5rem 0.75rem; /* Adjusted padding */
+    font-size: 0.95rem;
+    line-height: 1.5;
+    color: #495057;
+    background-color: #ffffff;
+    background-clip: padding-box;
+    border: 1px solid #ced4da;
+    border-radius: 0.25rem;
+    box-sizing: border-box;
+    transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
 }
-form input[type="file"] {
+.form-styled input[type="file"], form input[type="file"] {
     padding: 10px 0;
 }
 
-
-button, input[type="submit"] {
-    background-color: #5cb85c;
-    color: white;
-    padding: 10px 15px;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
-    font-size: 1rem;
+.form-styled input:focus, form input:focus,
+.form-styled select:focus, form select:focus,
+.form-styled textarea:focus, form textarea:focus {
+    border-color: #80bdff;
+    outline: 0;
+    box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
 }
 
-button:hover, input[type="submit"]:hover {
-    background-color: #4cae4c;
-}
-
-button.danger {
-    background-color: #d9534f;
-}
-button.danger:hover {
-    background-color: #c9302c;
-}
-button.secondary {
-    background-color: #6c757d;
-}
-button.secondary:hover {
-    background-color: #5a6268;
-}
-a.button-like {
-    display: inline-block;
-    background-color: #007bff;
-    color: white;
-    padding: 10px 15px;
-    text-decoration: none;
-    border-radius: 4px;
-    font-size: 1rem;
-    margin-top: 10px;
-}
-a.button-like:hover {
-    background-color: #0056b3;
+.form-actions {
+    margin-top: 1.5rem; /* More space before action buttons */
+    display: flex;
+    gap: 10px; /* Space between buttons in form actions */
+    align-items: center;
 }
 
 
-/* 記事列表 */
+/* Note List */
 .note-list {
     list-style: none;
     padding: 0;
 }
 
 .note-item {
-    background-color: #f9f9f9;
-    border: 1px solid #eee;
-    padding: 15px;
-    margin-bottom: 10px;
-    border-radius: 4px;
+    background-color: #ffffff;
+    border: 1px solid #e9ecef; /* Lighter border */
+    padding: 20px; /* More padding */
+    margin-bottom: 15px;
+    border-radius: 6px;
     display: flex;
-    justify-content: space-between;
-    align-items: flex-start; /* 頂部對齊 */
-    flex-wrap: wrap; /* 允許內容換行 */
+    flex-direction: column; /* Stack content and actions */
+    gap: 10px; /* Space between content block and actions block */
+    transition: box-shadow 0.2s ease-in-out;
+}
+.note-item:hover {
+    box-shadow: 0 4px 8px rgba(0,0,0,0.05);
 }
 
 .note-item h3 {
     margin-top: 0;
-    margin-bottom: 5px;
-    font-size: 1.2rem;
-    width: 100%; /* 標題佔滿一行 */
+    margin-bottom: 8px;
+    font-size: 1.3rem;
+    font-weight: 500;
+    color: #007bff; /* Link-like color for title */
+}
+.note-item .note-owner {
+    font-size: 0.85rem;
+    color: #6c757d;
+    font-weight: normal;
 }
 .note-item .note-meta {
     font-size: 0.8rem;
-    color: #666;
-    margin-bottom: 10px;
-    width: 100%; /* 元數據也佔滿一行 */
+    color: #6c757d;
+    margin-bottom: 12px;
 }
 .note-item .note-content-preview {
-    margin-bottom: 10px;
-    font-size: 0.9rem;
-    word-break: break-word; /* 避免長單字溢出 */
-    max-height: 60px; /* 預覽幾行內容 */
+    font-size: 0.95rem;
+    color: #495057;
+    word-break: break-word;
+    max-height: 60px;
     overflow: hidden;
     text-overflow: ellipsis;
-    width: 100%;
+    margin-bottom: 10px;
 }
 .note-item .note-actions {
     display: flex;
-    gap: 10px; /* 按鈕間距 */
-    align-items: center; /* 垂直居中按鈕 */
-    margin-top: 10px; /* 與內容間隔 */
+    gap: 10px;
+    align-items: center;
+    align-self: flex-start; /* Align actions to the start of their flex line */
 }
-.note-item .note-actions a, .note-item .note-actions button {
-    padding: 5px 10px;
-    font-size: 0.9rem;
+/* Ensure action buttons in note items are consistently sized */
+.note-item .note-actions .button-secondary,
+.note-item .note-actions .button-danger {
+    padding: 0.375rem 0.75rem; /* Smaller padding for these buttons */
+    font-size: 0.875rem;
+    min-width: 70px;
 }
 
-.note-attachment {
-    margin-top: 10px;
+
+.current-attachment-info, .note-attachment { /* Merged styles */
+    margin-top: 8px;
     font-size: 0.9em;
+    color: #495057;
 }
-.note-attachment a {
+.current-attachment-info a, .note-attachment a {
     color: #007bff;
     text-decoration: none;
+    font-weight: 500;
 }
-.note-attachment a:hover {
+.current-attachment-info a:hover, .note-attachment a:hover {
     text-decoration: underline;
 }
 
 
-/* 富文本編輯器 */
+/* Rich Text Editor */
+#richTextToolbar {
+    margin-bottom: 8px;
+    padding: 5px;
+    background-color: #f8f9fa;
+    border: 1px solid #ced4da;
+    border-bottom: none;
+    border-top-left-radius: 0.25rem;
+    border-top-right-radius: 0.25rem;
+}
 #richTextToolbar button {
     margin-right: 5px;
-    padding: 5px 8px;
+    padding: 6px 9px;
     font-size: 0.9rem;
-    background-color: #efefef;
-    color: #333;
-    border: 1px solid #ccc;
+    background-color: #ffffff;
+    color: #495057;
+    border: 1px solid #ced4da;
+    border-radius: 0.2rem;
 }
 #richTextToolbar button:hover {
-    background-color: #ddd;
+    background-color: #e9ecef;
+    border-color: #adb5bd;
 }
 #richContent {
-    border: 1px solid #ccc;
-    padding: 10px;
-    min-height: 150px;
-    background-color: #fff;
-    border-radius: 4px;
-    margin-top: 5px;
-    overflow-y: auto; /* 如果內容過多，允許滾動 */
+    border: 1px solid #ced4da;
+    padding: 12px;
+    min-height: 180px; /* Increased height */
+    background-color: #ffffff;
+    border-bottom-left-radius: 0.25rem;
+    border-bottom-right-radius: 0.25rem;
+    overflow-y: auto;
+    line-height: 1.7; /* Better readability for rich content */
 }
 #richContent:focus {
-    outline: none;
-    border-color: #007bff;
-    box-shadow: 0 0 0 0.2rem rgba(0,123,255,.25);
+    border-color: #80bdff;
+    outline: 0;
+    box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25) inset; /* Inset shadow for contenteditable */
 }
 
 
-/* 錯誤訊息 */
+/* Message styling */
+.error-message, .success-message {
+    border: 1px solid transparent;
+    padding: 0.75rem 1.25rem;
+    margin-bottom: 1rem;
+    border-radius: 0.25rem;
+    font-size: 0.95rem;
+}
 .error-message {
-    color: red;
-    background-color: #fdd;
-    border: 1px solid red;
-    padding: 10px;
-    margin-bottom: 15px;
-    border-radius: 4px;
+    color: #721c24;
+    background-color: #f8d7da;
+    border-color: #f5c6cb;
 }
 .success-message {
-    color: green;
-    background-color: #dfd;
-    border: 1px solid green;
-    padding: 10px;
-    margin-bottom: 15px;
-    border-radius: 4px;
+    color: #155724;
+    background-color: #d4edda;
+    border-color: #c3e6cb;
 }
 
-/* 使用者管理列表 */
+/* User Management List */
 .user-list {
     list-style-type: none;
     padding: 0;
+    margin-top: 20px;
 }
 .user-item {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 10px;
-    border-bottom: 1px solid #eee;
+    padding: 12px 15px; /* More padding */
+    border: 1px solid #e9ecef;
+    margin-bottom: -1px; /* For "collapse border" effect */
+    background-color: #fff;
+}
+.user-item:first-child {
+    border-top-left-radius: 0.25rem;
+    border-top-right-radius: 0.25rem;
 }
 .user-item:last-child {
-    border-bottom: none;
+    border-bottom-left-radius: 0.25rem;
+    border-bottom-right-radius: 0.25rem;
+    margin-bottom: 0;
 }
 .user-item span {
     margin-right: 10px;
+    color: #495057;
 }
+.user-item span strong {
+    color: #212529;
+}
+.user-item .button-danger { /* Delete button in user list */
+    padding: 0.3rem 0.6rem;
+    font-size: 0.85rem;
+    min-width: 60px;
+}
+
 
 footer {
     text-align: center;
-    padding: 20px;
-    background-color: #333;
-    color: #fff;
-    margin-top: auto; /* 將 footer 推到底部 */
+    padding: 25px; /* More padding */
+    background-color: #343a40;
+    color: #adb5bd; /* Lighter footer text */
+    margin-top: auto;
+    font-size: 0.9rem;
 }
 
-/* 響應式調整 */
+/* Responsive adjustments */
 @media (max-width: 768px) {
     .container {
         width: 95%;
-        padding: 15px;
+        padding: 20px;
+        margin: 15px auto;
     }
     header h1 {
-        font-size: 1.5rem;
+        font-size: 1.7rem;
     }
-    .note-item {
-        flex-direction: column; /* 在小螢幕上堆疊記事內容和操作按鈕 */
-        align-items: stretch; /* 拉伸子項目以填滿寬度 */
+    header nav {
+        flex-direction: column;
+        gap: 8px;
     }
+    .form-actions {
+        flex-direction: column;
+        align-items: stretch; /* Make buttons full width */
+    }
+    .form-actions .button-primary, .form-actions .button-secondary {
+        width: 100%;
+    }
+    .form-actions .button-secondary {
+        margin-top: 8px; /* Space if stacked */
+    }
+
     .note-item .note-actions {
-        width: 100%; /* 操作按鈕區域佔滿 */
-        justify-content: flex-start; /* 按鈕靠左 */
-        margin-top: 10px;
-    }
-    form input[type="text"],
-    form input[type="password"],
-    form select,
-    form textarea {
-        width: 100%; /* 輸入框佔滿 */
+        flex-direction: row; /* Keep actions in a row but allow wrap */
+        flex-wrap: wrap;
+        width: 100%;
+        justify-content: flex-start;
     }
     .user-item {
         flex-direction: column;
         align-items: flex-start;
-    }
-    .user-item button {
-        margin-top: 5px;
+        gap: 8px;
     }
 }
