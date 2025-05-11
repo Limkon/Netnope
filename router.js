@@ -13,6 +13,7 @@ const PUBLIC_DIR = path.join(__dirname, 'public');
 const UPLOADS_DIR = storage.UPLOADS_DIR;
 
 function parseMultipartFormData(rawBuffer, contentTypeHeader) {
+    // ... (保持 parseMultipartFormData 函数不变)
     const boundaryMatch = contentTypeHeader.match(/boundary=(.+)/);
     if (!boundaryMatch) {
         console.warn("解析 multipart/form-data 失败：找不到 boundary。");
@@ -73,6 +74,7 @@ function parseMultipartFormData(rawBuffer, contentTypeHeader) {
     return result;
 }
 
+
 module.exports = {
     handleRequest: async (req, res, rawBuffer) => {
         const parsedUrl = url.parse(req.url, true);
@@ -99,16 +101,21 @@ module.exports = {
         }
 
         const context = { req, res, pathname, method, query, headers, body, files, rawBuffer, session: null };
-        context.session = authenticate(req);
+        context.session = authenticate(req); // authenticate 现在可能返回匿名用户会话
 
+        // 静态文件服务 (始终允许)
         if (method === 'GET') {
             if (pathname.startsWith('/css/') || pathname.startsWith('/js/')) {
                 const staticFilePath = path.join(PUBLIC_DIR, pathname);
                 if (path.resolve(staticFilePath).startsWith(path.resolve(PUBLIC_DIR))) return serveStaticFile(res, staticFilePath);
                 else return sendForbidden(res, "禁止访问此路径的静态资源。");
             }
+            // 附件下载：如果不是匿名用户，或者匿名用户不允许下载，则需要进一步检查
             if (pathname.startsWith('/uploads/')) {
-                if (!context.session) return sendUnauthorized(res, "您需要登录才能下载附件。");
+                if (!context.session || context.session.role === 'anonymous') { // 匿名用户禁止下载附件
+                    return sendForbidden(res, "您无权下载附件。");
+                }
+                // ... (其余附件下载逻辑保持不变) ...
                 const requestedFileRelativePath = decodeURIComponent(pathname.substring('/uploads/'.length));
                 const fullPath = path.join(UPLOADS_DIR, requestedFileRelativePath);
                 if (!path.resolve(fullPath).startsWith(path.resolve(UPLOADS_DIR))) return sendForbidden(res, "禁止访问此文件路径！");
@@ -119,27 +126,45 @@ module.exports = {
             }
         }
 
+        // 公共路由 (登录、注册页面)
         if (pathname === '/login' && method === 'GET') return userController.getLoginPage(context);
         if (pathname === '/login' && method === 'POST') return userController.loginUser(context);
         if (pathname === '/register' && method === 'GET') return userController.getRegisterPage(context);
         if (pathname === '/api/users/register' && method === 'POST') return userController.registerUser(context);
-        if (pathname === '/logout' && method === 'POST') return userController.logoutUser(context);
 
-        // --- 以下路由需要登录 ---
-        if (!context.session) {
-            if (pathname.startsWith('/api/')) return sendUnauthorized(res, "请先登录后再操作。");
-            // 允许访问登录和注册页以外的公共页面（如果将来有的话）
-            if (pathname !== '/login' && pathname !== '/register') return redirect(res, '/login');
-            return; // 对于 /login, /register，如果未认证则由上面的路由处理
+        // 匿名用户允许访问的路由
+        if (context.session && context.session.role === 'anonymous') {
+            if ((pathname === '/' || pathname === '/index.html') && method === 'GET') return noteController.getNotesPage(context);
+            if (pathname === '/api/notes' && method === 'GET') return noteController.getAllNotes(context);
+            if (pathname.startsWith('/api/notes/') && method === 'GET') return noteController.getNoteById(context); // 允许匿名查看单个笔记
+            
+            // 对于匿名用户，其他所有操作都应重定向到登录或显示禁止访问
+            // (除了上面允许的静态文件和公共路由)
+            if (method !== 'GET' || (pathname !== '/' && pathname !== '/index.html' && !pathname.startsWith('/api/notes'))) {
+                 // 如果是API请求，返回禁止，否则重定向到登录
+                if (pathname.startsWith('/api/')) return sendForbidden(res, "匿名用户无权执行此操作。");
+                return redirect(res, '/login');
+            }
         }
+
+
+        // --- 以下路由需要认证用户 (非匿名) ---
+        if (!context.session || context.session.role === 'anonymous') { // 确保匿名用户不会进入这里
+            if (pathname.startsWith('/api/')) return sendUnauthorized(res, "请先登录后再操作。");
+            if (pathname !== '/login' && pathname !== '/register') return redirect(res, '/login');
+            return; 
+        }
+
+        // 登出 (需要认证用户)
+        if (pathname === '/logout' && method === 'POST') return userController.logoutUser(context);
         
-        // 普通用户修改自己的密码
+        // 普通用户修改自己的密码 (需要认证用户)
         if (pathname === '/change-password' && method === 'GET') return userController.getChangePasswordPage(context);
         if (pathname === '/api/users/me/password' && method === 'POST') return userController.changeOwnPassword(context);
 
-
-        if ((pathname === '/' || pathname === '/index.html') && method === 'GET') return noteController.getNotesPage(context);
-        if (pathname === '/api/notes' && method === 'GET') return noteController.getAllNotes(context);
+        // 记事相关 (需要认证用户)
+        if ((pathname === '/' || pathname === '/index.html') && method === 'GET') return noteController.getNotesPage(context); // 已登录用户的主页
+        if (pathname === '/api/notes' && method === 'GET') return noteController.getAllNotes(context); // 已登录用户的笔记列表
         if (pathname === '/api/notes' && method === 'POST') return noteController.createNote(context);
         if (pathname.startsWith('/api/notes/') && method === 'GET') return noteController.getNoteById(context);
         if (pathname.startsWith('/api/notes/') && method === 'PUT') return noteController.updateNote(context);
@@ -150,6 +175,7 @@ module.exports = {
             return noteController.getNoteFormPage(context, query.id);
         }
 
+        // 管理员功能 (需要 admin 角色)
         if (context.session.role === 'admin') {
             if (pathname === '/admin/users' && method === 'GET') return userController.getAdminUsersPage(context);
             if (pathname === '/api/admin/users' && method === 'GET') return userController.listAllUsers(context);
