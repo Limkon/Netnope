@@ -1,6 +1,6 @@
 // userController.js - 使用者相關操作的控制器
-const storage = require('../storage');
-const auth = require('../auth');
+const storage = require('./storage'); // Corrected path
+const auth = require('./auth'); // Corrected path
 const {
     serveHtmlWithPlaceholders,
     serveJson,
@@ -9,10 +9,10 @@ const {
     sendUnauthorized,
     sendForbidden,
     sendBadRequest
-} = require('../responseUtils');
+} = require('./responseUtils'); // Corrected path
 const path =require('path');
 
-const PUBLIC_DIR = path.join(__dirname, '../public');
+const PUBLIC_DIR = path.join(__dirname, 'public'); // Corrected path
 
 module.exports = {
     getLoginPage: (context) => {
