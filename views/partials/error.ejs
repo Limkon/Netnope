@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= typeof pageTitle !== 'undefined' ? pageTitle : '发生错误' %> - 网络记事本</title>
+    <link rel="stylesheet" href="/css/style.css"> <%# 确保CSS路径正确 %>
+</head>
+<body>
+    <%- include('header') %> <%# 假设您的 header.ejs 在 partials 目录下 %>
+
+    <div class="error-page-content" style="text-align: center; padding: 2rem;">
+        <h2><%= error && error.status ? error.status : '错误' %>: <%= error && error.message ? error.message : '发生了一个未知错误' %></h2>
+        
+        <% if (error && error.status) { %>
+            <p>抱歉，服务器处理您的请求时遇到了问题。</p>
+        <% } %>
+
+        <% if (error && error.stack) { %>
+            <details style="text-align: left; margin-top: 1.5rem; background-color: #f3f3f3; padding: 1rem; border-radius: 4px;">
+                <summary>错误详情 (仅开发模式可见)</summary>
+                <pre style="white-space: pre-wrap; word-wrap: break-word; font-size: 0.8em; line-height: 1.4;"><%= error.stack %></pre>
+            </details>
+        <% } %>
+
+        <div style="margin-top: 2rem;">
+            <a href="/" class="btn btn-primary">返回首页</a>
+            <% if (currentUser) { %>
+                <a href="/notes" class="btn btn-secondary" style="margin-left: 10px;">我的记事</a>
+            <% } else { %>
+                <a href="/auth/login" class="btn btn-secondary" style="margin-left: 10px;">前往登录</a>
+            <% } %>
+        </div>
+    </div>
+
+    <%- include('footer') %> <%# 假设您的 footer.ejs 在 partials 目录下 %>
+</body>
+</html>
