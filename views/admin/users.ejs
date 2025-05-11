@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>用户管理 - 网络记事本</title>
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+    <%- include('../partials/header', { pageTitle: '用户管理' }) %>
+
+    <h2>用户管理</h2>
+
+    <% if (typeof message !== 'undefined' && message && message.length > 0) { %>
+        <p class="success-message" style="color: green; background-color: #e6ffed; border: 1px solid #c3e6cb; padding: 0.75rem 1.25rem; margin-bottom: 1rem; border-radius: 0.25rem;"><%= message %></p>
+    <% } %>
+    <% if (typeof error !== 'undefined' && error && error.length > 0) { %>
+        <p class="error-message"><%= error %></p>
+    <% } %>
+
+    <% if (users && users.length > 0) { %>
+        <table style="width: 100%; border-collapse: collapse; margin-bottom: 1rem;">
+            <thead>
+                <tr>
+                    <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">用户名</th>
+                    <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">角色</th>
+                    <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">ID</th>
+                    <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">操作</th>
+                </tr>
+            </thead>
+            <tbody>
+                <% users.forEach(user => { %>
+                    <tr>
+                        <td style="border: 1px solid #ddd; padding: 8px;"><%= user.username %></td>
+                        <td style="border: 1px solid #ddd; padding: 8px;"><%= user.role %></td>
+                        <td style="border: 1px solid #ddd; padding: 8px;"><%= user.id %></td>
+                        <td style="border: 1px solid #ddd; padding: 8px;">
+                            <% if (currentUser && currentUser.id !== user.id && user.role !== 'admin') { %> <form action="/admin/users/<%= user.id %>?_method=DELETE" method="POST" style="display:inline;" onsubmit="return confirm('确定要删除用户 <%= user.username %> 吗？');">
+                                    <button type="submit" class="btn btn-sm btn-danger">删除</button>
+                                </form>
+                            <% } %>
+                        </td>
+                    </tr>
+                <% }); %>
+            </tbody>
+        </table>
+    <% } else { %>
+        <p>没有其他用户。</p>
+    <% } %>
+
+    <%- include('../partials/footer') %>
+</body>
+</html>
