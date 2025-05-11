@@ -144,6 +144,6 @@ Comment=Start liuyanshi Server automatically
 EOF
 chmod +x "$AUTOSTART_FILE" # 确保 desktop 文件可执行（某些桌面环境可能需要）
 
-echo "✅ 项目安装完成！系统重启后将自动启动服务器 (liuyanshi)。"
+echo "✅ 项目安装完成！系统重启后将自动启动服务器。"
 echo "   请检查 $AUTOSTART_FILE 的内容。"
-echo "   手动启动服务器: cd $PROJECT_DIR && node server.js"
+echo "   手动启动服务器: cd $PROJECT_DIR && npm start"
