@@ -1,4 +1,4 @@
-/* public/css/style.css - 統一工具列控制項高度 */
+/* public/css/style.css - 修正工具列按鈕內容顯示 */
 body {
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
     line-height: 1.6;
@@ -275,7 +275,7 @@ form input[type="text"], form input[type="password"], form select, form textarea
     border-top-right-radius: 0.3rem;
     display: flex; 
     flex-wrap: wrap; 
-    align-items: center; /* 确保所有项目垂直居中 */
+    align-items: center; 
     gap: 4px; 
 }
 
@@ -289,14 +289,13 @@ form input[type="text"], form input[type="password"], form select, form textarea
     justify-content: center; 
     vertical-align: middle; 
     margin: 1px; 
-    padding: 0 5px; 
     font-size: 0.85rem; 
     background-color: #ffffff;
     color: #3c4043;
     border: 1px solid #bdc1c6;
     border-radius: 0.2rem; 
     height: 28px; /* 目标统一高度 */
-    line-height: normal; /* 允许浏览器决定行高，配合 flex align-items */
+    line-height: normal; /* 改为 normal，依赖 flex align-items 居中 */
     box-sizing: border-box; 
     box-shadow: none;
     transition: background-color 0.1s ease, border-color 0.1s ease;
@@ -305,15 +304,18 @@ form input[type="text"], form input[type="password"], form select, form textarea
     flex-basis: auto; 
 }
 
-/* 确保按钮内的文本也垂直居中 */
-#richTextToolbar > button {
-    /* display: inline-flex 和 align-items: center 应该已经处理了 */
+/* 为按钮和颜色选择器添加与 select 相似的垂直内边距，以平衡内容区域 */
+#richTextToolbar > button,
+#richTextToolbar > input[type="color"] {
+    padding-top: 1px;
+    padding-bottom: 1px;
+    padding-left: 5px; /* 保持左右内边距 */
+    padding-right: 5px;
 }
 
 /* 针对 select 元素进行微调以匹配目标高度 */
 #richTextToolbar > select {
-    /* height: 28px; 继承 */
-    padding-top: 1px; /* 细微调整垂直内边距 */
+    padding-top: 1px; 
     padding-bottom: 1px;
     padding-left: 4px; 
     padding-right: 20px; 
@@ -321,12 +323,12 @@ form input[type="text"], form input[type="password"], form select, form textarea
     max-width: 110px; 
 }
 
-/* 针对颜色选择器进行微调以匹配目标高度 */
+/* 针对颜色选择器进行微调 */
 #richTextToolbar > input[type="color"] {
-    padding: 0; /* 颜色选择器通常不需要内边距 */
-    width: 28px; 
-    /* height: 28px; 继承 */
-    border-width: 1px; /* 确保边框计算在内 */
+    width: 28px; /* 使其为方形 */
+    /* padding-top/bottom 已在上面设置 */
+    padding-left: 1px; /* 颜色选择器通常不需要很多左右内边距 */
+    padding-right: 1px;
 }
 
 
