@@ -3,12 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>登入 - 原生Node記事本</title>
+    <title>登入 - 記事本</title>
     <link rel="stylesheet" href="/css/style.css">
 </head>
 <body>
     <header>
-        <h1>原生 Node.js 記事本</h1>
+        <h1>記事本</h1>
     </header>
     <div class="container">
         <h2>使用者登入</h2>
@@ -21,42 +21,40 @@
                 <input type="text" id="username" name="username" value="{{username_value}}" required>
             </div>
             <div>
-                <label for="password">密碼 (普通使用者可為空):</label>
+                <label for="password">密碼:</label>
                 <input type="password" id="password" name="password">
             </div>
-            <button type="submit">登入</button>
+            <button type="submit" class="button-primary">登入</button>
         </form>
-        <p style="margin-top: 20px; font-size: 0.9em; color: #666;">
-            提示：首次使用請用 `admin` / `admin` 登入。<br>
-            普通使用者密碼可以為空。管理員密碼不能為空。
-        </p>
     </div>
     <footer>
-        <p>&copy; 2025 原生Node記事本。僅供演示。</p>
+        <p>&copy; 2025 記事本。僅供演示。</p>
     </footer>
     <script>
-        // 簡單的前端處理，例如清除錯誤訊息
+        // 简单的前端处理，例如清除错误讯息
         const form = document.getElementById('loginForm');
         const errorMessageDiv = document.getElementById('errorMessage');
         if (form && errorMessageDiv) {
             form.addEventListener('input', () => {
-                if (errorMessageDiv.textContent !== '') {
-                    // errorMessageDiv.style.display = 'none'; // 或清除內容
-                }
+                // No need to hide, server will re-render or not include it
             });
         }
-        // 如果伺服器端沒有注入 error_message，則隱藏該 div
+        // 如果伺服器端没有注入 error_message，则隐藏该 div (CSS can also handle this if empty)
         if (errorMessageDiv && !errorMessageDiv.textContent.trim()) {
             errorMessageDiv.style.display = 'none';
         }
-        // 檢查是否有 URL 參數指示登出成功
+        // 检查是否有 URL 参数指示登出成功
         const urlParams = new URLSearchParams(window.location.search);
         if (urlParams.has('logged_out')) {
             const successMsgDiv = document.createElement('div');
             successMsgDiv.className = 'success-message';
             successMsgDiv.textContent = '您已成功登出。';
             const container = document.querySelector('.container');
-            container.insertBefore(successMsgDiv, form);
+            if (form) { // Insert before form if form exists
+                container.insertBefore(successMsgDiv, form);
+            } else { // Otherwise, append to container
+                container.appendChild(successMsgDiv);
+            }
         }
     </script>
 </body>
