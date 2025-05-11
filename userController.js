@@ -14,13 +14,11 @@ const path =require('path');
 
 const PUBLIC_DIR = path.join(__dirname, 'public');
 
-// 辅助函数，用于获取传递给模板的导航数据
-// 这个函数主要用于通用的 username 和 userRole，对于 admin 页面可能需要更特定的数据
 function getGeneralNavData(session) {
     return {
         username: session ? session.username : '访客',
         userRole: session ? session.role : 'anonymous',
-        userId: session ? session.userId : '' // 确保 userId 也传递
+        userId: session ? session.userId : ''
     };
 }
 
@@ -92,17 +90,15 @@ module.exports = {
     },
     
     getAdminUsersPage: (context) => {
-        // 权限应在 router 中检查
         if (!context.session || context.session.role !== 'admin') {
             return sendForbidden(context.res, "您没有权限访问此页面。");
         }
         serveHtmlWithPlaceholders(context.res, path.join(PUBLIC_DIR, 'admin.html'), {
-            adminUsername: context.session.username, // 明确传递 adminUsername
-            adminUserId: context.session.userId,   // 明确传递 adminUserId
-            // 也传递通用的导航数据，以防模板中其他地方使用 {{username}} 或 {{userRole}}
-            username: context.session.username,
+            adminUsername: context.session.username, 
+            adminUserId: context.session.userId,   
+            username: context.session.username,    
             userRole: context.session.role,
-            userId: context.session.userId
+            userId: context.session.userId         
         });
     },
 
@@ -150,23 +146,47 @@ module.exports = {
     updateUserPasswordByAdmin: (context) => {
         const userIdToUpdate = context.pathname.split('/')[3]; 
         const { newPassword } = context.body;
+        console.log(`[Admin Reset Password] Attempting to reset password for user ID: ${userIdToUpdate}`);
+        console.log(`[Admin Reset Password] Received new password (length): ${newPassword ? newPassword.length : 'undefined/null'}`);
+
 
         if (!userIdToUpdate) {
+            console.error("[Admin Reset Password] Error: Missing user ID.");
             return sendBadRequest(context.res, JSON.stringify({ message: "缺少用户 ID。" }));
         }
         const userToUpdate = storage.findUserById(userIdToUpdate);
         if (!userToUpdate) {
+            console.error(`[Admin Reset Password] Error: User not found for ID: ${userIdToUpdate}`);
             return sendNotFound(context.res, JSON.stringify({ message: "找不到要更新密码的用户。" }));
         }
+
+        console.log(`[Admin Reset Password] User found: ${userToUpdate.username}, Role: ${userToUpdate.role}`);
+
         if (userToUpdate.role === 'admin' && (newPassword === undefined || newPassword === null || newPassword.trim() === '')) {
+            console.warn(`[Admin Reset Password] Error: Admin user (${userToUpdate.username}) cannot have an empty password.`);
             return sendBadRequest(context.res, JSON.stringify({ message: "管理员的新密码不能为空。" }));
         }
         
-        const updatedUser = storage.saveUser({ ...userToUpdate, password: newPassword });
-        if (updatedUser) {
+        // 传递给 storage.saveUser 的对象应该包含完整的用户信息以及新的明文密码
+        // storage.saveUser 内部会处理盐和哈希
+        const userDataForUpdate = { 
+            id: userToUpdate.id, // 确保传递ID
+            username: userToUpdate.username, // 传递用户名
+            role: userToUpdate.role, // 传递角色
+            salt: userToUpdate.salt, // 传递现有的盐，saveUser会用它
+            // hashedPassword: userToUpdate.hashedPassword, // 这个会被新密码覆盖，可以不传
+            password: newPassword // 传递新的明文密码
+        };
+
+        console.log(`[Admin Reset Password] Calling storage.saveUser for user: ${userToUpdate.username}`);
+        const updatedUser = storage.saveUser(userDataForUpdate);
+        
+        if (updatedUser && updatedUser.id) { // storage.saveUser 返回的是不含敏感信息的用户对象
+            console.log(`[Admin Reset Password] Successfully updated password for user: ${userToUpdate.username}`);
             serveJson(context.res, { message: `用户 ${userToUpdate.username} 的密码已成功更新。` });
         } else {
-            sendError(context.res, JSON.stringify({ message: "更新密码失败。" }));
+            console.error(`[Admin Reset Password] Failed to update password for user: ${userToUpdate.username}. storage.saveUser returned:`, updatedUser);
+            sendError(context.res, JSON.stringify({ message: "更新密码失败。请查看服务器日志。" }));
         }
     },
 
