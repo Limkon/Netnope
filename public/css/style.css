@@ -1,4 +1,4 @@
-/* public/css/style.css - 工具列佈局最終嘗試 */
+/* public/css/style.css - 壓縮工具列項目 */
 body {
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
     line-height: 1.6;
@@ -267,7 +267,7 @@ form input[type="text"], form input[type="password"], form select, form textarea
 /* 富文本编辑器工具栏 */
 #richTextToolbar {
     margin-bottom: 0;
-    padding: 6px; /* 稍减小内边距 */
+    padding: 5px; /* 减小内边距 */
     background-color: #f1f3f4;
     border: 1px solid #dadce0;
     border-bottom: none;
@@ -276,26 +276,25 @@ form input[type="text"], form input[type="password"], form select, form textarea
     display: flex; 
     flex-wrap: wrap; 
     align-items: center; 
-    gap: 4px; /* 稍减小间隙 */
+    gap: 3px; /* 进一步减小间隙 */
 }
 #richTextToolbar button,
 #richTextToolbar select,
 #richTextToolbar input[type="color"] {
-    padding: 4px 6px; /* 稍减小按钮内边距 */
-    font-size: 0.85rem; /* 稍减小字体 */
+    padding: 3px 5px; /* 进一步减小按钮内边距 */
+    font-size: 0.8rem; /* 进一步减小字体 */
     background-color: #ffffff;
     color: #3c4043;
     border: 1px solid #bdc1c6;
-    border-radius: 0.25rem;
-    height: 28px; /* 稍减小高度 */
+    border-radius: 0.2rem; /* 稍小圆角 */
+    height: 26px; /* 进一步减小高度 */
     box-sizing: border-box;
     box-shadow: none;
     transition: background-color 0.1s ease, border-color 0.1s ease;
     margin: 0; 
-    flex-grow: 0; /* 不允许项目拉伸 */
-    flex-shrink: 1; /* 允许项目在空间不足时收缩 */
-    flex-basis: auto; /* 基本大小由内容决定 */
-    /* display: inline-block; /* 确保它们是行内块，以便flex布局正常工作 */
+    flex-grow: 0; 
+    flex-shrink: 1; 
+    flex-basis: auto; 
 }
 #richTextToolbar button:hover,
 #richTextToolbar select:hover,
@@ -305,14 +304,12 @@ form input[type="text"], form input[type="password"], form select, form textarea
 }
 #richTextToolbar input[type="color"] {
     padding: 1px; 
-    width: 28px; 
-    height: 28px; 
+    width: 26px; 
+    height: 26px; 
 }
 #richTextToolbar select {
-    /* min-width: 70px; /* 移除最小宽度，让其更灵活 */
-    /* 或者设置一个更小的值 */
-     min-width: auto; /* 或者完全移除，让内容决定 */
-     padding-right: 20px; /* 为下拉箭头留出空间，如果浏览器不自动处理 */
+    min-width: 60px; /* 尝试更小的最小宽度 */
+    padding-right: 15px; /* 调整下拉箭头空间 */
 }
 .sr-only { 
   position: absolute;
