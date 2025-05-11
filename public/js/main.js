@@ -1,6 +1,6 @@
-// public/js/main.js - 客戶端 JavaScript 邏輯
+// public/js/main.js - 客户端 JavaScript 逻辑
 
-// --- 通用函數 ---
+// --- 通用函数 ---
 async function fetchData(url, options = {}) {
     try {
         const response = await fetch(url, options);
@@ -29,9 +29,10 @@ async function fetchData(url, options = {}) {
     } catch (error) {
         console.error('Fetch API 呼叫失敗:', error);
         const messageToDisplay = error.message || '與伺服器通訊時發生錯誤。';
-        let msgElementId = 'formMessage';
+        let msgElementId = 'formMessage'; // Default for note form
         if (document.getElementById('notesContainer')) msgElementId = 'notesContainer';
         if (document.getElementById('adminMessages')) msgElementId = 'adminMessages';
+        if (document.getElementById('registerMessage')) msgElementId = 'registerMessage';
         displayMessage(messageToDisplay, 'error', msgElementId);
         return null;
     }
@@ -51,8 +52,8 @@ function displayMessage(message, type = 'info', elementId = 'messages') {
         container.innerHTML = message ? `<div class="${type}-message">${escapeHtml(message)}</div>` : '';
         container.style.display = message ? 'block' : 'none';
     } else {
-        if (type === 'error') alert(`錯誤: ${message}`);
-        else if (type === 'success') alert(`成功: ${message}`);
+        if (type === 'error' && message) alert(`錯誤: ${message}`);
+        else if (type === 'success' && message) alert(`成功: ${message}`);
         else if (message) alert(message);
     }
 }
@@ -76,12 +77,9 @@ async function handleLogout() {
         } else if (response.ok) {
              window.location.href = '/login?logged_out=true';
         } else {
-            const errorText = await response.text();
-            alert('登出失敗: ' + errorText);
+            const errorText = await response.text(); alert('登出失敗: ' + errorText);
         }
-    } catch (error) {
-        alert('登出時發生錯誤。');
-    }
+    } catch (error) { alert('登出時發生錯誤。'); }
 }
 
 async function loadNotes() {
@@ -96,7 +94,7 @@ async function loadNotes() {
     }
     const notes = Array.isArray(notesData) ? notesData : [];
     if (notes.length === 0) {
-        notesContainer.innerHTML = '<p>目前沒有記事。 <a href="/note/new">建立您的第一篇記事！</a></p>';
+        notesContainer.innerHTML = '<p>目前沒有記事。 <a href="/note/new" class="button-action">建立您的第一篇記事！</a></p>';
         return;
     }
     const ul = document.createElement('ul');
@@ -131,8 +129,8 @@ async function loadNotes() {
                 ${attachmentHtml}
             </div>
             <div class="note-actions">
-                <a href="/note/edit?id=${note.id}" class="button button-secondary">編輯</a>
-                <button class="button button-danger" onclick="deleteNote('${note.id}', '${escapeHtml(note.title)}')">刪除</button>
+                <a href="/note/edit?id=${note.id}" class="button-action">編輯</a>
+                <button class="button-danger" onclick="deleteNote('${note.id}', '${escapeHtml(note.title)}')">刪除</button>
             </div>
         `;
         ul.appendChild(li);
@@ -156,7 +154,7 @@ async function deleteNote(noteId, noteTitle) {
             document.getElementById('notesContainer').innerHTML = '';
             if (successMsg) document.getElementById('notesContainer').appendChild(successMsg);
             const p = document.createElement('p');
-            p.innerHTML = '目前沒有記事。 <a href="/note/new">建立您的第一篇記事！</a>';
+            p.innerHTML = '目前沒有記事。 <a href="/note/new" class="button-action">建立您的第一篇記事！</a>';
             document.getElementById('notesContainer').appendChild(p);
         }
     }
@@ -172,6 +170,8 @@ function initializeRichTextEditor() {
     const fontNameSelector = document.getElementById('fontNameSelector');
     const fontSizeSelector = document.getElementById('fontSizeSelector');
     const foreColorPicker = document.getElementById('foreColorPicker');
+    const insertLocalImageButton = document.getElementById('insertLocalImageButton');
+    const imageUploadInput = document.getElementById('imageUploadInput');
 
     toolbar.addEventListener('click', (event) => {
         const target = event.target.closest('button');
@@ -182,13 +182,8 @@ function initializeRichTextEditor() {
             if (command === 'createLink') {
                 value = prompt('請輸入連結網址:', 'https://');
                 if (!value) return;
-            } else if (command === 'insertImageFromUrl') {
-                value = prompt('請輸入圖片網址 (URL):', 'https://');
-                if (!value) return;
-                document.execCommand('insertImage', false, value); // Use insertImage command
-                contentArea.focus();
-                return; // Handled insertImage
             }
+            // insertImageFromUrl command is removed, handled by insertLocalImageButton
             document.execCommand(command, false, value);
             contentArea.focus();
         }
@@ -207,17 +202,38 @@ function initializeRichTextEditor() {
         });
     }
     if (foreColorPicker) {
-        foreColorPicker.addEventListener('input', (event) => { // 'input' for live color change
+        foreColorPicker.addEventListener('input', (event) => {
             document.execCommand('foreColor', false, event.target.value);
-            // No need to refocus, color picker doesn't usually take focus away from contentArea
         });
-         foreColorPicker.addEventListener('change', (event) => { // 'change' for when color selection is finalized
+         foreColorPicker.addEventListener('change', (event) => {
             document.execCommand('foreColor', false, event.target.value);
-            contentArea.focus(); // Refocus after final selection
+            contentArea.focus();
+        });
+    }
+
+    if (insertLocalImageButton && imageUploadInput) {
+        insertLocalImageButton.addEventListener('click', () => {
+            imageUploadInput.click(); // Trigger file input
+        });
+
+        imageUploadInput.addEventListener('change', (event) => {
+            const file = event.target.files[0];
+            if (file && file.type.startsWith('image/')) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    // Insert image as base64 data URL
+                    // Warning: This can make the note content very large for big images.
+                    document.execCommand('insertImage', false, e.target.result);
+                    contentArea.focus();
+                };
+                reader.readAsDataURL(file);
+                imageUploadInput.value = ''; // Reset file input for next use
+            } else if (file) {
+                alert('請選擇一個有效的圖片檔案 (例如 JPG, PNG, GIF)。');
+            }
         });
     }
 }
-
 
 function setupNoteForm() {
     const noteForm = document.getElementById('noteForm');
@@ -303,8 +319,8 @@ async function loadUsersForAdmin() {
         li.className = 'user-item';
         li.id = `user-admin-${user.id}`;
         let actionHtml = (user.username !== currentAdminUsername) ?
-            `<button class="button button-danger" onclick="deleteUserByAdmin('${user.id}', '${escapeHtml(user.username)}')">刪除</button>` :
-            '<span style="font-size:0.8em; color:#777;">(目前登入)</span>';
+            `<button class="button-danger" onclick="deleteUserByAdmin('${user.id}', '${escapeHtml(user.username)}')">刪除</button>` :
+            '<span style="font-size:0.8em; color:#5f6368;">(目前登入)</span>';
         li.innerHTML = `
             <span><strong>${escapeHtml(user.username)}</strong> (ID: ${user.id}, 角色: ${escapeHtml(user.role)})</span>
             ${actionHtml}
@@ -354,3 +370,68 @@ async function deleteUserByAdmin(userId, username) {
          displayMessage(result.message, 'error', 'adminMessages');
     }
 }
+
+// --- 新增：註冊表單處理 ---
+let isRegistering = false;
+function setupRegistrationForm() {
+    const registerForm = document.getElementById('registerForm');
+    const registerButton = document.getElementById('registerButton');
+
+    if (registerForm && registerButton) {
+        registerForm.addEventListener('submit', async (event) => {
+            event.preventDefault();
+            if (isRegistering) return;
+
+            const usernameInput = document.getElementById('regUsername');
+            const passwordInput = document.getElementById('regPassword');
+            const confirmPasswordInput = document.getElementById('regConfirmPassword');
+            const messageContainerId = 'registerMessage';
+
+            const username = usernameInput.value.trim();
+            const password = passwordInput.value; // 密碼可以為空
+            const confirmPassword = confirmPasswordInput.value;
+
+            displayMessage('', 'info', messageContainerId); // 清除舊訊息
+
+            if (!username) {
+                displayMessage('使用者名稱不能為空。', 'error', messageContainerId);
+                return;
+            }
+            if (password !== confirmPassword) {
+                displayMessage('兩次輸入的密碼不相符。', 'error', messageContainerId);
+                return;
+            }
+
+            isRegistering = true;
+            registerButton.disabled = true;
+            registerButton.textContent = '註冊中...';
+
+            const result = await fetchData('/api/users/register', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username, password })
+            });
+
+            if (result && result.id) { // 假設成功時返回包含 id 的使用者物件
+                displayMessage('註冊成功！您現在可以前往登入頁面登入。', 'success', messageContainerId);
+                registerForm.reset();
+                // 可選：幾秒後自動跳轉到登入頁
+                setTimeout(() => {
+                    window.location.href = '/login?registered=true';
+                }, 2000);
+            } else if (result && result.message) { // 伺服器返回錯誤訊息
+                 displayMessage(result.message, 'error', messageContainerId);
+            }
+            // 如果 fetchData 返回 null，表示它內部已經處理了錯誤訊息的顯示
+
+            isRegistering = false;
+            registerButton.disabled = false;
+            registerButton.textContent = '註冊';
+        });
+    }
+}
+
+// 全局登出按钮 (如果页面上有)
+document.querySelectorAll('#logoutButton').forEach(button => {
+    button.addEventListener('click', handleLogout);
+});
