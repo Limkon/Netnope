@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= typeof pageTitle !== 'undefined' ? pageTitle : '我的记事本' %> - 网络记事本</title>
+    <link href="https://cdn.jsdelivr.net/npm/quill@2.0.0-rc.2/dist/quill.snow.css" rel="stylesheet">
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+    <%- include('partials/header') %>
+
+    <% if (message && message.length > 0) { %>
+        <p class="success-message" style="color: green; background-color: #e6ffed; border: 1px solid #c3e6cb; padding: 0.75rem 1.25rem; margin-bottom: 1rem; border-radius: 0.25rem;"><%= message %></p>
+    <% } %>
+    <% if (error && error.length > 0) { %>
+        <p class="error-message"><%= error %></p>
+    <% } %>
+
+    <div class="filter-sort-controls">
+        <form action="/notes" method="GET" class="filter-sort-form">
+            <div class="form-inline-group">
+                <label for="title-filter">标题包含:</label>
+                <input type="text" id="title-filter" name="title" value="<%= currentTitle %>">
+            </div>
+            <div class="form-inline-group">
+                <label for="sortBy">排序方式:</label>
+                <select name="sortBy" id="sortBy">
+                    <option value="updatedAt" <%= currentSort.sortBy === 'updatedAt' ? 'selected' : '' %>>更新时间</option>
+                    <option value="createdAt" <%= currentSort.sortBy === 'createdAt' ? 'selected' : '' %>>创建时间</option>
+                    <option value="title" <%= currentSort.sortBy === 'title' ? 'selected' : '' %>>标题</option>
+                </select>
+            </div>
+            <div class="form-inline-group">
+                <label for="order">顺序:</label>
+                <select name="order" id="order">
+                    <option value="desc" <%= currentSort.order === 'desc' ? 'selected' : '' %>>降序</option>
+                    <option value="asc" <%= currentSort.order === 'asc' ? 'selected' : '' %>>升序</option>
+                </select>
+            </div>
+            <button type="submit" class="btn btn-sm btn-info">筛选/排序</button>
+            <a href="/notes" class="btn btn-sm btn-secondary">重置</a>
+        </form>
+    </div>
+
+    <% if (notes && notes.length > 0) { %>
+        <ul class="notes-list">
+            <% notes.forEach(note => { %>
+                <li class="note-item card">
+                    <div class="card-body">
+                        <h3 class="card-title"><a href="/notes/<%= note.id %>"><%= note.title %></a></h3>
+                        <p class="note-meta">
+                            创建于: <%= new Date(note.createdAt).toLocaleString('zh-CN') %> |
+                            更新于: <%= new Date(note.updatedAt).toLocaleString('zh-CN') %>
+                            <% if (currentUser && currentUser.role === 'admin') { %>
+                                | 用户: <%= note.userId === currentUser.id ? '自己' : note.userId.substring(0,8) %> <% } %>
+                        </p>
+                        <div class="note-content-preview">
+                            <%
+                                let previewContent = note.content || '';
+                                // 移除HTML标签以获得纯文本预览
+                                const plainTextContent = previewContent.replace(/<[^>]+>/g, '');
+                                const maxLength = 200; // 预览字数限制
+                            %>
+                            <%= plainTextContent.substring(0, maxLength) %><% if (plainTextContent.length > maxLength) { %>...<% } %>
+                            <% if (!plainTextContent.trim()) { %> <em>(此记事无文本内容)</em> <% } %>
+                        </div>
+                        <div class="note-actions">
+                            <a href="/notes/<%= note.id %>" class="btn btn-sm btn-secondary">查看</a>
+                            <% if (currentUser && (note.userId === currentUser.id || currentUser.role === 'admin')) { %>
+                                <a href="/notes/<%= note.id %>/edit" class="btn btn-sm btn-warning">编辑</a>
+                                <form action="/notes/<%= note.id %>?_method=DELETE" method="POST" style="display:inline;" onsubmit="return confirm('确定要删除这个记事吗？');">
+                                    <button type="submit" class="btn btn-sm btn-danger">删除</button>
+                                </form>
+                            <% } %>
+                        </div>
+                    </div>
+                </li>
+            <% }); %>
+        </ul>
+    <% } else { %>
+        <p class="empty-notes-message">没有找到任何记事。 <a href="/notes/new">创建一个新的记事吧！</a></p>
+    <% } %>
+
+    <%- include('partials/footer') %>
+</body>
+</html>
