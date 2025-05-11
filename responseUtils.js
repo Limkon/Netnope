@@ -102,71 +102,43 @@ module.exports = {
     serveHtmlWithPlaceholders: (res, htmlFilePath, placeholders = {}, statusCode = 200) => {
         fs.readFile(htmlFilePath, 'utf8', (err, html) => {
             if (err) {
-                console.error(`[DEBUG serveHtml] 读取 HTML 文件 ${htmlFilePath} 错误:`, err);
+                console.error(`[serveHtml] 读取 HTML 文件 ${htmlFilePath} 错误:`, err);
                 return module.exports.sendError(res, `加载页面 ${path.basename(htmlFilePath)} 时发生错误`);
             }
             let renderedHtml = html;
-            console.log(`[DEBUG serveHtml] 开始处理模板: ${htmlFilePath}`);
-            console.log(`[DEBUG serveHtml] 传入的 placeholders:`, JSON.stringify(placeholders));
+            // console.log(`[serveHtml] 开始处理模板: ${htmlFilePath}`);
+            // console.log(`[serveHtml] 传入的 placeholders:`, JSON.stringify(placeholders));
 
-            // 1. Handle simple {{#if conditionKey}} content {{/if}} blocks
-            // Regex to be a bit more tolerant with spaces:
-            //   \{\{#if\s*([a-zA-Z0-9_]+)\s*\}\}  <-- allows zero or more spaces around key and after if
-            //   ([\s\S]*?)                       <-- non-greedy match for content
-            //   \{\{\/if\s*\}\}                    <-- allows zero or more spaces before closing /if
+            // 1. 迭代处理 {{#if conditionKey}} content {{/if}} 块
             const conditionalRegex = /\{\{#if\s*([a-zA-Z0-9_]+)\s*\}\}([\s\S]*?)\{\{\/if\s*\}\}/g;
-            let match;
-            let lastIndex = 0;
-            let processedHtml = "";
+            let iterations = 0;
+            const MAX_ITERATIONS = 10; // 防止无限循环
 
-            // Manual iteration to log each potential match
-            const tempRenderedHtml = renderedHtml; // Work on a copy for logging this step
-            console.log(`[DEBUG serveHtml] 查找条件块前的 HTML (前500字符): ${tempRenderedHtml.substring(0, 500)}`);
-
-            while ((match = conditionalRegex.exec(tempRenderedHtml)) !== null) {
-                const conditionKey = match[1];
-                const content = match[2];
-                const fullMatch = match[0];
-                const conditionValue = placeholders[conditionKey];
-                const isTruthy = !!conditionValue; 
-
-                console.log(`[DEBUG serveHtml] -- 条件块处理 --`);
-                console.log(`[DEBUG serveHtml] 匹配到的完整条件块: '${fullMatch.substring(0,100)}...'`);
-                console.log(`[DEBUG serveHtml] 提取到的条件键 (conditionKey): '${conditionKey}'`);
-                console.log(`[DEBUG serveHtml] placeholders 中的值 (placeholders['${conditionKey}']):`, conditionValue);
-                console.log(`[DEBUG serveHtml] 条件是否为真 (isTruthy): ${isTruthy}`);
-                console.log(`[DEBUG serveHtml] 条件块内容 (content): '${content.substring(0,100)}...'`);
-                
-                processedHtml += tempRenderedHtml.substring(lastIndex, match.index);
-                if (isTruthy) {
-                    processedHtml += content;
-                    console.log(`[DEBUG serveHtml] 条件为真，保留内容。`);
-                } else {
-                    console.log(`[DEBUG serveHtml] 条件为假，移除块。`);
-                }
-                lastIndex = conditionalRegex.lastIndex;
+            while (conditionalRegex.test(renderedHtml) && iterations < MAX_ITERATIONS) {
+                // console.log(`[serveHtml] 条件处理迭代: ${iterations + 1}`);
+                renderedHtml = renderedHtml.replace(conditionalRegex, (match, conditionKey, content) => {
+                    const conditionValue = placeholders[conditionKey];
+                    const isTruthy = !!conditionValue;
+                    // console.log(`[serveHtml] -- 条件块: key='${conditionKey}', value='${conditionValue}', isTruthy=${isTruthy}`);
+                    return isTruthy ? content : '';
+                });
+                iterations++;
             }
-            processedHtml += tempRenderedHtml.substring(lastIndex);
-            renderedHtml = processedHtml;
-            console.log(`[DEBUG serveHtml] 条件块处理后的 HTML (前500字符): ${renderedHtml.substring(0, 500)}`);
+            if (iterations >= MAX_ITERATIONS) {
+                console.warn(`[serveHtml] 条件处理达到最大迭代次数 (${MAX_ITERATIONS})，可能存在未解析的嵌套条件。 文件: ${htmlFilePath}`);
+            }
+            // console.log(`[serveHtml] 条件块处理后的 HTML (前500字符): ${renderedHtml.substring(0, 500)}`);
 
 
-            // 2. Handle {{variable}} replacements
+            // 2. 处理 {{variable}} 替换
             for (const key in placeholders) {
                 if (placeholders.hasOwnProperty(key)) { 
                     const valueToReplace = (placeholders[key] === null || placeholders[key] === undefined) ? '' : String(placeholders[key]);
-                    // More robust regex for variable replacement, ensuring a word boundary or non-alphanumeric before/after if needed,
-                    // but for simple {{key}}, this is fine.
                     const variableRegex = new RegExp(`\\{\\{${key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\}\\}`, 'g');
-                    
-                    // Log if we are about to replace something
-                    if (renderedHtml.match(variableRegex)) {
-                        // console.log(`[DEBUG serveHtml] 准备替换变量 '{{${key}}}' 为 '${valueToReplace}'`);
-                    }
                     renderedHtml = renderedHtml.replace(variableRegex, valueToReplace);
                 }
             }
-            // console.log(`[DEBUG serveHtml] 变量替换后的 HTML (前500字符): ${renderedHtml.substring(0, 500)}`);
+            // console.log(`[serveHtml] 变量替换后的 HTML (前500字符): ${renderedHtml.substring(0, 500)}`);
 
             res.writeHead(statusCode, { 'Content-Type': 'text/html; charset=utf-8' });
             res.end(renderedHtml);
