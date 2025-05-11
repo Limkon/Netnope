@@ -8,7 +8,8 @@ const {
     sendError,
     sendUnauthorized,
     sendForbidden,
-    sendBadRequest
+    sendBadRequest,
+    sendNotFound // **** 添加缺失的 sendNotFound ****
 } = require('./responseUtils');
 const path =require('path');
 
@@ -72,10 +73,13 @@ module.exports = {
     registerUser: (context) => {
         const { username, password } = context.body; 
         if (!username || username.trim() === '') {
-            return sendBadRequest(context.res, JSON.stringify({ message: "用户名不能为空。" }));
+            // 发送 JSON 错误响应以便前端 displayMessage 可以解析
+            context.res.writeHead(400, { 'Content-Type': 'application/json; charset=utf-8' });
+            return context.res.end(JSON.stringify({ message: "用户名不能为空。" }));
         }
         if (storage.findUserByUsername(username.trim())) {
-            return sendError(context.res, JSON.stringify({ message: "此用户名已被注册。" }), 409);
+            context.res.writeHead(409, { 'Content-Type': 'application/json; charset=utf-8' });
+            return context.res.end(JSON.stringify({ message: "此用户名已被注册。" }));
         }
         const newUser = storage.saveUser({
             username: username.trim(),
@@ -85,7 +89,8 @@ module.exports = {
         if (newUser && newUser.id) {
             serveJson(context.res, { id: newUser.id, username: newUser.username, role: newUser.role }, 201);
         } else {
-            sendError(context.res, JSON.stringify({ message: "注册过程中发生错误，请稍后再试。" }));
+            context.res.writeHead(500, { 'Content-Type': 'application/json; charset=utf-8' });
+            context.res.end(JSON.stringify({ message: "注册过程中发生错误，请稍后再试。" }));
         }
     },
     
@@ -113,34 +118,62 @@ module.exports = {
 
     createUserByAdmin: (context) => {
         const { username, password, role = 'user' } = context.body;
-        if (!username || username.trim() === '') return sendBadRequest(context.res, "用户名不能为空。");
-        if (role === 'admin' && (!password || password.trim() === '')) return sendBadRequest(context.res, "管理员的密码不能为空。");
+        if (!username || username.trim() === '') {
+             context.res.writeHead(400, { 'Content-Type': 'application/json; charset=utf-8' });
+             return context.res.end(JSON.stringify({ message: "用户名不能为空。" }));
+        }
+        if (role === 'admin' && (!password || password.trim() === '')) {
+            context.res.writeHead(400, { 'Content-Type': 'application/json; charset=utf-8' });
+            return context.res.end(JSON.stringify({ message: "管理员的密码不能为空。" }));
+        }
         
         if (storage.findUserByUsername(username.trim())) {
-            return sendError(context.res, "用户名已存在。", 409);
+            // 使用 sendError 或直接构造 JSON 响应
+            // sendError 默认发送 text/plain，但我们前端期望 JSON
+            context.res.writeHead(409, { 'Content-Type': 'application/json; charset=utf-8' });
+            return context.res.end(JSON.stringify({ message: "用户名已存在。" }));
         }
         
         const newUser = storage.saveUser({ username: username.trim(), password: password, role });
         if (newUser && newUser.id) { 
             serveJson(context.res, { id: newUser.id, username: newUser.username, role: newUser.role }, 201);
         } else {
-            sendError(context.res, "创建用户失败。可能是用户名已存在或发生内部错误。");
+            context.res.writeHead(500, { 'Content-Type': 'application/json; charset=utf-8' });
+            context.res.end(JSON.stringify({ message: "创建用户失败。可能是用户名已存在或发生内部错误。" }));
         }
     },
 
     deleteUserByAdmin: (context) => {
         const userIdToDelete = context.pathname.split('/').pop();
-        if (!userIdToDelete) return sendBadRequest(context.res, "缺少用户 ID。");
+        if (!userIdToDelete) {
+             context.res.writeHead(400, { 'Content-Type': 'application/json; charset=utf-8' });
+             return context.res.end(JSON.stringify({ message: "缺少用户 ID。" }));
+        }
         const userToDelete = storage.findUserById(userIdToDelete);
-        if (!userToDelete) return sendNotFound(context.res, "找不到要删除的用户。");
-        if (userIdToDelete === context.session.userId) return sendForbidden(context.res, "管理员不能删除自己的帐号。");
+        if (!userToDelete) {
+            // 使用 sendNotFound，它发送 text/plain，如果前端期望 JSON，需要调整
+            // 为保持一致，也发送 JSON
+            context.res.writeHead(404, { 'Content-Type': 'application/json; charset=utf-8' });
+            return context.res.end(JSON.stringify({ message: "找不到要删除的用户。" }));
+        }
+        if (userIdToDelete === context.session.userId) {
+            context.res.writeHead(403, { 'Content-Type': 'application/json; charset=utf-8' });
+            return context.res.end(JSON.stringify({ message: "管理员不能删除自己的帐号。" }));
+        }
         if (userToDelete.role === 'admin') {
             const allUsers = storage.getUsers();
             const adminUsers = allUsers.filter(u => u.role === 'admin');
-            if (adminUsers.length <= 1) return sendForbidden(context.res, "不能删除最后一位管理员。系统至少需要一位管理员。");
+            if (adminUsers.length <= 1) {
+                context.res.writeHead(403, { 'Content-Type': 'application/json; charset=utf-8' });
+                return context.res.end(JSON.stringify({ message: "不能删除最后一位管理员。系统至少需要一位管理员。" }));
+            }
         }
-        if (storage.deleteUser(userIdToDelete)) serveJson(context.res, { message: `用户 ${userToDelete.username} (ID: ${userIdToDelete}) 已成功删除。` });
-        else sendError(context.res, "删除用户失败。");
+        if (storage.deleteUser(userIdToDelete)) {
+            serveJson(context.res, { message: `用户 ${userToDelete.username} (ID: ${userIdToDelete}) 已成功删除。` });
+        } else {
+            context.res.writeHead(500, { 'Content-Type': 'application/json; charset=utf-8' });
+            context.res.end(JSON.stringify({ message: "删除用户失败。" }));
+        }
     },
 
     updateUserPasswordByAdmin: (context) => {
@@ -149,7 +182,6 @@ module.exports = {
         console.log(`[Admin Reset Password] Attempting to reset password for user ID: ${userIdToUpdate}`);
         console.log(`[Admin Reset Password] Received new password (length): ${newPassword ? newPassword.length : 'undefined/null'}`);
 
-
         if (!userIdToUpdate) {
             console.error("[Admin Reset Password] Error: Missing user ID.");
             return sendBadRequest(context.res, JSON.stringify({ message: "缺少用户 ID。" }));
@@ -157,7 +189,9 @@ module.exports = {
         const userToUpdate = storage.findUserById(userIdToUpdate);
         if (!userToUpdate) {
             console.error(`[Admin Reset Password] Error: User not found for ID: ${userIdToUpdate}`);
-            return sendNotFound(context.res, JSON.stringify({ message: "找不到要更新密码的用户。" }));
+            // 使用 sendNotFound，并确保它发送 JSON
+            context.res.writeHead(404, { 'Content-Type': 'application/json; charset=utf-8' });
+            return context.res.end(JSON.stringify({ message: "找不到要更新密码的用户。" }));
         }
 
         console.log(`[Admin Reset Password] User found: ${userToUpdate.username}, Role: ${userToUpdate.role}`);
@@ -167,26 +201,25 @@ module.exports = {
             return sendBadRequest(context.res, JSON.stringify({ message: "管理员的新密码不能为空。" }));
         }
         
-        // 传递给 storage.saveUser 的对象应该包含完整的用户信息以及新的明文密码
-        // storage.saveUser 内部会处理盐和哈希
         const userDataForUpdate = { 
-            id: userToUpdate.id, // 确保传递ID
-            username: userToUpdate.username, // 传递用户名
-            role: userToUpdate.role, // 传递角色
-            salt: userToUpdate.salt, // 传递现有的盐，saveUser会用它
-            // hashedPassword: userToUpdate.hashedPassword, // 这个会被新密码覆盖，可以不传
-            password: newPassword // 传递新的明文密码
+            id: userToUpdate.id, 
+            username: userToUpdate.username, 
+            role: userToUpdate.role, 
+            salt: userToUpdate.salt, 
+            password: newPassword 
         };
 
         console.log(`[Admin Reset Password] Calling storage.saveUser for user: ${userToUpdate.username}`);
         const updatedUser = storage.saveUser(userDataForUpdate);
         
-        if (updatedUser && updatedUser.id) { // storage.saveUser 返回的是不含敏感信息的用户对象
+        if (updatedUser && updatedUser.id) { 
             console.log(`[Admin Reset Password] Successfully updated password for user: ${userToUpdate.username}`);
             serveJson(context.res, { message: `用户 ${userToUpdate.username} 的密码已成功更新。` });
         } else {
             console.error(`[Admin Reset Password] Failed to update password for user: ${userToUpdate.username}. storage.saveUser returned:`, updatedUser);
-            sendError(context.res, JSON.stringify({ message: "更新密码失败。请查看服务器日志。" }));
+            // 使用 sendError，并确保它发送 JSON
+            context.res.writeHead(500, { 'Content-Type': 'application/json; charset=utf-8' });
+            context.res.end(JSON.stringify({ message: "更新密码失败。请查看服务器日志。" }));
         }
     },
 
@@ -213,7 +246,9 @@ module.exports = {
         }
 
         if (!auth.verifyPassword(currentPassword, user.salt, user.hashedPassword)) {
-            return sendError(context.res, JSON.stringify({ message: "当前密码不正确。" }), 403);
+            // sendError 默认发送 500，对于密码错误，403 或 400 更合适
+            context.res.writeHead(403, { 'Content-Type': 'application/json; charset=utf-8' });
+            return context.res.end(JSON.stringify({ message: "当前密码不正确。" }));
         }
         
         if (user.role === 'admin' && newPassword.trim() === '') {
