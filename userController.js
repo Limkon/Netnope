@@ -15,11 +15,12 @@ const path =require('path');
 const PUBLIC_DIR = path.join(__dirname, 'public');
 
 // 辅助函数，用于获取传递给模板的导航数据
-function getNavData(session) {
+// 这个函数主要用于通用的 username 和 userRole，对于 admin 页面可能需要更特定的数据
+function getGeneralNavData(session) {
     return {
         username: session ? session.username : '访客',
-        userRole: session ? session.role : 'anonymous', // 如果没有 session，也视为匿名以便显示登录/注册
-        adminUserId: (session && session.role === 'admin') ? session.userId : '' // 仅管理员页面需要
+        userRole: session ? session.role : 'anonymous',
+        userId: session ? session.userId : '' // 确保 userId 也传递
     };
 }
 
@@ -31,7 +32,7 @@ module.exports = {
         serveHtmlWithPlaceholders(context.res, path.join(PUBLIC_DIR, 'login.html'), {
             error_message: context.query.error || '',
             username_value: context.query.username_value || '',
-            ...getNavData(context.session) // 添加导航数据
+            ...getGeneralNavData(context.session) 
         });
     },
 
@@ -40,7 +41,7 @@ module.exports = {
         if (!username) {
             return serveHtmlWithPlaceholders(context.res, path.join(PUBLIC_DIR, 'login.html'), {
                 error_message: '用户名不能为空。', username_value: username || '',
-                ...getNavData(context.session)
+                ...getGeneralNavData(context.session)
             }, 400);
         }
         const user = storage.findUserByUsername(username); 
@@ -51,7 +52,7 @@ module.exports = {
         } else {
             serveHtmlWithPlaceholders(context.res, path.join(PUBLIC_DIR, 'login.html'), {
                 error_message: '用户名或密码错误。', username_value: username || '',
-                ...getNavData(context.session)
+                ...getGeneralNavData(context.session)
             }, 401);
         }
     },
@@ -66,7 +67,7 @@ module.exports = {
             return redirect(context.res, '/');
         }
         serveHtmlWithPlaceholders(context.res, path.join(PUBLIC_DIR, 'register.html'), {
-            ...getNavData(context.session) // 添加导航数据
+            ...getGeneralNavData(context.session)
         });
     },
 
@@ -92,9 +93,16 @@ module.exports = {
     
     getAdminUsersPage: (context) => {
         // 权限应在 router 中检查
+        if (!context.session || context.session.role !== 'admin') {
+            return sendForbidden(context.res, "您没有权限访问此页面。");
+        }
         serveHtmlWithPlaceholders(context.res, path.join(PUBLIC_DIR, 'admin.html'), {
-            // adminUsername 和 adminUserId 已由 getNavData 覆盖
-            ...getNavData(context.session)
+            adminUsername: context.session.username, // 明确传递 adminUsername
+            adminUserId: context.session.userId,   // 明确传递 adminUserId
+            // 也传递通用的导航数据，以防模板中其他地方使用 {{username}} 或 {{userRole}}
+            username: context.session.username,
+            userRole: context.session.role,
+            userId: context.session.userId
         });
     },
 
@@ -112,17 +120,14 @@ module.exports = {
         if (!username || username.trim() === '') return sendBadRequest(context.res, "用户名不能为空。");
         if (role === 'admin' && (!password || password.trim() === '')) return sendBadRequest(context.res, "管理员的密码不能为空。");
         
-        // 控制器层面再次检查用户名是否存在
         if (storage.findUserByUsername(username.trim())) {
             return sendError(context.res, "用户名已存在。", 409);
         }
         
         const newUser = storage.saveUser({ username: username.trim(), password: password, role });
-        if (newUser && newUser.id) { // 检查 newUser 是否为 null (如果 storage.saveUser 因重复而失败)
+        if (newUser && newUser.id) { 
             serveJson(context.res, { id: newUser.id, username: newUser.username, role: newUser.role }, 201);
         } else {
-            // 如果 newUser 为 null，可能是因为 storage.saveUser 内部的重复检查也失败了（理论上不应发生，如果控制器检查有效）
-            // 或者其他保存错误
             sendError(context.res, "创建用户失败。可能是用户名已存在或发生内部错误。");
         }
     },
@@ -166,11 +171,11 @@ module.exports = {
     },
 
     getChangePasswordPage: (context) => {
-        if (!context.session || context.session.role === 'anonymous') { // 确保匿名用户不能访问
+        if (!context.session || context.session.role === 'anonymous') { 
              return redirect(context.res, '/login');
         }
         serveHtmlWithPlaceholders(context.res, path.join(PUBLIC_DIR, 'change-password.html'), {
-            ...getNavData(context.session) // 添加导航数据
+            ...getGeneralNavData(context.session) 
         });
     },
 
@@ -183,7 +188,7 @@ module.exports = {
         }
         
         const user = storage.findUserById(userId);
-        if (!user || !user.salt) { // 如果用户没有 salt (例如 "anyone" 用户，虽然他们不应该能到这里)
+        if (!user || !user.salt) { 
             return sendError(context.res, JSON.stringify({ message: "无法验证当前用户。" }));
         }
 
