@@ -176,7 +176,8 @@ async function loadNotes(searchTerm = '') {
         }
         
         let attachmentHtml = '';
-        if (note.attachment && note.attachment.path && currentUserRoleGlobal !== 'anonymous') {
+        // **** 修改此处：移除 currentUserRoleGlobal !== 'anonymous' 条件 ****
+        if (note.attachment && note.attachment.path) { 
             const attachmentUrl = `/uploads/${encodeURIComponent(note.attachment.path)}`;
             attachmentHtml = `<div class="note-attachment">附件: <a href="${attachmentUrl}" target="_blank" title="下载 ${escapeHtml(note.attachment.originalName)}">${escapeHtml(note.attachment.originalName)}</a></div>`;
         }
@@ -188,7 +189,6 @@ async function loadNotes(searchTerm = '') {
                     <button class="button-danger" onclick="deleteNote('${note.id}', '${escapeHtml(note.title)}')">删除</button>
                 </div>`;
         }
-        // 将标题包装在链接中，指向查看页面
         const titleLink = `<a href="/note/view?id=${note.id}" class="note-title-link">${titleHtml}</a>`;
 
         li.innerHTML = `
@@ -380,6 +380,7 @@ async function loadUsersForAdmin(currentAdminId) {
     });
 }
 
+let isUpdatingPasswordByAdmin = false; 
 function showPasswordResetForm(userId, username, listItemElement) {
     const existingForms = document.querySelectorAll('.password-edit-form-container');
     existingForms.forEach(form => form.remove());
@@ -392,7 +393,15 @@ function showPasswordResetForm(userId, username, listItemElement) {
     formContainer.style.backgroundColor = '#f9f9f9';
     const form = document.createElement('form');
     form.id = `passwordEditForm-${userId}`;
-    form.onsubmit = (event) => handleUpdatePasswordByAdmin(event, userId, username);
+    
+    const saveButton = document.createElement('button');
+    saveButton.type = 'submit';
+    saveButton.className = 'button-action';
+    saveButton.textContent = '保存新密码';
+    saveButton.style.marginRight = '10px';
+
+    form.onsubmit = (event) => handleUpdatePasswordByAdmin(event, userId, username, saveButton); 
+
     const currentUserP = document.createElement('p');
     currentUserP.innerHTML = `正在为用户 <strong>${escapeHtml(username)}</strong> 重设密码。`;
     currentUserP.style.marginBottom = '10px';
@@ -408,11 +417,7 @@ function showPasswordResetForm(userId, username, listItemElement) {
     passwordInput.placeholder = "输入新密码 (普通用户可为空)";
     passwordInput.style.marginBottom = '10px';
     passwordInput.style.width = 'calc(100% - 16px)';
-    const saveButton = document.createElement('button');
-    saveButton.type = 'submit';
-    saveButton.className = 'button-action';
-    saveButton.textContent = '保存新密码';
-    saveButton.style.marginRight = '10px';
+    
     const cancelButton = document.createElement('button');
     cancelButton.type = 'button';
     cancelButton.className = 'button-action button-cancel';
@@ -431,8 +436,16 @@ function showPasswordResetForm(userId, username, listItemElement) {
     passwordInput.focus();
 }
 
-async function handleUpdatePasswordByAdmin(event, userId, username) {
+async function handleUpdatePasswordByAdmin(event, userId, username, saveButtonElement) {
     event.preventDefault();
+    if (isUpdatingPasswordByAdmin) return;
+
+    isUpdatingPasswordByAdmin = true;
+    if(saveButtonElement) {
+        saveButtonElement.disabled = true;
+        saveButtonElement.textContent = '保存中...';
+    }
+
     const form = event.target;
     const newPasswordInput = form.newPassword;
     const newPassword = newPasswordInput.value;
@@ -449,6 +462,12 @@ async function handleUpdatePasswordByAdmin(event, userId, username) {
         if (formContainer) formContainer.remove();
     } else if (result && result.message) {
         displayMessage(result.message, 'error', messageContainerId);
+    }
+
+    isUpdatingPasswordByAdmin = false;
+    if(saveButtonElement) {
+        saveButtonElement.disabled = false;
+        saveButtonElement.textContent = '保存新密码';
     }
 }
 
@@ -627,7 +646,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (searchInput && initialSearchTerm) {
             searchInput.value = initialSearchTerm;
         }
-        loadNotes(initialSearchTerm); // 调用 loadNotes
+        loadNotes(initialSearchTerm); 
         const clearSearchButton = document.getElementById('clearSearchButton');
         if (initialSearchTerm && clearSearchButton) {
             clearSearchButton.style.display = 'inline-flex';
