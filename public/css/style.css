@@ -1,11 +1,11 @@
-/* public/css/style.css - 浅色主题和按钮更新 */
+/* public/css/style.css - 工具栏重排和页脚更新 */
 body {
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
     line-height: 1.6;
     margin: 0;
     padding: 0;
-    background-color: #f0f2f5; /* 更明亮的背景色 */
-    color: #1f1f1f; /* 深色文字以保证对比度 */
+    background-color: #f0f2f5;
+    color: #1f1f1f;
     display: flex;
     flex-direction: column;
     min-height: 100vh;
@@ -15,26 +15,26 @@ body {
     width: 90%;
     max-width: 1024px;
     margin: 30px auto;
-    padding: 30px; /* 增加内边距 */
+    padding: 30px;
     background-color: #ffffff;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08); /* 更柔和的阴影 */
-    border-radius: 10px; /* 更大的圆角 */
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    border-radius: 10px;
     flex-grow: 1;
 }
 
 header {
-    background-color: #ffffff; /* 浅色头部 */
+    background-color: #ffffff;
     color: #1f1f1f;
-    padding: 1.5rem 0; /* 增加头部内边距 */
+    padding: 1.5rem 0;
     text-align: center;
-    border-bottom: 1px solid #dcdcdc; /* 细边框 */
+    border-bottom: 1px solid #dcdcdc;
 }
 
 header h1 {
     margin: 0;
     font-size: 2.2rem;
     font-weight: 500;
-    color: #1a73e8; /* 主题蓝色 */
+    color: #1a73e8;
 }
 
 header nav {
@@ -45,34 +45,32 @@ header nav {
     gap: 18px;
 }
 .welcome-user {
-    color: #5f6368; /* 头部欢迎文字颜色 */
+    color: #5f6368;
     font-size: 0.95rem;
 }
 .welcome-user strong {
     color: #1a73e8;
 }
 
-/* --- 统一操作按钮样式 (除富文本、登出、删除外) --- */
 .button-action,
-input[type="submit"], /* 登录页的提交按钮 */
-.button-like, /* <a> 标签模拟的按钮 */
-.button-header:not(.danger) /* 头部非危险按钮 */
-{
+input[type="submit"],
+.button-like,
+.button-header:not(.danger) {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    font-weight: 500; /* 中等粗细 */
+    font-weight: 500;
     color: #ffffff;
     text-align: center;
     vertical-align: middle;
     cursor: pointer;
     user-select: none;
-    background-color: #1a73e8; /* 主题蓝色 */
+    background-color: #1a73e8;
     border: 1px solid #1a73e8;
     padding: 0.6rem 1.2rem;
     font-size: 0.95rem;
     line-height: 1.5;
-    border-radius: 0.35rem; /* 统一圆角 */
+    border-radius: 0.35rem;
     transition: background-color 0.15s ease-in-out, border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
     text-decoration: none;
     min-height: 40px;
@@ -83,7 +81,7 @@ input[type="submit"], /* 登录页的提交按钮 */
 input[type="submit"]:hover,
 .button-like:hover,
 .button-header:not(.danger):hover {
-    background-color: #1765c7; /* 悬停时加深 */
+    background-color: #1765c7;
     border-color: #1765c7;
     box-shadow: 0 2px 4px rgba(0,0,0,0.08);
 }
@@ -92,22 +90,9 @@ input[type="submit"]:focus,
 .button-like:focus,
 .button-header:not(.danger):focus {
     outline: none;
-    box-shadow: 0 0 0 0.2rem rgba(26, 115, 232, 0.35); /* 聚焦光晕 */
+    box-shadow: 0 0 0 0.2rem rgba(26, 115, 232, 0.35);
 }
-/* 取消按钮，也使用主要操作样式，但可以有细微差别，或完全一致 */
-.button-cancel { /* 如果需要特定取消样式，否则它会继承 .button-action */
-    /* background-color: #e8eaed;
-    border-color: #dadce0;
-    color: #3c4043; */
-    /* 按要求，与“储存记事”按钮样式一致，所以这里注释掉，它将使用 .button-action */
-}
-/* .button-cancel:hover {
-    background-color: #dadce0;
-    border-color: #c4c7ca;
-} */
 
-
-/* 危险操作按钮 (登出, 删除) */
 .button-danger, button.danger, .button-header.danger {
     display: inline-flex;
     align-items: center;
@@ -118,7 +103,7 @@ input[type="submit"]:focus,
     vertical-align: middle;
     cursor: pointer;
     user-select: none;
-    background-color: #d93025; /* 红色 */
+    background-color: #d93025;
     border: 1px solid #d93025;
     padding: 0.6rem 1.2rem;
     font-size: 0.95rem;
@@ -131,7 +116,7 @@ input[type="submit"]:focus,
     box-shadow: 0 1px 2px rgba(0,0,0,0.05);
 }
 .button-danger:hover, button.danger:hover, .button-header.danger:hover {
-    background-color: #c5221f; /* 悬停时加深 */
+    background-color: #c5221f;
     border-color: #c5221f;
     box-shadow: 0 2px 4px rgba(0,0,0,0.08);
 }
@@ -139,14 +124,13 @@ input[type="submit"]:focus,
     outline: none;
     box-shadow: 0 0 0 0.2rem rgba(217, 48, 37, 0.35);
 }
-/* 头部登出按钮微调 */
 .button-header.danger {
-    padding: 0.45rem 0.9rem; /* 头部按钮可以稍小 */
+    padding: 0.45rem 0.9rem;
 }
 
 
 h2 {
-    color: #1a73e8; /* 标题也用主题蓝 */
+    color: #1a73e8;
     border-bottom: 1px solid #e0e0e0;
     padding-bottom: 15px;
     margin-top: 0;
@@ -155,7 +139,6 @@ h2 {
     font-size: 1.8rem;
 }
 
-/* 表单样式 */
 .form-styled div, form div {
     margin-bottom: 1.5rem;
 }
@@ -163,7 +146,7 @@ h2 {
     display: block;
     margin-bottom: 0.6rem;
     font-weight: 500;
-    color: #3c4043; /* 表单标签颜色 */
+    color: #3c4043;
 }
 .checkbox-label {
     display: inline-block !important;
@@ -182,7 +165,7 @@ form input[type="text"], form input[type="password"], form select, form textarea
     color: #3c4043;
     background-color: #ffffff;
     background-clip: padding-box;
-    border: 1px solid #dadce0; /* 表单输入框边框 */
+    border: 1px solid #dadce0;
     border-radius: 0.3rem;
     box-sizing: border-box;
     transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
@@ -191,13 +174,13 @@ form input[type="text"], form input[type="password"], form select, form textarea
 .form-styled input[type="file"], form input[type="file"] {
     padding: 10px 0;
     min-height: auto;
-    border: none; /* 文件输入框通常不需要边框 */
+    border: none;
 }
 
 .form-styled input:focus, form input:focus,
 .form-styled select:focus, form select:focus,
 .form-styled textarea:focus, form textarea:focus {
-    border-color: #1a73e8; /* 聚焦时主题蓝边框 */
+    border-color: #1a73e8;
     outline: 0;
     box-shadow: 0 0 0 0.2rem rgba(26, 115, 232, 0.25);
 }
@@ -209,10 +192,7 @@ form input[type="text"], form input[type="password"], form select, form textarea
     align-items: center;
     flex-wrap: wrap;
 }
-/* 确保表单内的按钮使用 .button-action 或 .button-danger */
 
-
-/* 记事列表 */
 .note-list {
     list-style: none;
     padding: 0;
@@ -263,10 +243,9 @@ form input[type="text"], form input[type="password"], form select, form textarea
     align-items: center;
     align-self: flex-start;
 }
-/* 记事列表中的编辑和删除按钮 */
-.note-item .note-actions .button-action, /* 编辑按钮 */
-.note-item .note-actions .button-danger { /* 删除按钮 */
-    padding: 0.45rem 0.9rem; /* 稍小一些 */
+.note-item .note-actions .button-action,
+.note-item .note-actions .button-danger {
+    padding: 0.45rem 0.9rem;
     font-size: 0.9rem;
     min-width: 75px;
 }
@@ -285,52 +264,67 @@ form input[type="text"], form input[type="password"], form select, form textarea
     text-decoration: underline;
 }
 
-/* 富文本编辑器按钮 - 恢复到以前的简单样式 */
+/* 富文本编辑器工具栏 - 确保单行布局 */
 #richTextToolbar {
     margin-bottom: 0;
-    padding: 6px; /* 减少一点内边距 */
-    background-color: #f1f3f4; /* 浅灰色背景 */
+    padding: 8px;
+    background-color: #f1f3f4;
     border: 1px solid #dadce0;
     border-bottom: none;
     border-top-left-radius: 0.3rem;
     border-top-right-radius: 0.3rem;
-    display: flex;
-    flex-wrap: wrap;
-    gap: 5px; /* 按钮间距 */
+    display: flex; /* 使用 Flexbox */
+    flex-wrap: wrap; /* 允许换行 */
+    align-items: center; /* 垂直居中对齐项目 */
+    gap: 6px; /* 项目之间的间隙 */
 }
+/* 恢复富文本按钮为以前的样式 */
 #richTextToolbar button,
 #richTextToolbar select,
 #richTextToolbar input[type="color"] {
-    padding: 5px 8px; /* 恢复较小的内边距 */
+    padding: 5px 8px;
     font-size: 0.9rem;
-    background-color: #ffffff; /* 白色背景 */
-    color: #3c4043; /* 深灰色文字 */
-    border: 1px solid #bdc1c6; /* 较深的边框 */
-    border-radius: 0.25rem; /* 较小的圆角 */
-    height: 30px; /* 统一高度 */
+    background-color: #ffffff;
+    color: #3c4043;
+    border: 1px solid #bdc1c6;
+    border-radius: 0.25rem;
+    height: 30px;
     box-sizing: border-box;
-    vertical-align: middle;
-    box-shadow: none; /* 移除阴影 */
+    vertical-align: middle; /* 确保在 flex 容器中对齐良好 */
+    box-shadow: none;
     transition: background-color 0.1s ease, border-color 0.1s ease;
+    margin: 0; /* 移除可能的默认边距 */
 }
 #richTextToolbar button:hover,
 #richTextToolbar select:hover,
 #richTextToolbar input[type="color"]:hover {
-    background-color: #e8eaed; /* 悬停时浅灰色 */
+    background-color: #e8eaed;
     border-color: #adb1b5;
 }
 #richTextToolbar input[type="color"] {
-    padding: 1px 2px; /* 颜色选择器特殊内边距 */
-    width: 30px; /* 调整宽度 */
+    padding: 1px 2px;
+    width: 30px;
     height: 30px;
 }
 #richTextToolbar select {
     min-width: 75px;
 }
+.sr-only { /* Screen-reader only class for accessibility */
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
 
 #richContent {
     border: 1px solid #dadce0;
-    padding: 15px; /* 增加内容区内边距 */
+    padding: 15px;
     min-height: 220px;
     background-color: #ffffff;
     border-bottom-left-radius: 0.3rem;
@@ -342,10 +336,9 @@ form input[type="text"], form input[type="password"], form select, form textarea
 #richContent:focus {
     border-color: #1a73e8;
     outline: 0;
-    box-shadow: 0 0 0 0.2rem rgba(26, 115, 232, 0.2) inset; /* 聚焦时内阴影 */
+    box-shadow: 0 0 0 0.2rem rgba(26, 115, 232, 0.2) inset;
 }
 
-/* 消息提示 */
 .error-message, .success-message {
     border: 1px solid transparent;
     padding: 0.8rem 1.3rem;
@@ -354,17 +347,16 @@ form input[type="text"], form input[type="password"], form select, form textarea
     font-size: 0.95rem;
 }
 .error-message {
-    color: #a50e0e; /* 更深的红色文字 */
-    background-color: #fdd8d6; /* 浅红色背景 */
+    color: #a50e0e;
+    background-color: #fdd8d6;
     border-color: #f7c5c2;
 }
 .success-message {
-    color: #0d652d; /* 更深的绿色文字 */
-    background-color: #d3eadd; /* 浅绿色背景 */
+    color: #0d652d;
+    background-color: #d3eadd;
     border-color: #bde4ca;
 }
 
-/* 用户管理列表 */
 .user-list {
     list-style-type: none;
     padding: 0;
@@ -395,23 +387,24 @@ form input[type="text"], form input[type="password"], form select, form textarea
 .user-item span strong {
     color: #1f1f1f;
 }
-.user-item .button-danger { /* 用户列表中的删除按钮 */
+.user-item .user-item-actions .button-action, /* Target reset password button */
+.user-item .user-item-actions .button-danger { /* Target delete button */
     padding: 0.4rem 0.8rem;
     font-size: 0.9rem;
     min-width: 70px;
 }
 
+
 footer {
     text-align: center;
     padding: 25px;
-    background-color: #ffffff; /* 页脚也用浅色 */
+    background-color: #ffffff;
     color: #5f6368;
     margin-top: auto;
     font-size: 0.9rem;
     border-top: 1px solid #dcdcdc;
 }
 
-/* 响应式调整 */
 @media (max-width: 768px) {
     .container {
         width: 95%;
@@ -432,7 +425,7 @@ footer {
     .form-actions .button-action, .form-actions .button-danger {
         width: 100%;
     }
-    .form-actions .button-action + .button-action { /* 如果有多个同类按钮 */
+    .form-actions .button-action + .button-action {
         margin-top: 10px;
     }
     .note-item .note-actions {
