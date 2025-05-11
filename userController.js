@@ -9,7 +9,7 @@ const {
     sendUnauthorized,
     sendForbidden,
     sendBadRequest,
-    sendNotFound // **** 添加缺失的 sendNotFound ****
+    sendNotFound // **** 确保 sendNotFound 已正确引入 ****
 } = require('./responseUtils');
 const path =require('path');
 
@@ -73,7 +73,6 @@ module.exports = {
     registerUser: (context) => {
         const { username, password } = context.body; 
         if (!username || username.trim() === '') {
-            // 发送 JSON 错误响应以便前端 displayMessage 可以解析
             context.res.writeHead(400, { 'Content-Type': 'application/json; charset=utf-8' });
             return context.res.end(JSON.stringify({ message: "用户名不能为空。" }));
         }
@@ -128,8 +127,6 @@ module.exports = {
         }
         
         if (storage.findUserByUsername(username.trim())) {
-            // 使用 sendError 或直接构造 JSON 响应
-            // sendError 默认发送 text/plain，但我们前端期望 JSON
             context.res.writeHead(409, { 'Content-Type': 'application/json; charset=utf-8' });
             return context.res.end(JSON.stringify({ message: "用户名已存在。" }));
         }
@@ -144,15 +141,15 @@ module.exports = {
     },
 
     deleteUserByAdmin: (context) => {
-        const userIdToDelete = context.pathname.split('/').pop();
+        const pathParts = context.pathname.split('/'); // ['', 'api', 'admin', 'users', 'userIdToDelete']
+        const userIdToDelete = pathParts[4]; // 用户ID在索引4
+        
         if (!userIdToDelete) {
              context.res.writeHead(400, { 'Content-Type': 'application/json; charset=utf-8' });
              return context.res.end(JSON.stringify({ message: "缺少用户 ID。" }));
         }
         const userToDelete = storage.findUserById(userIdToDelete);
         if (!userToDelete) {
-            // 使用 sendNotFound，它发送 text/plain，如果前端期望 JSON，需要调整
-            // 为保持一致，也发送 JSON
             context.res.writeHead(404, { 'Content-Type': 'application/json; charset=utf-8' });
             return context.res.end(JSON.stringify({ message: "找不到要删除的用户。" }));
         }
@@ -177,19 +174,21 @@ module.exports = {
     },
 
     updateUserPasswordByAdmin: (context) => {
-        const userIdToUpdate = context.pathname.split('/')[3]; 
+        const pathParts = context.pathname.split('/'); // ['', 'api', 'admin', 'users', 'userIdToUpdate', 'password']
+        const userIdToUpdate = pathParts[4]; // **** 修正ID提取，用户ID应该在索引4 ****
         const { newPassword } = context.body;
-        console.log(`[Admin Reset Password] Attempting to reset password for user ID: ${userIdToUpdate}`);
+        
+        console.log(`[Admin Reset Password] Pathname: ${context.pathname}`);
+        console.log(`[Admin Reset Password] Extracted User ID: ${userIdToUpdate}`);
         console.log(`[Admin Reset Password] Received new password (length): ${newPassword ? newPassword.length : 'undefined/null'}`);
 
         if (!userIdToUpdate) {
-            console.error("[Admin Reset Password] Error: Missing user ID.");
-            return sendBadRequest(context.res, JSON.stringify({ message: "缺少用户 ID。" }));
+            console.error("[Admin Reset Password] Error: Missing user ID from path.");
+            return sendBadRequest(context.res, JSON.stringify({ message: "路径中缺少用户 ID。" }));
         }
         const userToUpdate = storage.findUserById(userIdToUpdate);
         if (!userToUpdate) {
             console.error(`[Admin Reset Password] Error: User not found for ID: ${userIdToUpdate}`);
-            // 使用 sendNotFound，并确保它发送 JSON
             context.res.writeHead(404, { 'Content-Type': 'application/json; charset=utf-8' });
             return context.res.end(JSON.stringify({ message: "找不到要更新密码的用户。" }));
         }
@@ -217,7 +216,6 @@ module.exports = {
             serveJson(context.res, { message: `用户 ${userToUpdate.username} 的密码已成功更新。` });
         } else {
             console.error(`[Admin Reset Password] Failed to update password for user: ${userToUpdate.username}. storage.saveUser returned:`, updatedUser);
-            // 使用 sendError，并确保它发送 JSON
             context.res.writeHead(500, { 'Content-Type': 'application/json; charset=utf-8' });
             context.res.end(JSON.stringify({ message: "更新密码失败。请查看服务器日志。" }));
         }
@@ -242,11 +240,12 @@ module.exports = {
         
         const user = storage.findUserById(userId);
         if (!user || !user.salt) { 
-            return sendError(context.res, JSON.stringify({ message: "无法验证当前用户。" }));
+            // 对于这种情况，也返回JSON错误
+            context.res.writeHead(500, { 'Content-Type': 'application/json; charset=utf-8' });
+            return context.res.end(JSON.stringify({ message: "无法验证当前用户。" }));
         }
 
         if (!auth.verifyPassword(currentPassword, user.salt, user.hashedPassword)) {
-            // sendError 默认发送 500，对于密码错误，403 或 400 更合适
             context.res.writeHead(403, { 'Content-Type': 'application/json; charset=utf-8' });
             return context.res.end(JSON.stringify({ message: "当前密码不正确。" }));
         }
@@ -259,7 +258,8 @@ module.exports = {
         if (updatedUser) {
             serveJson(context.res, { message: "密码已成功修改。" });
         } else {
-            sendError(context.res, JSON.stringify({ message: "修改密码失败，请稍后再试。" }));
+            context.res.writeHead(500, { 'Content-Type': 'application/json; charset=utf-8' });
+            context.res.end(JSON.stringify({ message: "修改密码失败，请稍后再试。" }));
         }
     }
 };
