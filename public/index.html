@@ -1,48 +1,45 @@
 <!DOCTYPE html>
-<html lang="zh-TW">
+<html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>我的記事 - 記事本</title>
+    <title>我的记事 - 记事本</title>
     <link rel="stylesheet" href="/css/style.css">
 </head>
 <body>
     <header>
-        <h1>記事本</h1>
+        <h1>记事本</h1>
         <nav>
-            <span class="welcome-user">歡迎, <strong id="usernameDisplay">{{username}}</strong>!</span>
-            <a href="/note/new" class="button-action">新增記事</a>
-            <span id="adminLinkContainer"></span> <button id="logoutButton" class="button-danger">登出</button>
+            <span class="welcome-user">欢迎, <strong id="usernameDisplay">{{username}}</strong>!</span>
+            <a href="/note/new" class="button-action">新建记事</a>
+            <a href="/change-password" class="button-action">修改密码</a> <span id="adminLinkContainer"></span>
+            <button id="logoutButton" class="button-danger">登出</button>
         </nav>
     </header>
     <div class="container">
-        <h2>記事列表</h2>
-        <div id="globalMessageArea" style="margin-bottom: 15px;"></div> <div id="notesContainer">
-            <p>正在載入記事...</p>
+        <h2>记事列表</h2>
+        <div id="globalMessageArea" style="margin-bottom: 15px;"></div>
+        <div id="notesContainer">
+            <p>正在加载记事...</p>
         </div>
     </div>
     <footer>
-        <p>&copy; 2025 記事本。僅供演示。</p>
+        <p>&copy; 2025 记事本。仅供演示。</p>
     </footer>
     <script src="/js/main.js"></script>
     <script>
-        // 从服务器端模板渲染的使用者名称和角色
         const currentUsername = "{{username}}";
         const currentUserRole = "{{userRole}}";
-
         document.addEventListener('DOMContentLoaded', () => {
-            document.getElementById('usernameDisplay').textContent = currentUsername || '使用者';
+            document.getElementById('usernameDisplay').textContent = currentUsername || '用户';
             if (currentUserRole === 'admin') {
                 const adminLink = document.createElement('a');
                 adminLink.href = '/admin/users';
-                adminLink.textContent = '管理使用者';
-                adminLink.className = 'button-action'; // 保持與其他操作按鈕一致
+                adminLink.textContent = '管理用户';
+                adminLink.className = 'button-action';
                 document.getElementById('adminLinkContainer').appendChild(adminLink);
             }
-            loadNotes(); // main.js 中的函数
-            
-            // 将登出按钮的事件监听移到 main.js 或确保它在这里正确初始化
-            // (已在 main.js 末尾有全局登出按钮处理)
+            loadNotes();
         });
     </script>
 </body>
