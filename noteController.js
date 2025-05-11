@@ -1,5 +1,5 @@
 // noteController.js - 記事相關操作的控制器
-const storage = require('../storage');
+const storage = require('./storage');
 const {
     serveHtmlWithPlaceholders,
     serveJson,
@@ -8,12 +8,13 @@ const {
     sendNotFound,
     sendForbidden,
     sendBadRequest
-} = require('../responseUtils');
+} = require('./responseUtils');
 const path = require('path');
 const fs = require('fs'); // 用於儲存上傳的檔案
+// const { parseMultipartFormData } = require('./router'); // REMOVED: Router handles parsing and passes data via context
 
-const PUBLIC_DIR = path.join(__dirname, '../public');
-const UPLOADS_DIR = storage.UPLOADS_DIR; // 從 storage 模組獲取
+const PUBLIC_DIR = path.join(__dirname, 'public');
+const UPLOADS_DIR = storage.UPLOADS_DIR;
 
 // 輔助函數：清理和產生唯一的檔案名稱
 function sanitizeAndMakeUniqueFilename(originalFilename, userId) {
@@ -72,8 +73,9 @@ module.exports = {
     },
 
     createNote: (context) => {
-        const { title, content } = context.body; // 從解析後的 multipart/form-data fields 或 x-www-form-urlencoded 獲取
-        const attachmentFile = context.files && context.files.attachment; // 從解析後的 multipart/form-data files 獲取
+        // context.body 和 context.files 已經由 router.js 中的 parseMultipartFormData (如果適用) 解析
+        const { title, content } = context.body;
+        const attachmentFile = context.files && context.files.attachment;
 
         if (!title || title.trim() === '' || !content || content.trim() === '') {
             return sendBadRequest(context.res, "標題和內容不能為空。");
@@ -126,7 +128,7 @@ module.exports = {
 
     updateNote: (context) => {
         const noteId = context.pathname.split('/').pop();
-        const { title, content, removeAttachment } = context.body; // removeAttachment 是一個標記，指示是否要刪除現有附件
+        const { title, content, removeAttachment } = context.body; // removeAttachment 是一個標記
         const attachmentFile = context.files && context.files.attachment;
 
         const existingNote = storage.findNoteById(noteId);
@@ -153,7 +155,6 @@ module.exports = {
 
         // 處理附件更新/刪除邏輯
         if (removeAttachment === 'true' && existingNote.attachment) {
-            // 刪除舊附件檔案
             const oldAttachmentPath = path.join(UPLOADS_DIR, existingNote.attachment.path);
             if (fs.existsSync(oldAttachmentPath)) {
                 try { fs.unlinkSync(oldAttachmentPath); console.log(`舊附件 ${oldAttachmentPath} 已刪除。`); }
@@ -162,4 +163,65 @@ module.exports = {
             updatedNoteData.attachment = null; // 從記事中移除附件資訊
         }
 
-        if (attachmentFile && attachmentFile.content && attachm
+        if (attachmentFile && attachmentFile.content && attachmentFile.filename) {
+            // 如果有新附件上傳，先刪除舊附件 (如果存在且未被上面 removeAttachment 邏輯刪除)
+            if (updatedNoteData.attachment && updatedNoteData.attachment.path) {
+                 const oldAttachmentPath = path.join(UPLOADS_DIR, updatedNoteData.attachment.path);
+                 if (fs.existsSync(oldAttachmentPath)) {
+                    try { fs.unlinkSync(oldAttachmentPath); console.log(`更新時，舊附件 ${oldAttachmentPath} 已被新附件取代並刪除。`); }
+                    catch (e) { console.error(`取代舊附件 ${oldAttachmentPath} 時刪除失敗:`, e); }
+                 }
+            }
+
+            const userUploadDir = path.join(UPLOADS_DIR, existingNote.userId); // 附件應儲存在記事擁有者的目錄
+            if (!fs.existsSync(userUploadDir)) {
+                try { fs.mkdirSync(userUploadDir, { recursive: true }); }
+                catch (e) { return sendError(context.res, "處理附件時發生錯誤 (目錄建立失敗)。"); }
+            }
+
+            const uniqueFilename = sanitizeAndMakeUniqueFilename(attachmentFile.filename, existingNote.userId);
+            const attachmentRelativePath = path.join(existingNote.userId, uniqueFilename);
+            const attachmentFullPath = path.join(UPLOADS_DIR, attachmentRelativePath);
+
+            try {
+                fs.writeFileSync(attachmentFullPath, attachmentFile.content);
+                updatedNoteData.attachment = {
+                    originalName: attachmentFile.filename,
+                    path: attachmentRelativePath,
+                    mimeType: attachmentFile.contentType || 'application/octet-stream',
+                    size: attachmentFile.content.length
+                };
+                console.log(`新附件已儲存: ${attachmentFullPath}`);
+            } catch (e) {
+                console.error("更新時儲存新附件失敗:", e);
+                return sendError(context.res, "更新時儲存新附件失敗。");
+            }
+        } // Closing brace for the "if (attachmentFile ...)" block in updateNote
+
+        const savedNote = storage.saveNote(updatedNoteData);
+        if (savedNote) {
+            serveJson(context.res, savedNote);
+        } else {
+            sendError(context.res, "更新記事失敗。");
+        }
+    }, // Closing brace for updateNote function
+
+    deleteNoteById: (context) => {
+        const noteId = context.pathname.split('/').pop();
+        const noteToDelete = storage.findNoteById(noteId);
+
+        if (!noteToDelete) {
+            return sendNotFound(context.res, "找不到要刪除的記事。");
+        }
+        // 權限檢查
+        if (context.session.role !== 'admin' && noteToDelete.userId !== context.session.userId) {
+            return sendForbidden(context.res, "您無權刪除此記事。");
+        }
+
+        if (storage.deleteNote(noteId)) { // storage.deleteNote 內部會處理附件檔案的刪除
+            serveJson(context.res, { message: `記事 (ID: ${noteId}) 已成功刪除。` });
+        } else {
+            sendError(context.res, "刪除記事失敗。");
+        }
+    } // Closing brace for deleteNoteById function
+}; // Closing brace for module.exports
