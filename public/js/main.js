@@ -4,7 +4,7 @@
 let currentUsernameGlobal = '访客'; 
 let currentUserRoleGlobal = 'anonymous'; 
 let currentAdminIdGlobal = ''; 
-let currentUserIdGlobal = ''; // 新增：存储当前登录用户的ID
+let currentUserIdGlobal = ''; 
 
 // --- 通用函数 ---
 async function fetchData(url, options = {}) {
@@ -38,11 +38,11 @@ async function fetchData(url, options = {}) {
     } catch (error) {
         console.error('Fetch API 调用失败:', error);
         const messageToDisplay = error.message || '与服务器通讯时发生错误。';
-        let msgElementId = 'globalMessageArea'; // 默认首页
-        if (document.getElementById('formMessage')) msgElementId = 'formMessage'; // 笔记表单页
-        if (document.getElementById('adminMessages')) msgElementId = 'adminMessages'; // 管理员页
-        if (document.getElementById('registerMessage')) msgElementId = 'registerMessage'; // 注册页
-        if (document.getElementById('changePasswordMessage')) msgElementId = 'changePasswordMessage'; // 修改密码页
+        let msgElementId = 'globalMessageArea'; 
+        if (document.getElementById('formMessage')) msgElementId = 'formMessage'; 
+        if (document.getElementById('adminMessages')) msgElementId = 'adminMessages'; 
+        if (document.getElementById('registerMessage')) msgElementId = 'registerMessage'; 
+        if (document.getElementById('changePasswordMessage')) msgElementId = 'changePasswordMessage'; 
         displayMessage(messageToDisplay, 'error', msgElementId);
         return null;
     }
@@ -84,7 +84,7 @@ function setupNavigation(username, role, userId) {
         navHtml += `<a href="/login" class="button-action">登录</a>`;
         navHtml += `<a href="/register" class="button-action" style="background-color: #6c757d; border-color: #6c757d;">注册</a>`;
     } else {
-        if (window.location.pathname !== '/note/new' && !window.location.pathname.startsWith('/note/edit')) {
+        if (window.location.pathname !== '/note/new' && !window.location.pathname.startsWith('/note/edit') && window.location.pathname !== '/note/view') {
              navHtml += `<a href="/note/new" class="button-action">新建记事</a>`;
         }
         if (window.location.pathname !== '/change-password') {
@@ -147,7 +147,7 @@ async function loadNotes(searchTerm = '') {
         }
         noNotesMessage += '</p>';
         notesContainer.innerHTML = noNotesMessage;
-        if (searchTerm && clearSearchButton) { // 确保在搜索无结果时也显示清除按钮
+        if (searchTerm && clearSearchButton) { 
             clearSearchButton.style.display = 'inline-flex';
         } else if (clearSearchButton) {
             clearSearchButton.style.display = 'none';
@@ -164,10 +164,9 @@ async function loadNotes(searchTerm = '') {
         let ownerInfo = (currentUserRoleGlobal === 'admin' || currentUserRoleGlobal === 'anonymous') && note.ownerUsername ? `<span class="note-owner">(所有者: ${escapeHtml(note.ownerUsername)})</span>` : '';
         
         let titleHtml = escapeHtml(note.title);
-        // 简单地移除HTML标签来做内容预览，然后高亮
         const tempDiv = document.createElement("div");
-        tempDiv.innerHTML = note.content; // 将HTML内容放入临时div
-        const textContentForPreview = tempDiv.textContent || tempDiv.innerText || ""; // 获取纯文本
+        tempDiv.innerHTML = note.content; 
+        const textContentForPreview = tempDiv.textContent || tempDiv.innerText || ""; 
         let contentPreviewHtml = escapeHtml(textContentForPreview.substring(0, 150) + (textContentForPreview.length > 150 ? '...' : ''));
 
         if (searchTerm) {
@@ -182,16 +181,19 @@ async function loadNotes(searchTerm = '') {
             attachmentHtml = `<div class="note-attachment">附件: <a href="${attachmentUrl}" target="_blank" title="下载 ${escapeHtml(note.attachment.originalName)}">${escapeHtml(note.attachment.originalName)}</a></div>`;
         }
         let actionsHtml = '';
-        if (currentUserRoleGlobal !== 'anonymous' && (currentUserRoleGlobal === 'admin' || (note.userId === currentUserIdGlobal))) {
+        if (currentUserRoleGlobal !== 'anonymous' && (currentUserRoleGlobal === 'admin' || (note.userId === currentUserIdGlobal))) { 
             actionsHtml = `
                 <div class="note-actions">
                     <a href="/note/edit?id=${note.id}" class="button-action">编辑</a>
                     <button class="button-danger" onclick="deleteNote('${note.id}', '${escapeHtml(note.title)}')">删除</button>
                 </div>`;
         }
+        // 将标题包装在链接中，指向查看页面
+        const titleLink = `<a href="/note/view?id=${note.id}" class="note-title-link">${titleHtml}</a>`;
+
         li.innerHTML = `
             <div>
-                <h3>${titleHtml} ${ownerInfo}</h3>
+                <h3>${titleLink} ${ownerInfo}</h3>
                 <div class="note-meta">
                     最后更新: ${new Date(note.updatedAt).toLocaleString('zh-CN')}
                     (创建于: ${new Date(note.createdAt).toLocaleString('zh-CN')})
@@ -600,9 +602,6 @@ function setupChangeOwnPasswordForm() {
 document.addEventListener('DOMContentLoaded', () => {
     const path = window.location.pathname;
     
-    // 从HTML模板的内联脚本中获取这些值 (如果存在)
-    // 这些值由服务器在渲染HTML时通过 serveHtmlWithPlaceholders 注入
-    // <script> const currentUsername = "{{username}}"; ... </script>
     const usernameFromServer = (typeof currentUsername !== 'undefined' && currentUsername !== "{{username}}") ? currentUsername : '访客';
     const roleFromServer = (typeof currentUserRole !== 'undefined' && currentUserRole !== "{{userRole}}") ? currentUserRole : 'anonymous';
     const userIdFromServer = (typeof currentUserId !== 'undefined' && currentUserId !== "{{userId}}") ? currentUserId : ''; 
@@ -628,7 +627,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (searchInput && initialSearchTerm) {
             searchInput.value = initialSearchTerm;
         }
-        loadNotes(initialSearchTerm);
+        loadNotes(initialSearchTerm); // 调用 loadNotes
         const clearSearchButton = document.getElementById('clearSearchButton');
         if (initialSearchTerm && clearSearchButton) {
             clearSearchButton.style.display = 'inline-flex';
@@ -637,12 +636,14 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
     } else if (path.startsWith('/note/')) {
-        initializeRichTextEditor();
-        setupNoteForm();
-        const urlParams = new URLSearchParams(window.location.search);
-        const noteId = urlParams.get('id');
-        if (noteId) {
-            loadNoteForEditing(noteId);
+        if (path.startsWith('/note/new') || path.startsWith('/note/edit')) {
+            initializeRichTextEditor();
+            setupNoteForm();
+            const urlParams = new URLSearchParams(window.location.search);
+            const noteId = urlParams.get('id');
+            if (noteId && path.startsWith('/note/edit')) { 
+                loadNoteForEditing(noteId);
+            }
         }
     } else if (path === '/admin/users') {
         loadUsersForAdmin(currentAdminIdGlobal);
