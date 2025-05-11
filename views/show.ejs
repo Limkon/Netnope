@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= typeof pageTitle !== 'undefined' ? pageTitle : note.title %> - 网络记事本</title>
+    <link href="https://cdn.jsdelivr.net/npm/quill@2.0.0-rc.2/dist/quill.snow.css" rel="stylesheet">
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+    <%- include('partials/header') %>
+
+    <article class="note-detail-view card">
+        <header class="card-header">
+            <h2><%= note.title %></h2>
+            <p class="note-meta">
+                创建于: <%= new Date(note.createdAt).toLocaleString('zh-CN') %> |
+                更新于: <%= new Date(note.updatedAt).toLocaleString('zh-CN') %>
+            </p>
+        </header>
+        <section class="card-body note-content-full">
+            <%- note.content ? note.content : '<em>(此记事无内容)</em>' %>
+        </section>
+
+        <% if (note.attachments && note.attachments.length > 0) { %>
+            <section class="card-body note-attachments-section">
+                <h4>附件:</h4>
+                <ul style="list-style: none; padding-left: 0;">
+                    <% note.attachments.forEach(att => { %>
+                         <li style="margin-bottom: 0.5rem;">
+                            <a href="<%= att.path %>" target="_blank" download="<%= att.originalname %>">
+                                <%= att.originalname %>
+                            </a>
+                            <span style="font-size: 0.85em; color: #555;">(<%= (att.size / 1024).toFixed(2) %> KB)</span>
+                        </li>
+                    <% }); %>
+                </ul>
+            </section>
+        <% } %>
+
+        <footer class="card-footer note-detail-actions">
+            <% if (typeof currentUser !== 'undefined' && currentUser && (note.userId === currentUser.id || currentUser.role === 'admin')) { %>
+                 <a href="/notes/<%= note.id %>/edit" class="btn btn-warning">编辑记事与附件</a>
+            <% } %>
+            <a href="/notes" class="btn btn-secondary">返回列表</a>
+        </footer>
+    </article>
+
+    <%- include('partials/footer') %>
+</body>
+</html>
