@@ -3,12 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{pageTitle}} - 記事本</title>
+    <title>{{pageTitle}} - 原生記事本</title>
     <link rel="stylesheet" href="/css/style.css">
 </head>
 <body>
     <header>
-        <h1>記事本</h1>
+        <h1>原生記事本</h1>
         <nav>
             <span class="welcome-user">使用者: <strong id="usernameDisplay">{{username}}</strong></span>
             <a href="/" class="button-header">返回列表</a>
@@ -29,10 +29,32 @@
                     <button type="button" data-command="bold" title="粗體"><b>B</b></button>
                     <button type="button" data-command="italic" title="斜體"><i>I</i></button>
                     <button type="button" data-command="underline" title="底線"><u>U</u></button>
-                    <button type="button" data-command="insertUnorderedList" title="項目符號列表">列表</button>
-                    <button type="button" data-command="insertOrderedList" title="編號列表">編號列表</button>
+                    <button type="button" data-command="insertUnorderedList" title="項目符號列表">UL</button>
+                    <button type="button" data-command="insertOrderedList" title="編號列表">OL</button>
                     <button type="button" data-command="createLink" title="插入連結">連結</button>
                     <button type="button" data-command="unlink" title="移除連結">移除連結</button>
+                    <select id="fontNameSelector" title="字體">
+                        <option value="Arial">Arial</option>
+                        <option value="Verdana">Verdana</option>
+                        <option value="Times New Roman">Times New Roman</option>
+                        <option value="Courier New">Courier New</option>
+                        <option value="Georgia">Georgia</option>
+                        <option value="Impact">Impact</option>
+                        <option value="SimSun">宋体 (SimSun)</option>
+                        <option value="Microsoft YaHei">微软雅黑 (YaHei)</option>
+                        <option value="KaiTi">楷体 (KaiTi)</option>
+                    </select>
+                    <select id="fontSizeSelector" title="字體大小">
+                        <option value="1">小 (1)</option>
+                        <option value="2">稍小 (2)</option>
+                        <option value="3" selected>正常 (3)</option>
+                        <option value="4">稍大 (4)</option>
+                        <option value="5">大 (5)</option>
+                        <option value="6">很大 (6)</option>
+                        <option value="7">特大 (7)</option>
+                    </select>
+                    <label for="foreColorPicker" class="sr-only">文字顏色</label> <input type="color" id="foreColorPicker" title="文字顏色" value="#000000">
+                    <button type="button" data-command="insertImageFromUrl" title="插入圖片 (URL)">圖片</button>
                 </div>
                 <div id="richContent" contenteditable="true"></div>
                 <textarea name="content" id="hiddenContent" style="display:none;"></textarea>
@@ -54,11 +76,10 @@
         <div id="formMessage" style="margin-top:15px;"></div>
     </div>
     <footer>
-        <p>&copy; 2025 記事本。僅供演示。</p>
+        <p>&copy; 2025 原生記事本。僅供演示。</p>
     </footer>
     <script src="/js/main.js"></script>
     <script>
-        // 从服务器端模板渲染的使用者名称
         const currentUsername = "{{username}}";
         const noteIdForEdit = "{{noteId}}";
         const pageTitle = "{{pageTitle}}";
@@ -67,16 +88,16 @@
             document.getElementById('usernameDisplay').textContent = currentUsername || '使用者';
             document.getElementById('pageTitleHeader').textContent = pageTitle || (noteIdForEdit ? '編輯記事' : '新增記事');
 
-            initializeRichTextEditor(); // main.js
-            setupNoteForm(); // main.js
+            initializeRichTextEditor();
+            setupNoteForm();
 
             if (noteIdForEdit) {
-                loadNoteForEditing(noteIdForEdit); // main.js
+                loadNoteForEditing(noteIdForEdit);
             }
             
             const logoutButton = document.getElementById('logoutButton');
             if(logoutButton) {
-                logoutButton.addEventListener('click', handleLogout); // main.js
+                logoutButton.addEventListener('click', handleLogout);
             }
         });
     </script>
