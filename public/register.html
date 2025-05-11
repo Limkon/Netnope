@@ -1,43 +1,43 @@
 <!DOCTYPE html>
-<html lang="zh-TW">
+<html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>註冊 - 記事本</title>
+    <title>注册 - 记事本</title>
     <link rel="stylesheet" href="/css/style.css">
 </head>
 <body>
     <header>
-        <h1>記事本</h1>
+        <h1>记事本</h1>
     </header>
     <div class="container">
-        <h2>註冊新帳戶 (普通使用者)</h2>
+        <h2>注册新账户</h2>
         <div id="registerMessage"></div> <form id="registerForm">
             <div>
-                <label for="regUsername">使用者名稱:</label>
+                <label for="regUsername">用户名:</label>
                 <input type="text" id="regUsername" name="username" required>
             </div>
             <div>
-                <label for="regPassword">密碼 (可為空):</label>
+                <label for="regPassword">密码 (可为空):</label>
                 <input type="password" id="regPassword" name="password">
             </div>
             <div>
-                <label for="regConfirmPassword">確認密碼:</label>
+                <label for="regConfirmPassword">确认密码:</label>
                 <input type="password" id="regConfirmPassword" name="confirmPassword">
             </div>
             <div class="form-actions">
-                <button type="submit" id="registerButton" class="button-action">註冊</button>
-                <a href="/login" class="button-action" style="background-color: #6c757d; border-color: #6c757d;">返回登入</a>
+                <button type="submit" id="registerButton" class="button-action">注册</button>
+                <a href="/login" class="button-action" style="background-color: #6c757d; border-color: #6c757d;">返回登录</a>
             </div>
         </form>
     </div>
     <footer>
-        <p>&copy; 2025 記事本。僅供演示。</p>
+        <p>&copy; 2025 记事本。仅供演示。</p>
     </footer>
     <script src="/js/main.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', () => {
-            setupRegistrationForm(); // Defined in main.js
+            setupRegistrationForm(); // 在 main.js 中定义
         });
     </script>
 </body>
