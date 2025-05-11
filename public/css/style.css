@@ -1,4 +1,4 @@
-/* public/css/style.css - 工具列強制 Flex 佈局 */
+/* public/css/style.css - 工具列視覺提示偵錯 */
 body {
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
     line-height: 1.6;
@@ -268,13 +268,13 @@ form input[type="text"], form input[type="password"], form select, form textarea
 #richTextToolbar {
     margin-bottom: 0;
     padding: 8px;
-    background-color: #f1f3f4;
-    border: 1px solid #dadce0;
+    background-color: #lightcoral; /* 非常明显地临时背景色，用于调试 */
+    border: 2px solid red !important; /* 非常明显地临时边框，用于调试 */
     border-bottom: none;
     border-top-left-radius: 0.3rem;
     border-top-right-radius: 0.3rem;
-    display: flex !important; /* 强制 Flex 布局，用于调试 */
-    flex-wrap: wrap !important; /* 强制换行，用于调试 */
+    display: flex; /* 移除 !important，如果上面的调试颜色生效了 */
+    flex-wrap: wrap; /* 移除 !important，如果上面的调试颜色生效了 */
     align-items: center; 
     gap: 6px; 
 }
@@ -289,7 +289,6 @@ form input[type="text"], form input[type="password"], form select, form textarea
     border-radius: 0.25rem;
     height: 30px;
     box-sizing: border-box;
-    /* vertical-align: middle;  align-items on parent handles this for flex items */
     box-shadow: none;
     transition: background-color 0.1s ease, border-color 0.1s ease;
     margin: 0; 
