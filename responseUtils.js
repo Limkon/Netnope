@@ -1,5 +1,5 @@
 // responseUtils.js - HTTP回應輔助函數
-const fs = require('fs');
+const fs =require('fs');
 const path = require('path');
 
 const MIME_TYPES = {
@@ -48,7 +48,6 @@ module.exports = {
         res.end(message);
     },
     sendUnauthorized: (res, message = '401 - 未授權') => {
-        // 通常與 WWW-Authenticate 標頭一起使用，但此處簡化
         res.writeHead(401, { 'Content-Type': 'text/plain; charset=utf-8' });
         res.end(message);
     },
@@ -57,15 +56,13 @@ module.exports = {
         res.end(message);
     },
     serveStaticFile: (res, filePath) => {
-        const fullPath = path.resolve(filePath); // 解析為絕對路徑以增加安全性
-        // 基礎安全檢查：防止路徑遍歷 (更嚴格的檢查應在 router 中完成)
-        if (!fullPath.startsWith(path.resolve(__dirname, 'public')) && !fullPath.startsWith(path.resolve(__dirname, 'uploads'))) {
-             // 此處的檢查是第二道防線，主要檢查應在 router 中針對 uploads 目錄進行
-            if (!fullPath.startsWith(path.resolve(require('./storage').UPLOADS_DIR))) { // 檢查是否在合法的 uploads 目錄
-                 console.warn(`嘗試存取非法路徑 (static file): ${fullPath}`);
-                 module.exports.sendForbidden(res, "禁止存取此檔案路徑。");
-                 return;
-            }
+        const fullPath = path.resolve(filePath);
+        // This check is a secondary defense; primary checks for uploads should be in the router.
+        const uploadsDir = require('./storage').UPLOADS_DIR; // Get UPLOADS_DIR dynamically
+        if (!fullPath.startsWith(path.resolve(__dirname, 'public')) && !fullPath.startsWith(path.resolve(uploadsDir))) {
+            console.warn(`Attempt to access illegal path (static file): ${fullPath}`);
+            module.exports.sendForbidden(res, "禁止存取此檔案路徑。");
+            return;
         }
 
         fs.readFile(fullPath, (err, content) => {
@@ -84,7 +81,6 @@ module.exports = {
             res.end(content);
         });
     },
-    // 簡單的 HTML 模板渲染 (替換佔位符)
     serveHtmlWithPlaceholders: (res, htmlFilePath, placeholders = {}, statusCode = 200) => {
         fs.readFile(htmlFilePath, 'utf8', (err, html) => {
             if (err) {
@@ -93,12 +89,23 @@ module.exports = {
                 return;
             }
             let renderedHtml = html;
+
+            // 1. Handle simple {{#if conditionKey}} content {{/if}} blocks
+            // This regex handles a single level of if block. It doesn't support nested ifs or else clauses.
+            renderedHtml = renderedHtml.replace(/\{\{#if\s+([a-zA-Z0-9_]+)\s*\}\}([\s\S]*?)\{\{\/if\}\}/g, (match, conditionKey, content) => {
+                // If the key exists and is truthy in placeholders, keep the content, otherwise remove the whole block.
+                return placeholders[conditionKey] ? content : '';
+            });
+
+            // 2. Handle {{variable}} replacements
             for (const key in placeholders) {
-                // 使用正則表達式進行全域替換，並處理特殊字元
+                // Ensure we don't try to replace the 'if' condition key itself if it wasn't meant to be a standalone variable.
+                // This regex replaces {{key}} with the value from placeholders.
                 const regex = new RegExp(`\\{\\{${key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\}\\}`, 'g');
-                renderedHtml = renderedHtml.replace(regex, String(placeholders[key])); // 確保值為字串
+                renderedHtml = renderedHtml.replace(regex, String(placeholders[key] == null ? '' : placeholders[key])); // Replace null/undefined with empty string
             }
-            // 移除任何未被替換的佔位符 (可選)
+
+            // Optional: Remove any remaining {{variable}} placeholders that were not in the data
             // renderedHtml = renderedHtml.replace(/\{\{[^}]+\}\}/g, '');
 
             res.writeHead(statusCode, { 'Content-Type': 'text/html; charset=utf-8' });
