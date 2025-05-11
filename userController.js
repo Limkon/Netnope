@@ -31,10 +31,9 @@ module.exports = {
                 error_message: '用户名不能为空。', username_value: username || ''
             }, 400);
         }
-        const user = storage.findUserByUsername(username); // 返回包含 salt 和 hashedPassword 的用户对象
+        const user = storage.findUserByUsername(username); 
 
         if (user && user.salt && auth.verifyPassword(password, user.salt, user.hashedPassword)) {
-            // 登录成功，传递不含敏感信息的用户数据给 auth.login
             auth.login(context.res, { id: user.id, username: user.username, role: user.role });
             redirect(context.res, '/');
         } else {
@@ -62,10 +61,9 @@ module.exports = {
         if (storage.findUserByUsername(username.trim())) {
             return sendError(context.res, JSON.stringify({ message: "此用户名已被注册。" }), 409);
         }
-        // storage.saveUser 会处理密码哈希
         const newUser = storage.saveUser({
             username: username.trim(),
-            password: password, // 传递明文密码给 storage.saveUser
+            password: password, 
             role: 'user'
         });
         if (newUser && newUser.id) {
@@ -83,12 +81,10 @@ module.exports = {
     },
 
     listAllUsers: (context) => {
-        // 不再返回密码给客户端，即使是管理后台
         const users = storage.getUsers().map(u => ({
             id: u.id,
             username: u.username,
             role: u.role
-            // 不包含 u.password 或 u.hashedPassword, u.salt
         }));
         serveJson(context.res, users);
     },
@@ -99,7 +95,6 @@ module.exports = {
         if (role === 'admin' && (!password || password.trim() === '')) return sendBadRequest(context.res, "管理员的密码不能为空。");
         if (storage.findUserByUsername(username)) return sendError(context.res, "用户名已存在。", 409);
         
-        // storage.saveUser 会处理密码哈希
         const newUser = storage.saveUser({ username: username.trim(), password: password, role });
         if (newUser) serveJson(context.res, { id: newUser.id, username: newUser.username, role: newUser.role }, 201);
         else sendError(context.res, "创建用户失败。");
@@ -127,7 +122,7 @@ module.exports = {
         if (!userIdToUpdate) {
             return sendBadRequest(context.res, JSON.stringify({ message: "缺少用户 ID。" }));
         }
-        const userToUpdate = storage.findUserById(userIdToUpdate); // 这个返回的是包含salt和hash的完整对象
+        const userToUpdate = storage.findUserById(userIdToUpdate);
         if (!userToUpdate) {
             return sendNotFound(context.res, JSON.stringify({ message: "找不到要更新密码的用户。" }));
         }
@@ -135,8 +130,7 @@ module.exports = {
             return sendBadRequest(context.res, JSON.stringify({ message: "管理员的新密码不能为空。" }));
         }
         
-        // storage.saveUser 会处理密码哈希
-        const updatedUser = storage.saveUser({ ...userToUpdate, password: newPassword }); // 传递明文新密码
+        const updatedUser = storage.saveUser({ ...userToUpdate, password: newPassword });
         if (updatedUser) {
             serveJson(context.res, { message: `用户 ${userToUpdate.username} 的密码已成功更新。` });
         } else {
@@ -144,9 +138,7 @@ module.exports = {
         }
     },
 
-    // --- 新增：普通用户修改自己的密码 ---
     getChangePasswordPage: (context) => {
-        // 确保用户已登录 (虽然路由层面也会检查)
         if (!context.session) return redirect(context.res, '/login');
         serveHtmlWithPlaceholders(context.res, path.join(PUBLIC_DIR, 'change-password.html'), {
             username: context.session.username
@@ -157,30 +149,30 @@ module.exports = {
         const { currentPassword, newPassword, confirmNewPassword } = context.body;
         const userId = context.session.userId;
 
-        if (!currentPassword || !newPassword || !confirmNewPassword) {
-            return sendBadRequest(context.res, JSON.stringify({ message: "所有密码字段都不能为空。" }));
-        }
+        // 允许 currentPassword, newPassword, confirmNewPassword 为空字符串
+        // 但 newPassword 和 confirmNewPassword 必须匹配
         if (newPassword !== confirmNewPassword) {
             return sendBadRequest(context.res, JSON.stringify({ message: "新密码和确认密码不匹配。" }));
         }
+        // 如果用户尝试设置非空的新密码，但没有提供当前密码（对于那些当前密码非空的用户）
+        // 或者如果用户尝试将密码改为空，但没有提供当前密码
+        // `auth.verifyPassword` 会处理当前密码的验证（包括空密码验证）
+        // 此处不再需要 `!currentPassword` 这种检查，因为空字符串是合法的当前密码
 
-        const user = storage.findUserById(userId); // 获取包含 salt 和 hashedPassword 的用户对象
+        const user = storage.findUserById(userId);
         if (!user || !user.salt) {
             return sendError(context.res, JSON.stringify({ message: "无法验证当前用户。" }));
         }
 
-        // 验证当前密码
         if (!auth.verifyPassword(currentPassword, user.salt, user.hashedPassword)) {
-            return sendError(context.res, JSON.stringify({ message: "当前密码不正确。" }), 403); // 403 Forbidden or 400 Bad Request
+            return sendError(context.res, JSON.stringify({ message: "当前密码不正确。" }), 403);
         }
         
-        // 如果是管理员，新密码不能为空 (此逻辑已包含在 storage.saveUser 或可在此处再次校验)
         if (user.role === 'admin' && newPassword.trim() === '') {
              return sendBadRequest(context.res, JSON.stringify({ message: "管理员的新密码不能为空。" }));
         }
 
-        // storage.saveUser 会处理新密码的哈希
-        const updatedUser = storage.saveUser({ ...user, password: newPassword }); // 传递明文新密码
+        const updatedUser = storage.saveUser({ ...user, password: newPassword });
         if (updatedUser) {
             serveJson(context.res, { message: "密码已成功修改。" });
         } else {
