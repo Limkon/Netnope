@@ -3,16 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>我的記事 - 原生Node記事本</title>
+    <title>我的記事 - 記事本</title>
     <link rel="stylesheet" href="/css/style.css">
 </head>
 <body>
     <header>
-        <h1>原生 Node.js 記事本</h1>
+        <h1>記事本</h1>
         <nav>
-            <span style="margin-right:20px;">歡迎, <strong id="usernameDisplay">{{username}}</strong>!</span>
-            <a href="/note/new">新增記事</a>
-            <span id="adminLinkContainer"></span> <button id="logoutButton">登出</button>
+            <span class="welcome-user">歡迎, <strong id="usernameDisplay">{{username}}</strong>!</span>
+            <a href="/note/new" class="button-header">新增記事</a>
+            <span id="adminLinkContainer"></span> <button id="logoutButton" class="button-header danger">登出</button>
         </nav>
     </header>
     <div class="container">
@@ -22,11 +22,11 @@
         </div>
     </div>
     <footer>
-        <p>&copy; 2025 原生Node記事本。僅供演示。</p>
+        <p>&copy; 2025 記事本。僅供演示。</p>
     </footer>
     <script src="/js/main.js"></script>
     <script>
-        // 從伺服器端模板渲染的使用者名稱和角色
+        // 从服务器端模板渲染的使用者名称和角色
         const currentUsername = "{{username}}";
         const currentUserRole = "{{userRole}}";
 
@@ -36,13 +36,14 @@
                 const adminLink = document.createElement('a');
                 adminLink.href = '/admin/users';
                 adminLink.textContent = '管理使用者';
+                adminLink.className = 'button-header'; // Style as other header buttons
                 document.getElementById('adminLinkContainer').appendChild(adminLink);
             }
-            loadNotes(); // main.js 中的函數
+            loadNotes(); // main.js 中的函数
             
             const logoutButton = document.getElementById('logoutButton');
             if(logoutButton) {
-                logoutButton.addEventListener('click', handleLogout); // main.js 中的函數
+                logoutButton.addEventListener('click', handleLogout); // main.js 中的函数
             }
         });
     </script>
