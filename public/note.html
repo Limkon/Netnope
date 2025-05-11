@@ -3,12 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{pageTitle}} - 原生記事本</title>
+    <title>{{pageTitle}} - 記事本</title>
     <link rel="stylesheet" href="/css/style.css">
 </head>
 <body>
     <header>
-        <h1>原生記事本</h1>
+        <h1>記事本</h1>
         <nav>
             <span class="welcome-user">使用者: <strong id="usernameDisplay">{{username}}</strong></span>
             <a href="/" class="button-header">返回列表</a>
@@ -40,21 +40,23 @@
                         <option value="Courier New">Courier New</option>
                         <option value="Georgia">Georgia</option>
                         <option value="Impact">Impact</option>
-                        <option value="SimSun">宋体 (SimSun)</option>
-                        <option value="Microsoft YaHei">微软雅黑 (YaHei)</option>
-                        <option value="KaiTi">楷体 (KaiTi)</option>
+                        <option value="SimSun">宋体</option>
+                        <option value="Microsoft YaHei">微软雅黑</option>
+                        <option value="KaiTi">楷体</option>
                     </select>
                     <select id="fontSizeSelector" title="字體大小">
-                        <option value="1">小 (1)</option>
-                        <option value="2">稍小 (2)</option>
-                        <option value="3" selected>正常 (3)</option>
-                        <option value="4">稍大 (4)</option>
-                        <option value="5">大 (5)</option>
-                        <option value="6">很大 (6)</option>
-                        <option value="7">特大 (7)</option>
+                        <option value="1">小</option>
+                        <option value="2">稍小</option>
+                        <option value="3" selected>正常</option>
+                        <option value="4">稍大</option>
+                        <option value="5">大</option>
+                        <option value="6">很大</option>
+                        <option value="7">特大</option>
                     </select>
-                    <label for="foreColorPicker" class="sr-only">文字顏色</label> <input type="color" id="foreColorPicker" title="文字顏色" value="#000000">
-                    <button type="button" data-command="insertImageFromUrl" title="插入圖片 (URL)">圖片</button>
+                    <label for="foreColorPicker" class="sr-only">文字顏色</label>
+                    <input type="color" id="foreColorPicker" title="文字顏色" value="#000000">
+                    <button type="button" id="insertLocalImageButton" title="插入本地圖片">圖片</button>
+                    <input type="file" id="imageUploadInput" accept="image/*" style="display:none;">
                 </div>
                 <div id="richContent" contenteditable="true"></div>
                 <textarea name="content" id="hiddenContent" style="display:none;"></textarea>
@@ -69,14 +71,14 @@
                 </div>
             </div>
             <div class="form-actions">
-                <button type="submit" id="saveNoteButton" class="button-primary">儲存記事</button>
-                <a href="/" class="button-secondary">取消</a>
+                <button type="submit" id="saveNoteButton" class="button-action">儲存記事</button>
+                <a href="/" class="button-action button-cancel">取消</a>
             </div>
         </form>
         <div id="formMessage" style="margin-top:15px;"></div>
     </div>
     <footer>
-        <p>&copy; 2025 原生記事本。僅供演示。</p>
+        <p>&copy; 2025 記事本。僅供演示。</p>
     </footer>
     <script src="/js/main.js"></script>
     <script>
@@ -87,6 +89,24 @@
         document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('usernameDisplay').textContent = currentUsername || '使用者';
             document.getElementById('pageTitleHeader').textContent = pageTitle || (noteIdForEdit ? '編輯記事' : '新增記事');
+            // Apply .button-action to relevant buttons if not already covered by general rules
+            document.querySelectorAll('.note-item .note-actions a, .form-actions a, #addUserForm button, #loginForm button[type=\'submit\']').forEach(btn => {
+                if (!btn.classList.contains('button-danger') && !btn.classList.contains('button-header')) {
+                     // Login submit is already input[type="submit"], add user is button-action
+                     // Note item edit is 'a', form cancel is 'a'
+                     if (btn.tagName === 'A' || (btn.tagName === 'BUTTON' && !btn.classList.contains('button-action'))) {
+                        btn.classList.add('button-action');
+                        // Specific for cancel button if it needs to be different from primary action
+                        if (btn.textContent === '取消' || btn.classList.contains('button-cancel')) {
+                            // As per request, cancel should be like save, so .button-action is fine
+                            // If it needed to be secondary:
+                            // btn.style.backgroundColor = '#6c757d';
+                            // btn.style.borderColor = '#6c757d';
+                        }
+                     }
+                }
+            });
+
 
             initializeRichTextEditor();
             setupNoteForm();
