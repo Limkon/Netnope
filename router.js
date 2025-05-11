@@ -1,4 +1,4 @@
-// router.js - 請求路由處理
+// router.js - 请求路由处理
 const url = require('url');
 const querystring = require('querystring');
 const path = require('path');
@@ -15,7 +15,7 @@ const UPLOADS_DIR = storage.UPLOADS_DIR;
 function parseMultipartFormData(rawBuffer, contentTypeHeader) {
     const boundaryMatch = contentTypeHeader.match(/boundary=(.+)/);
     if (!boundaryMatch) {
-        console.warn("解析 multipart/form-data 失敗：找不到 boundary。");
+        console.warn("解析 multipart/form-data 失败：找不到 boundary。");
         return { fields: {}, files: {} };
     }
     const boundary = `--${boundaryMatch[1]}`;
@@ -52,13 +52,13 @@ function parseMultipartFormData(rawBuffer, contentTypeHeader) {
         if (filenameStarMatch) {
             const encodedName = filenameStarMatch[2];
             try { originalFileName = decodeURIComponent(encodedName); }
-            catch (e) { console.warn(`解碼 filename* 屬性 "${encodedName}" 失敗:`, e); originalFileName = "fallback_filename_decode_error.dat"; }
+            catch (e) { console.warn(`解碼 filename* 属性 "${encodedName}" 失败:`, e); originalFileName = "fallback_filename_decode_error.dat"; }
         } else {
             const filenameMatch = dispositionLine.match(/filename="((?:[^"\\]|\\.)*)"/i);
             if (filenameMatch) {
                 let name = filenameMatch[1].replace(/\\"/g, '"').replace(/\\\\/g, '\\');
                 try { originalFileName = decodeURIComponent(name); }
-                catch (e) { console.warn(`解碼普通 filename 屬性 "${name}" 失敗:`, e); originalFileName = name; }
+                catch (e) { console.warn(`解码普通 filename 属性 "${name}" 失败:`, e); originalFileName = name; }
             }
         }
         if (dispositionLine.includes('filename=')) {
@@ -86,15 +86,15 @@ module.exports = {
             const contentType = headers['content-type'] || '';
             if (contentType.includes('application/x-www-form-urlencoded')) {
                 try { body = querystring.parse(rawBuffer.toString('utf8')); }
-                catch (e) { return sendBadRequest(res, "請求體格式錯誤。"); }
+                catch (e) { return sendBadRequest(res, "请求体格式错误。"); }
             } else if (contentType.includes('application/json')) {
                 try { body = JSON.parse(rawBuffer.toString('utf8')); }
-                catch (e) { return sendBadRequest(res, "JSON 格式錯誤。"); }
+                catch (e) { return sendBadRequest(res, "JSON 格式错误。"); }
             } else if (contentType.includes('multipart/form-data')) {
                 try {
                     const parsedMultipart = parseMultipartFormData(rawBuffer, contentType);
                     body = parsedMultipart.fields; files = parsedMultipart.files;
-                } catch (e) { console.error("解析 multipart/form-data 請求體錯誤:", e); return sendError(res, "處理上傳檔案時發生錯誤。"); }
+                } catch (e) { console.error("解析 multipart/form-data 请求体错误:", e); return sendError(res, "处理上传文件时发生错误。"); }
             }
         }
 
@@ -105,36 +105,39 @@ module.exports = {
             if (pathname.startsWith('/css/') || pathname.startsWith('/js/')) {
                 const staticFilePath = path.join(PUBLIC_DIR, pathname);
                 if (path.resolve(staticFilePath).startsWith(path.resolve(PUBLIC_DIR))) return serveStaticFile(res, staticFilePath);
-                else return sendForbidden(res, "禁止存取此路徑的靜態資源。");
+                else return sendForbidden(res, "禁止访问此路径的静态资源。");
             }
             if (pathname.startsWith('/uploads/')) {
-                if (!context.session) return sendUnauthorized(res, "您需要登入才能下載附件。");
+                if (!context.session) return sendUnauthorized(res, "您需要登录才能下载附件。");
                 const requestedFileRelativePath = decodeURIComponent(pathname.substring('/uploads/'.length));
                 const fullPath = path.join(UPLOADS_DIR, requestedFileRelativePath);
-                if (!path.resolve(fullPath).startsWith(path.resolve(UPLOADS_DIR))) return sendForbidden(res, "禁止存取此檔案路徑！");
+                if (!path.resolve(fullPath).startsWith(path.resolve(UPLOADS_DIR))) return sendForbidden(res, "禁止访问此文件路径！");
                 const note = storage.getNotes().find(n => n.attachment && n.attachment.path === requestedFileRelativePath);
-                if (context.session.role !== 'admin' && (!note || note.userId !== context.session.userId)) return sendForbidden(res, "您無權存取此附件。");
-                if (!fs.existsSync(fullPath)) return sendNotFound(res, "請求的附件不存在。");
+                if (context.session.role !== 'admin' && (!note || note.userId !== context.session.userId)) return sendForbidden(res, "您无权访问此附件。");
+                if (!fs.existsSync(fullPath)) return sendNotFound(res, "请求的附件不存在。");
                 return serveStaticFile(res, fullPath);
             }
         }
 
-        // --- 公共路由 (無需登入) ---
         if (pathname === '/login' && method === 'GET') return userController.getLoginPage(context);
         if (pathname === '/login' && method === 'POST') return userController.loginUser(context);
-        if (pathname === '/register' && method === 'GET') return userController.getRegisterPage(context); // 新增: 註冊頁面
-        if (pathname === '/api/users/register' && method === 'POST') return userController.registerUser(context); // 新增: 處理註冊請求
+        if (pathname === '/register' && method === 'GET') return userController.getRegisterPage(context);
+        if (pathname === '/api/users/register' && method === 'POST') return userController.registerUser(context);
+        if (pathname === '/logout' && method === 'POST') return userController.logoutUser(context);
 
-        // --- 以下路由需要登入 ---
-        if (pathname === '/logout' && method === 'POST') return userController.logoutUser(context); // 登出移到這裡，因为它需要会话
-
+        // --- 以下路由需要登录 ---
         if (!context.session) {
-            if (pathname.startsWith('/api/')) return sendUnauthorized(res, "請先登入後再操作。");
-            if (pathname !== '/login' && pathname !== '/register') return redirect(res, '/login'); // 避免对公共页面的重定向
-            return; // 允许访问登录和注册页
+            if (pathname.startsWith('/api/')) return sendUnauthorized(res, "请先登录后再操作。");
+            // 允许访问登录和注册页以外的公共页面（如果将来有的话）
+            if (pathname !== '/login' && pathname !== '/register') return redirect(res, '/login');
+            return; // 对于 /login, /register，如果未认证则由上面的路由处理
         }
+        
+        // 普通用户修改自己的密码
+        if (pathname === '/change-password' && method === 'GET') return userController.getChangePasswordPage(context);
+        if (pathname === '/api/users/me/password' && method === 'POST') return userController.changeOwnPassword(context);
 
-        // --- 受保護路由 ---
+
         if ((pathname === '/' || pathname === '/index.html') && method === 'GET') return noteController.getNotesPage(context);
         if (pathname === '/api/notes' && method === 'GET') return noteController.getAllNotes(context);
         if (pathname === '/api/notes' && method === 'POST') return noteController.createNote(context);
@@ -143,7 +146,7 @@ module.exports = {
         if (pathname.startsWith('/api/notes/') && method === 'DELETE') return noteController.deleteNoteById(context);
         if (pathname === '/note/new' && method === 'GET') return noteController.getNoteFormPage(context, null);
         if (pathname === '/note/edit' && method === 'GET') {
-            if (!query.id) return sendBadRequest(res, "缺少記事 ID 進行編輯。");
+            if (!query.id) return sendBadRequest(res, "缺少记事 ID 进行编辑。");
             return noteController.getNoteFormPage(context, query.id);
         }
 
@@ -151,13 +154,16 @@ module.exports = {
             if (pathname === '/admin/users' && method === 'GET') return userController.getAdminUsersPage(context);
             if (pathname === '/api/admin/users' && method === 'GET') return userController.listAllUsers(context);
             if (pathname === '/api/admin/users' && method === 'POST') return userController.createUserByAdmin(context);
+            if (pathname.startsWith('/api/admin/users/') && pathname.endsWith('/password') && method === 'PUT') {
+                return userController.updateUserPasswordByAdmin(context);
+            }
             if (pathname.startsWith('/api/admin/users/') && method === 'DELETE') return userController.deleteUserByAdmin(context);
         } else {
             if (pathname.startsWith('/admin') || pathname.startsWith('/api/admin')) {
-                return sendForbidden(res, "您沒有權限存取此管理員功能。");
+                return sendForbidden(res, "您没有权限访问此管理员功能。");
             }
         }
 
-        return sendNotFound(res, `請求的路徑 ${pathname} 未找到。`);
+        return sendNotFound(res, `请求的路径 ${pathname} 未找到。`);
     }
 };
