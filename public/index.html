@@ -9,12 +9,8 @@
 <body>
     <header>
         <h1>记事本</h1>
-        <nav>
-            <span class="welcome-user">欢迎, <strong id="usernameDisplay">{{username}}</strong>!</span>
-            <a href="/note/new" class="button-action">新建记事</a>
-            <a href="/change-password" class="button-action">修改密码</a> <span id="adminLinkContainer"></span>
-            <button id="logoutButton" class="button-danger">登出</button>
-        </nav>
+        <nav id="mainNav">
+            </nav>
     </header>
     <div class="container">
         <h2>记事列表</h2>
@@ -28,17 +24,14 @@
     </footer>
     <script src="/js/main.js"></script>
     <script>
-        const currentUsername = "{{username}}";
-        const currentUserRole = "{{userRole}}";
+        // 从服务器端模板获取初始用户信息 (如果已登录)
+        // 对于匿名用户，这些可能是 '访客' 和 'anonymous'
+        const currentUsernameFromServer = "{{username}}";
+        const currentUserRoleFromServer = "{{userRole}}";
+
         document.addEventListener('DOMContentLoaded', () => {
-            document.getElementById('usernameDisplay').textContent = currentUsername || '用户';
-            if (currentUserRole === 'admin') {
-                const adminLink = document.createElement('a');
-                adminLink.href = '/admin/users';
-                adminLink.textContent = '管理用户';
-                adminLink.className = 'button-action';
-                document.getElementById('adminLinkContainer').appendChild(adminLink);
-            }
+            // setupNavigation 在 main.js 中定义，它会处理匿名和登录用户的情况
+            setupNavigation(currentUsernameFromServer, currentUserRoleFromServer);
             loadNotes();
         });
     </script>
