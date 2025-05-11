@@ -1,6 +1,4 @@
 <%# views/partials/header.ejs %>
-<%# 这个 partial 期望被包含在已经有 <html>, <head>, <body> 标签的主模板中 %>
-<%# <head> 中的 <link rel="stylesheet" href="/css/style.css"> 等应在主模板中 %>
 
 <header class="navbar">
     <div class="container nav-container">
@@ -16,8 +14,8 @@
                     <button type="submit" class="btn btn-sm btn-danger">退出</button>
                 </form>
             <% } else { %>
-                <%# 根据当前页面标题判断是否显示登录/注册按钮，避免在登录页显示登录按钮等 %>
-                <% const currentPath = typeof req !== 'undefined' ? req.path : ''; %>
+                <%# 在 setLocals 中间件中，可以设置一个 req.path 或类似变量传递给模板 %>
+                <% const currentPath = typeof req !== 'undefined' ? req.path : (typeof currentRoutePath !== 'undefined' ? currentRoutePath : ''); %>
                 <% if (currentPath !== '/auth/login') { %>
                     <a href="/auth/login" class="btn btn-sm btn-light" style="margin-right: 10px;">登录</a>
                 <% } %>
