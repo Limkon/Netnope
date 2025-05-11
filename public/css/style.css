@@ -1,4 +1,4 @@
-/* public/css/style.css - 工具栏重排和页脚更新 */
+/* public/css/style.css - 工具列強制 Flex 佈局 */
 body {
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
     line-height: 1.6;
@@ -264,7 +264,7 @@ form input[type="text"], form input[type="password"], form select, form textarea
     text-decoration: underline;
 }
 
-/* 富文本编辑器工具栏 - 确保单行布局 */
+/* 富文本编辑器工具栏 */
 #richTextToolbar {
     margin-bottom: 0;
     padding: 8px;
@@ -273,12 +273,11 @@ form input[type="text"], form input[type="password"], form select, form textarea
     border-bottom: none;
     border-top-left-radius: 0.3rem;
     border-top-right-radius: 0.3rem;
-    display: flex; /* 使用 Flexbox */
-    flex-wrap: wrap; /* 允许换行 */
-    align-items: center; /* 垂直居中对齐项目 */
-    gap: 6px; /* 项目之间的间隙 */
+    display: flex !important; /* 强制 Flex 布局，用于调试 */
+    flex-wrap: wrap !important; /* 强制换行，用于调试 */
+    align-items: center; 
+    gap: 6px; 
 }
-/* 恢复富文本按钮为以前的样式 */
 #richTextToolbar button,
 #richTextToolbar select,
 #richTextToolbar input[type="color"] {
@@ -290,10 +289,10 @@ form input[type="text"], form input[type="password"], form select, form textarea
     border-radius: 0.25rem;
     height: 30px;
     box-sizing: border-box;
-    vertical-align: middle; /* 确保在 flex 容器中对齐良好 */
+    /* vertical-align: middle;  align-items on parent handles this for flex items */
     box-shadow: none;
     transition: background-color 0.1s ease, border-color 0.1s ease;
-    margin: 0; /* 移除可能的默认边距 */
+    margin: 0; 
 }
 #richTextToolbar button:hover,
 #richTextToolbar select:hover,
@@ -302,14 +301,14 @@ form input[type="text"], form input[type="password"], form select, form textarea
     border-color: #adb1b5;
 }
 #richTextToolbar input[type="color"] {
-    padding: 1px 2px;
-    width: 30px;
-    height: 30px;
+    padding: 1px 2px; 
+    width: 30px; 
+    height: 30px; 
 }
 #richTextToolbar select {
-    min-width: 75px;
+    min-width: 75px; 
 }
-.sr-only { /* Screen-reader only class for accessibility */
+.sr-only { 
   position: absolute;
   width: 1px;
   height: 1px;
@@ -387,8 +386,8 @@ form input[type="text"], form input[type="password"], form select, form textarea
 .user-item span strong {
     color: #1f1f1f;
 }
-.user-item .user-item-actions .button-action, /* Target reset password button */
-.user-item .user-item-actions .button-danger { /* Target delete button */
+.user-item .user-item-actions .button-action,
+.user-item .user-item-actions .button-danger {
     padding: 0.4rem 0.8rem;
     font-size: 0.9rem;
     min-width: 70px;
