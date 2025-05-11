@@ -1,15 +1,15 @@
-// public/js/main.js - 客户端 JavaScript 逻辑 (简体中文, 匿名用户处理)
+// public/js/main.js - 客户端 JavaScript 逻辑 (简体中文)
 
 // --- 全局变量 ---
-let currentUsernameGlobal = '访客'; // 默认访客
-let currentUserRoleGlobal = 'anonymous'; // 默认匿名角色
-let currentAdminIdGlobal = ''; // 用于管理员页面 (在 admin.html 中通过模板注入)
+let currentUsernameGlobal = '访客'; 
+let currentUserRoleGlobal = 'anonymous'; 
+let currentAdminIdGlobal = ''; 
+let currentUserIdGlobal = ''; // 新增：存储当前登录用户的ID
 
 // --- 通用函数 ---
 async function fetchData(url, options = {}) {
     try {
         const response = await fetch(url, options);
-        // 401 Unauthorized: 通常意味着需要登录，但对于匿名用户允许的GET请求，我们不立即跳转
         if (response.status === 401 && !(options.method === 'GET' && currentUserRoleGlobal === 'anonymous')) {
             alert('您的会话已过期或未授权，请重新登录。');
             window.location.href = '/login';
@@ -25,11 +25,9 @@ async function fetchData(url, options = {}) {
             }
             console.error(`API 请求失败 (${response.status}):`, errorData);
             const errorMessage = (typeof errorData === 'object' && errorData !== null && errorData.message) ? errorData.message : (errorData || response.statusText);
-            
-            // 对于 403 Forbidden，也提示并可能跳转（除非是匿名用户尝试非允许操作）
-            if (response.status === 403 && currentUserRoleGlobal !== 'anonymous') {
-                 alert('您没有权限执行此操作。');
-                 // window.location.href = '/login'; // 可以选择是否跳转
+            if ((response.status === 401 || response.status === 403) && currentUserRoleGlobal !== 'anonymous') {
+                 alert('操作未授权或会话已过期，请重新登录。');
+                 // window.location.href = '/login'; // 仅在401时跳转可能更好
                  // return null;
             }
             throw new Error(`服务器响应错误: ${response.status} ${errorMessage}`);
@@ -42,12 +40,11 @@ async function fetchData(url, options = {}) {
     } catch (error) {
         console.error('Fetch API 调用失败:', error);
         const messageToDisplay = error.message || '与服务器通讯时发生错误。';
-        let msgElementId = 'globalMessageArea'; // 默认使用全局消息区域
+        let msgElementId = 'globalMessageArea';
         if (document.getElementById('formMessage')) msgElementId = 'formMessage';
         if (document.getElementById('adminMessages')) msgElementId = 'adminMessages';
         if (document.getElementById('registerMessage')) msgElementId = 'registerMessage';
         if (document.getElementById('changePasswordMessage')) msgElementId = 'changePasswordMessage';
-        
         displayMessage(messageToDisplay, 'error', msgElementId);
         return null;
     }
@@ -70,42 +67,36 @@ function escapeHtml(unsafe) {
     return unsafe.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
 }
 
-// --- 导航栏设置 ---
-function setupNavigation(username, role) {
+function setupNavigation(username, role, userId) { // 添加 userId 参数
     currentUsernameGlobal = username || '访客';
-    currentUserRoleGlobal = role || 'anonymous'; // 如果 role 未定义，则假定为匿名
+    currentUserRoleGlobal = role || 'anonymous';
+    currentUserIdGlobal = userId || ''; // 存储当前用户ID
 
-    const navContainer = document.getElementById('mainNav'); // 假设所有页面都有这个ID的nav
-    if (!navContainer) { // 如果特定页面没有 mainNav，则尝试更新独立的 usernameDisplay
+    const navContainer = document.getElementById('mainNav');
+    if (!navContainer) {
         const usernameDisplaySpan = document.getElementById('usernameDisplay');
         if (usernameDisplaySpan) {
             usernameDisplaySpan.textContent = escapeHtml(currentUsernameGlobal);
         }
-        // 对于没有 mainNav 的页面（如登录、注册），可能不需要完整的导航栏更新
         return;
     }
 
-
     let navHtml = `<span class="welcome-user">欢迎, <strong id="usernameDisplay">${escapeHtml(currentUsernameGlobal)}</strong>!</span>`;
-
     if (currentUserRoleGlobal === 'anonymous') {
         navHtml += `<a href="/login" class="button-action">登录</a>`;
         navHtml += `<a href="/register" class="button-action" style="background-color: #6c757d; border-color: #6c757d;">注册</a>`;
     } else {
-        // 对所有登录用户显示
         if (window.location.pathname !== '/note/new' && !window.location.pathname.startsWith('/note/edit')) {
              navHtml += `<a href="/note/new" class="button-action">新建记事</a>`;
         }
         if (window.location.pathname !== '/change-password') {
             navHtml += `<a href="/change-password" class="button-action">修改密码</a>`;
         }
+        // 只有当不在首页时才显示“返回列表”
         if (window.location.pathname !== '/' && window.location.pathname !== '/index.html') {
              navHtml += `<a href="/" class="button-action">返回列表</a>`;
         }
-
-
         if (currentUserRoleGlobal === 'admin') {
-            // 仅对管理员显示，并且如果不在 admin/users 页面
             if (window.location.pathname !== '/admin/users') {
                 navHtml += `<a href="/admin/users" id="adminUsersLink" class="button-action">管理用户</a>`;
             }
@@ -113,13 +104,11 @@ function setupNavigation(username, role) {
         navHtml += `<button id="logoutButton" class="button-danger">登出</button>`;
     }
     navContainer.innerHTML = navHtml;
-
     const logoutButton = document.getElementById('logoutButton');
     if (logoutButton) {
         logoutButton.addEventListener('click', handleLogout);
     }
 }
-
 
 async function handleLogout() {
     if (!confirm("您确定要登出吗？")) return;
@@ -171,17 +160,13 @@ async function loadNotes() {
             attachmentHtml = `<div class="note-attachment">附件: <a href="${attachmentUrl}" target="_blank" title="下载 ${escapeHtml(note.attachment.originalName)}">${escapeHtml(note.attachment.originalName)}</a></div>`;
         }
         let actionsHtml = '';
-        // 只有当用户是管理员，或者是该记事的拥有者时，才显示编辑和删除按钮
-        // 匿名用户不显示任何操作按钮
-        if (currentUserRoleGlobal !== 'anonymous' && (currentUserRoleGlobal === 'admin' || (note.userId === currentUserIdGlobal))) { // currentUserIdGlobal 需要被正确设置
+        if (currentUserRoleGlobal !== 'anonymous' && (currentUserRoleGlobal === 'admin' || (note.userId === currentUserIdGlobal))) {
             actionsHtml = `
                 <div class="note-actions">
                     <a href="/note/edit?id=${note.id}" class="button-action">编辑</a>
                     <button class="button-danger" onclick="deleteNote('${note.id}', '${escapeHtml(note.title)}')">删除</button>
                 </div>`;
         }
-
-
         li.innerHTML = `
             <div>
                 <h3>${escapeHtml(note.title)} ${ownerInfo}</h3>
@@ -313,7 +298,7 @@ async function loadNoteForEditing(noteId) {
     }
 }
 
-async function loadUsersForAdmin(currentAdminId) { // currentAdminId 由 admin.html 传入
+async function loadUsersForAdmin(currentAdminId) {
     const userListUl = document.getElementById('userList');
     if (!userListUl) return;
     userListUl.innerHTML = '<li>正在加载用户列表...</li>';
@@ -339,7 +324,7 @@ async function loadUsersForAdmin(currentAdminId) { // currentAdminId 由 admin.h
         actionsDiv.className = 'user-item-actions';
         actionsDiv.style.display = 'flex';
         actionsDiv.style.gap = '10px';
-        if (user.id !== currentAdminId) { // 管理员不能操作自己
+        if (user.id !== currentAdminId) {
             const resetPassButton = document.createElement('button');
             resetPassButton.className = 'button-action';
             resetPassButton.textContent = '重设密码';
@@ -347,7 +332,6 @@ async function loadUsersForAdmin(currentAdminId) { // currentAdminId 由 admin.h
             resetPassButton.style.fontSize = '0.85rem';
             resetPassButton.onclick = () => showPasswordResetForm(user.id, user.username, li);
             actionsDiv.appendChild(resetPassButton);
-            // 允许删除 "anyone" 用户
             const deleteButton = document.createElement('button');
             deleteButton.className = 'button-danger';
             deleteButton.textContent = '删除';
@@ -437,20 +421,37 @@ async function handleUpdatePasswordByAdmin(event, userId, username) {
     }
 }
 
+let isAdminAddingUser = false; // 添加标志位
 function setupAdminUserForm() {
     const addUserForm = document.getElementById('addUserForm');
-    if (addUserForm) {
+    const addUserButton = addUserForm ? addUserForm.querySelector('button[type="submit"]') : null;
+
+    if (addUserForm && addUserButton) {
         addUserForm.addEventListener('submit', async (event) => {
             event.preventDefault();
+            if (isAdminAddingUser) return; // 防止重复提交
+
+            isAdminAddingUser = true;
+            addUserButton.disabled = true;
+            addUserButton.textContent = '正在添加...';
+
             const formData = new FormData(addUserForm);
             const data = Object.fromEntries(formData.entries());
             if (!data.username || data.username.trim() === '') {
-                displayMessage('用户名不能为空。', 'error', 'adminMessages'); return;
+                displayMessage('用户名不能为空。', 'error', 'adminMessages');
+                isAdminAddingUser = false;
+                addUserButton.disabled = false;
+                addUserButton.textContent = '新建用户';
+                return;
             }
             if (data.role === 'admin' && (!data.password || data.password.trim() === '')) {
-                displayMessage('管理员的密码不能为空。', 'error', 'adminMessages'); return;
+                displayMessage('管理员的密码不能为空。', 'error', 'adminMessages');
+                isAdminAddingUser = false;
+                addUserButton.disabled = false;
+                addUserButton.textContent = '新建用户';
+                return;
             }
-            displayMessage('', 'info', 'adminMessages');
+            displayMessage('', 'info', 'adminMessages'); // 清除旧消息
             const result = await fetchData('/api/admin/users', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -459,10 +460,15 @@ function setupAdminUserForm() {
             if (result && result.id) {
                 displayMessage(`用户 "${escapeHtml(result.username)}" 已成功创建。`, 'success', 'adminMessages');
                 addUserForm.reset();
-                loadUsersForAdmin(currentAdminIdGlobal); // 确保 currentAdminIdGlobal 在此作用域可用
+                loadUsersForAdmin(currentAdminIdGlobal);
             } else if (result && result.message) {
                  displayMessage(result.message, 'error', 'adminMessages');
             }
+            // 如果 fetchData 返回 null，错误已由 fetchData 内部的 displayMessage 处理
+
+            isAdminAddingUser = false;
+            addUserButton.disabled = false;
+            addUserButton.textContent = '新建用户';
         });
     }
 }
@@ -473,7 +479,7 @@ async function deleteUserByAdmin(userId, username) {
     const result = await fetchData(`/api/admin/users/${userId}`, { method: 'DELETE' });
     if (result && result.message && (result.message.includes("成功") || !result.message.toLowerCase().includes("错误") && !result.message.toLowerCase().includes("失败"))) {
         displayMessage(result.message, 'success', 'adminMessages');
-        loadUsersForAdmin(currentAdminIdGlobal); // 确保 currentAdminIdGlobal 在此作用域可用
+        loadUsersForAdmin(currentAdminIdGlobal);
     } else if (result && result.message) {
          displayMessage(result.message, 'error', 'adminMessages');
     }
@@ -535,14 +541,10 @@ function setupChangeOwnPasswordForm() {
             const newPassword = document.getElementById('newPasswordUser').value;
             const confirmNewPassword = document.getElementById('confirmNewPasswordUser').value;
             displayMessage('', 'info', messageContainerId);
-            if (newPassword !== confirmNewPassword) { // 新密码和确认密码必须匹配
+            if (newPassword !== confirmNewPassword) {
                 displayMessage('新密码和确认密码不匹配。', 'error', messageContainerId);
                 return;
             }
-            // 如果新密码非空，则当前密码也必须提供（除非用户当前密码本身就是空的，这种情况由后端验证）
-            // 对于新密码为空的情况，也允许，表示用户可能想将密码设置为空（如果当前密码正确）
-            // 后端会验证当前密码是否正确，以及管理员的新密码是否为空
-
             isChangingOwnPassword = true;
             submitButton.disabled = true;
             submitButton.textContent = '正在提交...';
@@ -567,27 +569,27 @@ function setupChangeOwnPasswordForm() {
     }
 }
 
-// 在页面加载时，根据 window.location.pathname 调用相应的初始化函数
 document.addEventListener('DOMContentLoaded', () => {
     const path = window.location.pathname;
-    const usernameFromServer = typeof currentUsername !== 'undefined' ? currentUsername : (document.body.dataset.username || '访客');
-    const roleFromServer = typeof currentUserRole !== 'undefined' ? currentUserRole : (document.body.dataset.userrole || 'anonymous');
-    const adminIdFromServer = typeof currentAdminId !== 'undefined' ? currentAdminId : (document.body.dataset.adminid || '');
+    // 从HTML模板的内联脚本中获取这些值
+    const usernameFromServer = (typeof currentUsername !== 'undefined' && currentUsername !== "{{username}}") ? currentUsername : (document.body.dataset.username || '访客');
+    const roleFromServer = (typeof currentUserRole !== 'undefined' && currentUserRole !== "{{userRole}}") ? currentUserRole : (document.body.dataset.userrole || 'anonymous');
+    const userIdFromServer = (typeof currentUserId !== 'undefined' && currentUserId !== "{{userId}}") ? currentUserId : (document.body.dataset.userid || ''); // 新增
+    const adminIdFromServer = (typeof currentAdminId !== 'undefined' && currentAdminId !== "{{adminUserId}}") ? currentAdminId : (document.body.dataset.adminid || '');
 
-    currentAdminIdGlobal = adminIdFromServer; // 设置全局管理员ID
 
-    // 统一调用 setupNavigation
-    // 注意：login 和 register 页面可能没有 mainNav，setupNavigation 需要优雅处理
+    currentAdminIdGlobal = adminIdFromServer;
+    currentUserIdGlobal = userIdFromServer; // 设置全局当前用户ID
+
     const mainNav = document.getElementById('mainNav');
     if (mainNav) {
-        setupNavigation(usernameFromServer, roleFromServer);
-    } else { // 对于没有 mainNav 的页面，尝试更新独立的 usernameDisplay
+        setupNavigation(usernameFromServer, roleFromServer, userIdFromServer);
+    } else { 
         const usernameDisplaySpan = document.getElementById('usernameDisplay');
         if (usernameDisplaySpan) {
             usernameDisplaySpan.textContent = escapeHtml(usernameFromServer);
         }
     }
-
 
     if (path === '/' || path === '/index.html') {
         loadNotes();
@@ -608,8 +610,6 @@ document.addEventListener('DOMContentLoaded', () => {
         setupChangeOwnPasswordForm();
     }
 
-    // 全局登出按钮 (如果页面上有，并且不是由 setupNavigation 动态添加的)
-    // setupNavigation 已经处理了动态添加的登出按钮的事件监听
     document.querySelectorAll('#logoutButton:not([data-listener-attached])').forEach(button => {
         button.addEventListener('click', handleLogout);
         button.setAttribute('data-listener-attached', 'true');
