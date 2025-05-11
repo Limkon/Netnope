@@ -53,8 +53,7 @@
                         <option value="6">很大</option>
                         <option value="7">特大</option>
                     </select>
-                    <label for="foreColorPicker" class="sr-only">文字颜色</label>
-                    <input type="color" id="foreColorPicker" title="文字颜色" value="#000000">
+                    <label for="foreColorPicker" class="sr-only">文字颜色</label> <input type="color" id="foreColorPicker" title="文字颜色" value="#000000">
                     <button type="button" id="insertLocalImageButton" title="插入本地图片">图片</button>
                     <input type="file" id="imageUploadInput" accept="image/*" style="display:none;">
                 </div>
@@ -78,21 +77,26 @@
         <div id="formMessage" style="margin-top:15px;"></div>
     </div>
     <footer>
-        <p>&copy; 2025 记事本。</p>
-    </footer>
+        <p>&copy; 2025 记事本。</p> </footer>
     <script src="/js/main.js"></script>
     <script>
         const currentUsername = "{{username}}";
         const noteIdForEdit = "{{noteId}}";
-        // 动态设置页面标题 (简体中文)
-        const pageTitleBase = noteIdForEdit ? "编辑记事" : "新建记事";
-        const pageTitle = "{{pageTitle}}".includes("编辑") ? "编辑记事" : ("{{pageTitle}}".includes("新增") || "{{pageTitle}}".includes("新建") ? "新建记事" : "{{pageTitle}}");
+        const pageTitleFromServer = "{{pageTitle}}"; // Get raw value from server
+        let pageTitle = pageTitleFromServer; // Default to server value
+
+        // Dynamically set page title in Simplified Chinese based on content
+        if (pageTitleFromServer.includes("编辑") || pageTitleFromServer.includes("編輯")) {
+            pageTitle = "编辑记事";
+        } else if (pageTitleFromServer.includes("新增") || pageTitleFromServer.includes("新建")) {
+            pageTitle = "新建记事";
+        }
 
 
         document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('usernameDisplay').textContent = currentUsername || '用户';
-            document.getElementById('pageTitleHeader').textContent = pageTitle; // 使用上面生成的简体中文标题
-            document.title = `${pageTitle} - 记事本`; // 更新浏览器标签页标题
+            document.getElementById('pageTitleHeader').textContent = pageTitle;
+            document.title = `${pageTitle} - 记事本`;
 
             initializeRichTextEditor();
             setupNoteForm();
