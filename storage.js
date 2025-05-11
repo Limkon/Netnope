@@ -1,73 +1,110 @@
-// storage.js - 資料持久化邏輯 (讀寫JSON檔案)
+// storage.js - 数据持久化逻辑 (读写JSON文件, 密码加密)
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto'); // 引入 crypto 模块
 
 const DATA_DIR = path.join(__dirname, 'data');
 const USERS_FILE = path.join(DATA_DIR, 'users.json');
 const NOTES_FILE = path.join(DATA_DIR, 'notes.json');
 const UPLOADS_DIR = path.join(__dirname, 'uploads');
 
-// 輔助函數：讀取 JSON 檔案
+// 哈希参数 (根据需要调整)
+const HASH_ITERATIONS = 100000;
+const HASH_KEYLEN = 64;
+const HASH_DIGEST = 'sha512';
+const SALT_LEN = 16;
+
+// 辅助函数：生成盐
+function generateSalt() {
+    return crypto.randomBytes(SALT_LEN).toString('hex');
+}
+
+// 辅助函数：哈希密码
+function hashPassword(password, salt) {
+    if (!password) return ''; // 如果密码为空，则存储空字符串 (或特定标记)
+    return crypto.pbkdf2Sync(password, salt, HASH_ITERATIONS, HASH_KEYLEN, HASH_DIGEST).toString('hex');
+}
+
 function readJsonFile(filePath) {
     try {
         if (!fs.existsSync(filePath)) {
-            // 如果檔案不存在，根據檔案類型返回空陣列或進行初始化
             if (filePath === USERS_FILE || filePath === NOTES_FILE) {
                 fs.writeFileSync(filePath, '[]', 'utf8');
                 return [];
             }
-            return null; // 或拋出錯誤，取決於需求
+            return null;
         }
         const fileContent = fs.readFileSync(filePath, 'utf8');
         return JSON.parse(fileContent);
     } catch (e) {
-        console.error(`讀取 JSON 檔案 ${filePath} 失敗:`, e);
-        // 如果解析失敗，可能檔案已損壞，返回空陣列以避免應用程式崩潰
+        console.error(`读取 JSON 文件 ${filePath} 失败:`, e);
         return [];
     }
 }
 
-// 輔助函數：寫入 JSON 檔案
 function writeJsonFile(filePath, data) {
     try {
         fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf8');
     } catch (e) {
-        console.error(`寫入 JSON 檔案 ${filePath} 失敗:`, e);
+        console.error(`写入 JSON 文件 ${filePath} 失败:`, e);
     }
 }
 
 module.exports = {
-    UPLOADS_DIR, // 匯出上傳目錄路徑，供其他模組使用
+    UPLOADS_DIR,
+    hashPassword, // 导出 hashPassword 供 auth.js 使用
+    generateSalt, // 导出 generateSalt (虽然主要在内部使用)
 
-    // --- 使用者相關操作 ---
     getUsers: () => readJsonFile(USERS_FILE),
-    saveUser: (user) => {
+    saveUser: (userData) => {
         const users = readJsonFile(USERS_FILE);
-        if (!user.id) user.id = `user_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`; // 確保有 ID
-        const existingIndex = users.findIndex(u => u.id === user.id || u.username === user.username);
+        let userToSave = { ...userData };
 
-        if (existingIndex > -1) { // 更新現有使用者 (或基於使用者名稱的衝突)
-            // 如果是基於 username 找到的，但 id 不同，則可能是 username 衝突
-            if (users[existingIndex].username === user.username && users[existingIndex].id !== user.id) {
-                console.error("儲存使用者錯誤：使用者名稱已存在但ID不同。");
-                return null; // 或拋出錯誤
+        // 如果提供了密码且密码字段存在 (表示需要更新或设置密码)
+        if (userToSave.hasOwnProperty('password')) {
+            if (!userToSave.salt) { // 如果是新用户或首次加密密码
+                userToSave.salt = generateSalt();
             }
-            users[existingIndex] = { ...users[existingIndex], ...user };
-        } else { // 新增使用者
-            users.push(user);
+            // 只有当密码不是空字符串时才哈希，否则保持为空字符串 (代表空密码)
+            userToSave.hashedPassword = userToSave.password ? hashPassword(userToSave.password, userToSave.salt) : '';
+            delete userToSave.password; // 从存储对象中移除明文密码
+        }
+
+
+        if (!userToSave.id) userToSave.id = `user_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
+        
+        const existingIndexById = users.findIndex(u => u.id === userToSave.id);
+        const existingIndexByUsername = users.findIndex(u => u.username === userToSave.username);
+
+        if (existingIndexById > -1) { // 更新通过 ID 找到的用户
+            users[existingIndexById] = { ...users[existingIndexById], ...userToSave };
+        } else if (existingIndexByUsername > -1 && !userToSave.id) { // 新用户，但用户名已存在
+             console.error("保存用户错误：用户名已存在。");
+             return null;
+        }
+        else { // 新用户
+            users.push(userToSave);
         }
         writeJsonFile(USERS_FILE, users);
-        return user;
+        // 返回的用户对象不应包含 salt 或 hashedPassword 的敏感信息，除非特定场景需要
+        const { salt, hashedPassword, ...safeUser } = userToSave;
+        return safeUser; // 返回不含密码和盐的用户信息
     },
-    findUserByUsername: (username) => readJsonFile(USERS_FILE).find(u => u.username === username),
-    findUserById: (id) => readJsonFile(USERS_FILE).find(u => u.id === id),
+    findUserByUsername: (username) => {
+        const user = readJsonFile(USERS_FILE).find(u => u.username === username);
+        // 返回包含 salt 和 hashedPassword 的完整用户对象，供认证使用
+        return user || null;
+    },
+    findUserById: (id) => {
+        const user = readJsonFile(USERS_FILE).find(u => u.id === id);
+        return user || null;
+    },
     deleteUser: (userId) => {
         let users = readJsonFile(USERS_FILE);
         const initialLength = users.length;
         users = users.filter(u => u.id !== userId);
         if (users.length < initialLength) {
             writeJsonFile(USERS_FILE, users);
-            // 重要：同時刪除該使用者的所有記事和附件
             let notes = readJsonFile(NOTES_FILE);
             const userNotes = notes.filter(note => note.userId === userId);
             userNotes.forEach(note => {
@@ -75,39 +112,37 @@ module.exports = {
                     const attachmentFullPath = path.join(UPLOADS_DIR, note.attachment.path);
                     if (fs.existsSync(attachmentFullPath)) {
                         try { fs.unlinkSync(attachmentFullPath); }
-                        catch (e) { console.error(`刪除使用者 ${userId} 的附件 ${attachmentFullPath} 失敗:`, e); }
+                        catch (e) { console.error(`删除用户 ${userId} 的附件 ${attachmentFullPath} 失败:`, e); }
                     }
                 }
             });
             notes = notes.filter(note => note.userId !== userId);
             writeJsonFile(NOTES_FILE, notes);
-            // 刪除使用者上傳目錄
             const userUploadDir = path.join(UPLOADS_DIR, userId);
             if (fs.existsSync(userUploadDir)) {
-                try { fs.rmSync(userUploadDir, { recursive: true, force: true }); } // Node v14.14+
-                catch(e) { console.error(`刪除使用者 ${userId} 的上傳目錄 ${userUploadDir} 失敗:`, e); }
+                try { fs.rmSync(userUploadDir, { recursive: true, force: true }); }
+                catch(e) { console.error(`删除用户 ${userId} 的上传目录 ${userUploadDir} 失败:`, e); }
             }
             return true;
         }
         return false;
     },
 
-    // --- 記事相關操作 ---
     getNotes: () => readJsonFile(NOTES_FILE),
     saveNote: (note) => {
         const notes = readJsonFile(NOTES_FILE);
-        if (!note.id) { // 新建記事
+        if (!note.id) {
             note.id = `note_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
             note.createdAt = new Date().toISOString();
             note.updatedAt = new Date().toISOString();
             notes.push(note);
-        } else { // 更新記事
+        } else {
             const index = notes.findIndex(n => n.id === note.id);
             if (index > -1) {
                 notes[index] = { ...notes[index], ...note, updatedAt: new Date().toISOString() };
             } else {
-                console.error(`更新記事失敗：找不到 ID 為 ${note.id} 的記事。`);
-                return null; // 未找到則更新失敗
+                console.error(`更新记事失败：找不到 ID 为 ${note.id} 的记事。`);
+                return null;
             }
         }
         writeJsonFile(NOTES_FILE, notes);
@@ -118,21 +153,13 @@ module.exports = {
         let notes = readJsonFile(NOTES_FILE);
         const noteToDelete = notes.find(n => n.id === noteId);
         if (!noteToDelete) return false;
-
-        // 刪除關聯的附件
         if (noteToDelete.attachment && noteToDelete.attachment.path) {
             const attachmentFullPath = path.join(UPLOADS_DIR, noteToDelete.attachment.path);
             if (fs.existsSync(attachmentFullPath)) {
-                try {
-                    fs.unlinkSync(attachmentFullPath);
-                    console.log(`附件 ${attachmentFullPath} 已刪除。`);
-                } catch (e) {
-                    console.error(`刪除附件 ${attachmentFullPath} 失敗:`, e);
-                    // 即使附件刪除失敗，也應繼續刪除記事記錄
-                }
+                try { fs.unlinkSync(attachmentFullPath); }
+                catch (e) { console.error(`删除附件 ${attachmentFullPath} 失败:`, e); }
             }
         }
-
         const initialLength = notes.length;
         notes = notes.filter(n => n.id !== noteId);
         if (notes.length < initialLength) {
