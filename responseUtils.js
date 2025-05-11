@@ -113,22 +113,31 @@ module.exports = {
             const conditionalRegex = /\{\{#if\s*([a-zA-Z0-9_]+)\s*\}\}([\s\S]*?)\{\{\/if\s*\}\}/g;
             let iterations = 0;
             const MAX_ITERATIONS = 10; // 防止无限循环
+            let previousHtmlIteration;
 
-            while (conditionalRegex.test(renderedHtml) && iterations < MAX_ITERATIONS) {
-                // console.log(`[serveHtml] 条件处理迭代: ${iterations + 1}`);
+            do {
+                previousHtmlIteration = renderedHtml;
+                // 每次 replace 都需要一个新的 regex 实例，或者重置 lastIndex
+                // 对于 String.prototype.replace(RegExp, function) 这种用法，
+                // 如果 RegExp 是全局的，它会查找所有匹配项。
+                // 关键是循环的条件，确保当没有更多替换发生时循环停止。
+                
+                // 重置正则表达式的 lastIndex，确保 replace 从头开始搜索
+                conditionalRegex.lastIndex = 0; 
+
                 renderedHtml = renderedHtml.replace(conditionalRegex, (match, conditionKey, content) => {
                     const conditionValue = placeholders[conditionKey];
-                    const isTruthy = !!conditionValue;
-                    // console.log(`[serveHtml] -- 条件块: key='${conditionKey}', value='${conditionValue}', isTruthy=${isTruthy}`);
+                    const isTruthy = !!conditionValue; 
+                    // console.log(`[serveHtml Iteration ${iterations+1}] -- 条件块: key='${conditionKey}', value='${conditionValue}', isTruthy=${isTruthy}`);
                     return isTruthy ? content : '';
                 });
                 iterations++;
-            }
-            if (iterations >= MAX_ITERATIONS) {
-                console.warn(`[serveHtml] 条件处理达到最大迭代次数 (${MAX_ITERATIONS})，可能存在未解析的嵌套条件。 文件: ${htmlFilePath}`);
+            } while (renderedHtml !== previousHtmlIteration && iterations < MAX_ITERATIONS);
+            
+            if (iterations >= MAX_ITERATIONS && renderedHtml !== previousHtmlIteration) {
+                console.warn(`[serveHtml] 条件处理可能达到最大迭代次数 (${MAX_ITERATIONS}) 且HTML仍在变化，可能存在未解析的嵌套或复杂条件。 文件: ${htmlFilePath}`);
             }
             // console.log(`[serveHtml] 条件块处理后的 HTML (前500字符): ${renderedHtml.substring(0, 500)}`);
-
 
             // 2. 处理 {{variable}} 替换
             for (const key in placeholders) {
