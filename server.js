@@ -5,7 +5,7 @@ const path = require('path');
 const { handleRequest } = require('./router');
 const storage = require('./storage'); // 引入 storage 模块
 
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 8100;
 const DATA_DIR = path.join(__dirname, 'data');
 const UPLOADS_DIR = path.join(__dirname, 'uploads');
 
