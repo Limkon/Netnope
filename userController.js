@@ -1,6 +1,6 @@
 // userController.js - 使用者相關操作的控制器
-const storage = require('./storage'); // Corrected path
-const auth = require('./auth'); // Corrected path
+const storage = require('./storage');
+const auth = require('./auth');
 const {
     serveHtmlWithPlaceholders,
     serveJson,
@@ -9,23 +9,27 @@ const {
     sendUnauthorized,
     sendForbidden,
     sendBadRequest
-} = require('./responseUtils'); // Corrected path
+} = require('./responseUtils');
 const path =require('path');
 
-const PUBLIC_DIR = path.join(__dirname, 'public'); // Corrected path
+const PUBLIC_DIR = path.join(__dirname, 'public');
 
 module.exports = {
     getLoginPage: (context) => {
         if (context.session) { // 如果已登入，重定向到主頁
             return redirect(context.res, '/');
         }
-        serveHtmlWithPlaceholders(context.res, path.join(PUBLIC_DIR, 'login.html'));
+        // Pass an empty error_message if not present to ensure {{#if error_message}} block is removed
+        const error = context.query.error || (context.body ? context.body.error_message_server : null);
+        serveHtmlWithPlaceholders(context.res, path.join(PUBLIC_DIR, 'login.html'), {
+            error_message: error || '', // Ensure error_message always has a value for template
+            username_value: context.body ? context.body.username : (context.query.username || '')
+        });
     },
 
     loginUser: (context) => {
-        const { username, password } = context.body; // context.body 已由 router 解析
-        if (!username) { // 密碼可以為空，但使用者名稱不能
-            // return sendBadRequest(context.res, "使用者名稱不能為空。");
+        const { username, password } = context.body;
+        if (!username) {
             return serveHtmlWithPlaceholders(context.res, path.join(PUBLIC_DIR, 'login.html'), {
                 error_message: '使用者名稱不能為空。',
                 username_value: username || ''
@@ -33,15 +37,11 @@ module.exports = {
         }
 
         const user = storage.findUserByUsername(username);
-
-        // 密碼檢查：允許普通使用者密碼為空。明文比較。
-        // 管理員密碼不能為空。
         let passwordMatch = false;
         if (user) {
             if (user.role === 'admin') {
                 passwordMatch = user.password && user.password === password;
-            } else { // 普通使用者
-                // 處理 undefined, null, 或空字串密碼的情況
+            } else {
                 const userStoredPassword = user.password === null || user.password === undefined ? "" : user.password;
                 const providedPassword = password === null || password === undefined ? "" : password;
                 passwordMatch = userStoredPassword === providedPassword;
@@ -52,10 +52,11 @@ module.exports = {
             auth.login(context.res, user);
             redirect(context.res, '/');
         } else {
+            // Pass username back to prefill the form on error
             serveHtmlWithPlaceholders(context.res, path.join(PUBLIC_DIR, 'login.html'), {
                 error_message: '使用者名稱或密碼錯誤。',
                 username_value: username || ''
-            }, 401); // 401 Unauthorized for login failure
+            }, 401);
         }
     },
 
@@ -64,22 +65,18 @@ module.exports = {
         redirect(context.res, '/login');
     },
 
-    // --- 管理員功能 ---
     getAdminUsersPage: (context) => {
-        // 權限已在 router 中檢查
         serveHtmlWithPlaceholders(context.res, path.join(PUBLIC_DIR, 'admin.html'), {
             adminUsername: context.session.username
         });
     },
 
     listAllUsers: (context) => {
-        // 權限已在 router 中檢查
-        const users = storage.getUsers().map(u => ({ id: u.id, username: u.username, role: u.role })); // 不返回密碼
+        const users = storage.getUsers().map(u => ({ id: u.id, username: u.username, role: u.role }));
         serveJson(context.res, users);
     },
 
     createUserByAdmin: (context) => {
-        // 權限已在 router 中檢查
         const { username, password, role = 'user' } = context.body;
 
         if (!username || username.trim() === '') {
@@ -89,39 +86,46 @@ module.exports = {
             return sendBadRequest(context.res, "管理員的密碼不能為空。");
         }
         if (storage.findUserByUsername(username)) {
-            return sendError(context.res, "使用者名稱已存在。", 409); // 409 Conflict
+            return sendError(context.res, "使用者名稱已存在。", 409);
         }
-        // 對於普通使用者，密碼可以為空字串
         const newUserPassword = (role === 'user' && (password === undefined || password === null)) ? '' : password;
 
         const newUser = storage.saveUser({
             username: username.trim(),
-            password: newUserPassword, // 明文儲存，極不安全
+            password: newUserPassword,
             role
         });
         if (newUser) {
-            serveJson(context.res, { id: newUser.id, username: newUser.username, role: newUser.role }, 201); // 201 Created
+            serveJson(context.res, { id: newUser.id, username: newUser.username, role: newUser.role }, 201);
         } else {
-            sendError(context.res, "建立使用者失敗。可能是因為使用者名稱重複（即使ID不同）。");
+            sendError(context.res, "建立使用者失敗。");
         }
     },
 
     deleteUserByAdmin: (context) => {
-        // 權限已在 router 中檢查
-        const userIdToDelete = context.pathname.split('/').pop(); // 從 URL 中獲取使用者 ID
+        const userIdToDelete = context.pathname.split('/').pop();
         if (!userIdToDelete) {
             return sendBadRequest(context.res, "缺少使用者 ID。");
         }
-        if (userIdToDelete === context.session.userId) {
-            return sendForbidden(context.res, "管理員不能刪除自己的帳號。");
-        }
+
         const userToDelete = storage.findUserById(userIdToDelete);
         if (!userToDelete) {
             return sendNotFound(context.res, "找不到要刪除的使用者。");
         }
-        if (userToDelete.role === 'admin' && userToDelete.username === 'admin') {
-             // 可以考慮不允許刪除預設的 admin 帳號，或者至少給出警告
-             // return sendForbidden(context.res, "不能刪除主要的 'admin' 帳號。");
+
+        // Prevent admin from deleting themselves (already a good check)
+        if (userIdToDelete === context.session.userId) {
+            return sendForbidden(context.res, "管理員不能刪除自己的帳號。");
+        }
+
+        // Check if this is the last admin
+        if (userToDelete.role === 'admin') {
+            const allUsers = storage.getUsers();
+            const adminUsers = allUsers.filter(u => u.role === 'admin');
+            if (adminUsers.length <= 1) {
+                // If this user is the only admin in the system, prevent deletion.
+                return sendForbidden(context.res, "不能刪除最後一位管理員。系統至少需要一位管理員。");
+            }
         }
 
         if (storage.deleteUser(userIdToDelete)) {
@@ -130,6 +134,4 @@ module.exports = {
             sendError(context.res, "刪除使用者失敗。");
         }
     }
-    // 可選：updateUserByAdmin (例如：重設密碼)
-    // updateUserByAdmin: (context) => { ... }
 };
