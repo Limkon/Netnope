@@ -1,0 +1,298 @@
+/* public/css/style.css - 基本樣式 */
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
+    line-height: 1.6;
+    margin: 0;
+    padding: 0;
+    background-color: #f4f4f4;
+    color: #333;
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+}
+
+.container {
+    width: 80%;
+    max-width: 960px;
+    margin: 20px auto;
+    padding: 20px;
+    background-color: #fff;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    border-radius: 8px;
+    flex-grow: 1;
+}
+
+header {
+    background-color: #333;
+    color: #fff;
+    padding: 1rem 0;
+    text-align: center;
+}
+
+header h1 {
+    margin: 0;
+    font-size: 1.8rem;
+}
+
+header nav {
+    margin-top: 10px;
+}
+
+header nav a, header nav button {
+    color: #fff;
+    text-decoration: none;
+    margin: 0 10px;
+    padding: 5px 10px;
+    border-radius: 4px;
+    background: none;
+    border: 1px solid #fff;
+    cursor: pointer;
+    font-size: 0.9rem;
+}
+header nav button:hover, header nav a:hover {
+    background-color: #555;
+}
+
+
+h2 {
+    color: #333;
+    border-bottom: 2px solid #eee;
+    padding-bottom: 10px;
+    margin-top: 0;
+}
+
+/* 表單樣式 */
+form div {
+    margin-bottom: 15px;
+}
+
+form label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: bold;
+}
+
+form input[type="text"],
+form input[type="password"],
+form select,
+form textarea {
+    width: calc(100% - 22px); /* 考慮 padding 和 border */
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    box-sizing: border-box; /* 確保 padding 和 border 不會增加總寬度 */
+}
+form input[type="file"] {
+    padding: 10px 0;
+}
+
+
+button, input[type="submit"] {
+    background-color: #5cb85c;
+    color: white;
+    padding: 10px 15px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 1rem;
+}
+
+button:hover, input[type="submit"]:hover {
+    background-color: #4cae4c;
+}
+
+button.danger {
+    background-color: #d9534f;
+}
+button.danger:hover {
+    background-color: #c9302c;
+}
+button.secondary {
+    background-color: #6c757d;
+}
+button.secondary:hover {
+    background-color: #5a6268;
+}
+a.button-like {
+    display: inline-block;
+    background-color: #007bff;
+    color: white;
+    padding: 10px 15px;
+    text-decoration: none;
+    border-radius: 4px;
+    font-size: 1rem;
+    margin-top: 10px;
+}
+a.button-like:hover {
+    background-color: #0056b3;
+}
+
+
+/* 記事列表 */
+.note-list {
+    list-style: none;
+    padding: 0;
+}
+
+.note-item {
+    background-color: #f9f9f9;
+    border: 1px solid #eee;
+    padding: 15px;
+    margin-bottom: 10px;
+    border-radius: 4px;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start; /* 頂部對齊 */
+    flex-wrap: wrap; /* 允許內容換行 */
+}
+
+.note-item h3 {
+    margin-top: 0;
+    margin-bottom: 5px;
+    font-size: 1.2rem;
+    width: 100%; /* 標題佔滿一行 */
+}
+.note-item .note-meta {
+    font-size: 0.8rem;
+    color: #666;
+    margin-bottom: 10px;
+    width: 100%; /* 元數據也佔滿一行 */
+}
+.note-item .note-content-preview {
+    margin-bottom: 10px;
+    font-size: 0.9rem;
+    word-break: break-word; /* 避免長單字溢出 */
+    max-height: 60px; /* 預覽幾行內容 */
+    overflow: hidden;
+    text-overflow: ellipsis;
+    width: 100%;
+}
+.note-item .note-actions {
+    display: flex;
+    gap: 10px; /* 按鈕間距 */
+    align-items: center; /* 垂直居中按鈕 */
+    margin-top: 10px; /* 與內容間隔 */
+}
+.note-item .note-actions a, .note-item .note-actions button {
+    padding: 5px 10px;
+    font-size: 0.9rem;
+}
+
+.note-attachment {
+    margin-top: 10px;
+    font-size: 0.9em;
+}
+.note-attachment a {
+    color: #007bff;
+    text-decoration: none;
+}
+.note-attachment a:hover {
+    text-decoration: underline;
+}
+
+
+/* 富文本編輯器 */
+#richTextToolbar button {
+    margin-right: 5px;
+    padding: 5px 8px;
+    font-size: 0.9rem;
+    background-color: #efefef;
+    color: #333;
+    border: 1px solid #ccc;
+}
+#richTextToolbar button:hover {
+    background-color: #ddd;
+}
+#richContent {
+    border: 1px solid #ccc;
+    padding: 10px;
+    min-height: 150px;
+    background-color: #fff;
+    border-radius: 4px;
+    margin-top: 5px;
+    overflow-y: auto; /* 如果內容過多，允許滾動 */
+}
+#richContent:focus {
+    outline: none;
+    border-color: #007bff;
+    box-shadow: 0 0 0 0.2rem rgba(0,123,255,.25);
+}
+
+
+/* 錯誤訊息 */
+.error-message {
+    color: red;
+    background-color: #fdd;
+    border: 1px solid red;
+    padding: 10px;
+    margin-bottom: 15px;
+    border-radius: 4px;
+}
+.success-message {
+    color: green;
+    background-color: #dfd;
+    border: 1px solid green;
+    padding: 10px;
+    margin-bottom: 15px;
+    border-radius: 4px;
+}
+
+/* 使用者管理列表 */
+.user-list {
+    list-style-type: none;
+    padding: 0;
+}
+.user-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px;
+    border-bottom: 1px solid #eee;
+}
+.user-item:last-child {
+    border-bottom: none;
+}
+.user-item span {
+    margin-right: 10px;
+}
+
+footer {
+    text-align: center;
+    padding: 20px;
+    background-color: #333;
+    color: #fff;
+    margin-top: auto; /* 將 footer 推到底部 */
+}
+
+/* 響應式調整 */
+@media (max-width: 768px) {
+    .container {
+        width: 95%;
+        padding: 15px;
+    }
+    header h1 {
+        font-size: 1.5rem;
+    }
+    .note-item {
+        flex-direction: column; /* 在小螢幕上堆疊記事內容和操作按鈕 */
+        align-items: stretch; /* 拉伸子項目以填滿寬度 */
+    }
+    .note-item .note-actions {
+        width: 100%; /* 操作按鈕區域佔滿 */
+        justify-content: flex-start; /* 按鈕靠左 */
+        margin-top: 10px;
+    }
+    form input[type="text"],
+    form input[type="password"],
+    form select,
+    form textarea {
+        width: 100%; /* 輸入框佔滿 */
+    }
+    .user-item {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    .user-item button {
+        margin-top: 5px;
+    }
+}
