@@ -1,4 +1,4 @@
-/* public/css/style.css - 工具列控制項統一高度 */
+/* public/css/style.css - 优化Select高度和对齐 */
 body {
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
     line-height: 1.6;
@@ -275,7 +275,7 @@ form input[type="text"], form input[type="password"], form select, form textarea
     border-top-right-radius: 0.3rem;
     display: flex; 
     flex-wrap: wrap; 
-    align-items: center; /* 确保所有项目垂直居中 */
+    align-items: center; /* 垂直居中对齐 flex 项目 */
     gap: 4px; 
 }
 
@@ -284,20 +284,19 @@ form input[type="text"], form input[type="password"], form select, form textarea
 #richTextToolbar > select,
 #richTextToolbar > input[type="color"],
 #richTextToolbar > label.sr-only { 
-    display: inline-flex; /* 改为 inline-flex 以便内部内容（如按钮文字）也能垂直居中 */
-    align-items: center; /* 垂直居中按钮/选择框内的文字 */
-    justify-content: center; /* 水平居中按钮内的文字 (如果需要) */
-    vertical-align: middle; 
+    display: inline-flex; 
+    align-items: center; 
+    justify-content: center; 
+    vertical-align: middle; /* 确保基线对齐 */
     margin: 1px; 
-    padding: 0 5px; /* 调整内边距以适应统一高度 */
-    font-size: 0.85rem; /* 稍微调整字体大小 */
+    padding: 0 5px; /* 统一左右内边距 */
+    font-size: 0.85rem; 
     background-color: #ffffff;
     color: #3c4043;
     border: 1px solid #bdc1c6;
     border-radius: 0.2rem; 
     height: 28px; /* 设定统一高度 */
-    line-height: 26px; /* 确保文字在按钮内大致居中，略小于高度 */
-    box-sizing: border-box;
+    box-sizing: border-box; /* 确保 padding 和 border 不会增加总高度 */
     box-shadow: none;
     transition: background-color 0.1s ease, border-color 0.1s ease;
     flex-grow: 0; 
@@ -305,27 +304,43 @@ form input[type="text"], form input[type="password"], form select, form textarea
     flex-basis: auto; 
 }
 
+#richTextToolbar > button {
+    line-height: 26px; /* (height - border*2) for buttons */
+    padding-top: 0; /* 确保按钮文字垂直居中 */
+    padding-bottom: 0;
+}
+
+#richTextToolbar > select {
+    padding-top: 0; /* 尝试移除或精确控制 select 的垂直内边距 */
+    padding-bottom: 0;
+    padding-left: 4px; /* 调整 select 的左右内边距 */
+    padding-right: 20px; /* 为下拉箭头留出空间 */
+    line-height: 26px; /* 尝试与按钮的 line-height 保持一致 */
+    /* 或者尝试 line-height: normal; 如果上面的值导致文字显示不佳 */
+    min-width: 55px; 
+    max-width: 110px; 
+    /* 如果浏览器仍然有默认样式导致高度不一致，可以尝试 appearance:none */
+    /* -webkit-appearance: none; 
+       -moz-appearance: none;
+       appearance: none; 
+       background-image: url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%233c4043%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E');
+       background-repeat: no-repeat;
+       background-position: right 5px center;
+       background-size: 8px 8px; */
+}
+
+#richTextToolbar > input[type="color"] {
+    padding: 1px; 
+    width: 28px; 
+    /* height is already 28px from the general rule */
+}
+
+
 #richTextToolbar > button:hover,
 #richTextToolbar > select:hover,
 #richTextToolbar > input[type="color"]:hover {
     background-color: #e8eaed;
     border-color: #adb1b5;
-}
-
-/* 特殊调整颜色选择器，确保其视觉高度与其他元素一致 */
-#richTextToolbar > input[type="color"] {
-    padding: 1px; /* 颜色选择器通常不需要很多内边距 */
-    width: 28px; /* 使其宽高与高度一致，形成方形 */
-    /* height: 28px; 已在上面统一设置 */
-}
-
-/* 特殊调整下拉选择框 */
-#richTextToolbar > select {
-    min-width: 55px; /* 稍微调整最小宽度 */
-    max-width: 110px; /* 调整最大宽度 */
-    /* padding-right: 15px;  浏览器通常会处理下拉箭头，如果需要可调整 */
-    /* padding-left: 3px; */
-    /* line-height: normal; 如果继承的 line-height 导致文字不居中，可以尝试重设 */
 }
 
 .sr-only { 
