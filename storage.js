@@ -18,7 +18,7 @@ function generateSalt() {
 }
 
 function hashPassword(password, salt) {
-    if (!password) return '';
+    if (!password) return ''; // 如果密码为空，则存储空字符串
     return crypto.pbkdf2Sync(password, salt, HASH_ITERATIONS, HASH_KEYLEN, HASH_DIGEST).toString('hex');
 }
 
@@ -47,69 +47,60 @@ function writeJsonFile(filePath, data) {
     }
 }
 
-// 新增：初始化 "anyone" 匿名用户
-function initializeAnonymousUser() {
-    const users = readJsonFile(USERS_FILE);
-    const anyoneUser = users.find(u => u.username === 'anyone');
-    if (!anyoneUser) {
-        users.push({
-            id: `user_anyone_${Date.now()}`,
-            username: 'anyone',
-            role: 'anonymous',
-            // 匿名用户不需要密码、盐或哈希密码
-            salt: null,
-            hashedPassword: null
-        });
-        writeJsonFile(USERS_FILE, users);
-        console.log('匿名用户 "anyone" 已创建。');
-    }
-}
-// 在模块加载时调用，以确保 "anyone" 用户存在 (如果需要)
-// 或者在 server.js 启动时调用
-// initializeAnonymousUser(); // 移动到 server.js 中调用
-
 module.exports = {
     UPLOADS_DIR,
     hashPassword,
     generateSalt,
-    initializeAnonymousUser, // 导出以便 server.js 调用
+    // initializeAnonymousUser 函数已移除，"anyone" 用户由管理员手动创建
 
     getUsers: () => readJsonFile(USERS_FILE),
     saveUser: (userData) => {
         const users = readJsonFile(USERS_FILE);
         let userToSave = { ...userData };
 
-        // 防止修改 "anyone" 用户的关键属性
-        if (userToSave.username === 'anyone' && userData.id && userData.id.startsWith('user_anyone_')) {
-            const existingAnyone = users.find(u => u.id === userData.id);
-            if (existingAnyone) {
-                userToSave.role = 'anonymous'; // 强制角色
-                // 不允许修改 anyone 的用户名，密码相关字段也不适用
-                userToSave.username = 'anyone';
-                delete userToSave.password;
-                delete userToSave.salt;
-                delete userToSave.hashedPassword;
-            }
-        } else if (userToSave.hasOwnProperty('password')) {
-            if (!userToSave.salt) {
+        // 如果是 "anyone" 用户，强制其角色和处理密码字段
+        if (userToSave.username === 'anyone') {
+            userToSave.role = 'anonymous';
+            // 匿名用户不应该有密码或盐
+            delete userToSave.password; // 确保明文密码字段被移除
+            userToSave.salt = null;
+            userToSave.hashedPassword = null;
+        } else if (userToSave.hasOwnProperty('password')) { // 对于其他用户，处理密码哈希
+            if (!userToSave.salt) { // 如果是新用户或首次加密密码
                 userToSave.salt = generateSalt();
             }
             userToSave.hashedPassword = userToSave.password ? hashPassword(userToSave.password, userToSave.salt) : '';
-            delete userToSave.password;
+            delete userToSave.password; // 从存储对象中移除明文密码
         }
 
-        if (!userToSave.id) userToSave.id = `user_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
+
+        if (!userToSave.id) {
+            // 为新用户（包括新创建的 anyone 用户）生成 ID
+            if (userToSave.username === 'anyone') {
+                userToSave.id = `user_anyone_${Date.now()}`;
+            } else {
+                userToSave.id = `user_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
+            }
+        }
         
         const existingIndexById = users.findIndex(u => u.id === userToSave.id);
-        const existingIndexByUsername = users.findIndex(u => u.username === userToSave.username);
+        // 检查用户名是否已存在 (排除正在更新的同一用户，并允许 "anyone" 用户名存在，但不允许重复的 "anyone" ID)
+        const existingUserWithSameName = users.find(u => u.username === userToSave.username && u.id !== userToSave.id);
 
-        if (existingIndexById > -1) {
-            users[existingIndexById] = { ...users[existingIndexById], ...userToSave };
-        } else if (existingIndexByUsername > -1 && userToSave.username !== 'anyone') { // 新用户 (非anyone)，但用户名已存在
+        if (existingUserWithSameName && userToSave.username !== 'anyone') { // 不允许非 "anyone" 用户名重复
              console.error("保存用户错误：用户名已存在。");
              return null;
         }
-        else {
+        // 如果是更新 "anyone" 用户，确保其 ID 也是 "anyone" 用户的 ID
+        if (userToSave.username === 'anyone' && existingIndexById > -1 && !users[existingIndexById].id.startsWith('user_anyone_')) {
+            console.error("保存用户错误：尝试用 'anyone' 用户名更新非 'anyone' ID 的用户。");
+            return null;
+        }
+
+
+        if (existingIndexById > -1) { // 更新通过 ID 找到的用户
+            users[existingIndexById] = { ...users[existingIndexById], ...userToSave };
+        } else { // 新用户
             users.push(userToSave);
         }
         writeJsonFile(USERS_FILE, users);
@@ -118,24 +109,23 @@ module.exports = {
     },
     findUserByUsername: (username) => {
         const user = readJsonFile(USERS_FILE).find(u => u.username === username);
-        return user || null;
+        return user || null; // 返回包含 salt 和 hashedPassword 的完整用户对象
     },
     findUserById: (id) => {
         const user = readJsonFile(USERS_FILE).find(u => u.id === id);
-        return user || null;
+        return user || null; // 返回包含 salt 和 hashedPassword 的完整用户对象
     },
     deleteUser: (userId) => {
-        const userToDelete = module.exports.findUserById(userId);
-        if (userToDelete && userToDelete.username === 'anyone') {
-            console.warn('禁止删除 "anyone" 匿名用户。');
-            return false; // 不允许删除 "anyone" 用户
-        }
+        // 移除之前阻止删除 "anyone" 用户的逻辑。
+        // 管理员现在可以删除 "anyone" 用户以禁用匿名访问。
+        // 其他删除保护逻辑（如不能删除自己，不能删除最后一个管理员）应在 userController.js 中处理。
 
         let users = readJsonFile(USERS_FILE);
         const initialLength = users.length;
         users = users.filter(u => u.id !== userId);
         if (users.length < initialLength) {
             writeJsonFile(USERS_FILE, users);
+            // 删除关联的记事和附件
             let notes = readJsonFile(NOTES_FILE);
             const userNotes = notes.filter(note => note.userId === userId);
             userNotes.forEach(note => {
