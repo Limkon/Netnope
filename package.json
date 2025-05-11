@@ -1,6 +1,6 @@
 {
-  "name": "native-node-notepad",
-  "version": "1.0.0",
+  "name": "native-notepad",
+  "version": "1.0.1",
   "description": "一個完全使用Node.js原生模組建構的記事本應用程式，無任何第三方依賴。",
   "main": "server.js",
   "scripts": {
