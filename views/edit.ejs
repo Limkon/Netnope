@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= typeof pageTitle !== 'undefined' ? pageTitle : '编辑记事' %> - 网络记事本</title>
+    <link href="https://cdn.jsdelivr.net/npm/quill@2.0.0-rc.2/dist/quill.snow.css" rel="stylesheet">
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+    <%- include('../partials/header') %>
+
+    <h2>编辑记事: <%= note.title %></h2>
+
+    <% if (typeof error !== 'undefined' && error && error.length > 0) { %>
+        <p class="error-message"><%= error %></p>
+    <% } %>
+    <% if (typeof message !== 'undefined' && message && message.length > 0) { %>
+        <p class="success-message" style="color: green; background-color: #e6ffed; border: 1px solid #c3e6cb; padding: 0.75rem 1.25rem; margin-bottom: 1rem; border-radius: 0.25rem;"><%= message %></p>
+    <% } %>
+
+    <%# 主记事内容表单 %>
+    <form action="/notes/<%= note.id %>?_method=PUT" method="POST" id="note-form" class="note-edit-form">
+        <div class="form-group">
+            <label for="title">标题:</label>
+            <input type="text" id="title" name="title" value="<%= note.title %>" required>
+        </div>
+        <div class="form-group">
+            <label for="editor-container">内容:</label>
+            <div id="editor-container" class="quill-editor">
+                <%- note.content ? note.content : '<p><br></p>' %>
+            </div>
+            <input type="hidden" name="content" id="quill-content">
+        </div>
+        <div class="form-actions">
+            <button type="submit" class="btn btn-success">更新记事内容</button>
+            <a href="/notes/<%= note.id %>" class="btn btn-secondary">查看记事</a>
+            <a href="/notes" class="btn btn-secondary">返回列表</a>
+        </div>
+    </form>
+
+    <hr style="margin: 2rem 0;">
+
+    <%# 附件管理部分 %>
+    <h3>管理附件</h3>
+    <form action="/notes/<%= note.id %>/attachments" method="POST" enctype="multipart/form-data" class="note-attachment-form">
+        <div class="form-group">
+            <label for="noteAttachments">上传新附件 (最多5个, 每个不超过25MB):</label>
+            <input type="file" id="noteAttachments" name="noteAttachments" multiple class="form-control">
+        </div>
+        <div class="form-actions">
+            <button type="submit" class="btn btn-primary">上传附件</button>
+        </div>
+    </form>
+
+    <% if (note.attachments && note.attachments.length > 0) { %>
+        <h4 style="margin-top: 1.5rem;">已有附件:</h4>
+        <ul style="list-style: none; padding-left: 0;">
+            <% note.attachments.forEach(att => { %>
+                <li style="margin-bottom: 0.5rem; padding: 0.5rem; border: 1px solid #eee; border-radius: 0.25rem;">
+                    <a href="<%= att.path %>" target="_blank"><%= att.originalname %></a>
+                    <span style="font-size: 0.85em; color: #555;">(<%= (att.size / 1024).toFixed(2) %> KB) - <%= att.mimetype %></span>
+                    <form action="/notes/<%= note.id %>/attachments/<%= encodeURIComponent(att.filename) %>?_method=DELETE" method="POST" style="display: inline; margin-left: 10px;" onsubmit="return confirm('确定要删除这个附件 <%= att.originalname %> 吗？');">
+                        <button type="submit" class="btn btn-xs btn-danger">删除</button>
+                    </form>
+                </li>
+            <% }); %>
+        </ul>
+    <% } else { %>
+        <p>此记事当前没有附件。</p>
+    <% } %>
+
+
+    <%- include('../partials/footer') %>
+</body>
+</html>
