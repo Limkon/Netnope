@@ -5,7 +5,7 @@ const path = require('path');
 const { handleRequest } = require('./router'); // 路由處理函數
 const storage = require('./storage'); // 引入 storage 模組以初始化管理員
 
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 8100;
 const DATA_DIR = path.join(__dirname, 'data');
 const UPLOADS_DIR = path.join(__dirname, 'uploads');
 
