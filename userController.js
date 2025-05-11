@@ -1,6 +1,6 @@
 // userController.js - 用户相关操作的控制器
 const storage = require('./storage');
-const auth = require('./auth'); // auth.js 现在也需要 storage 来验证密码
+const auth = require('./auth');
 const {
     serveHtmlWithPlaceholders,
     serveJson,
@@ -14,13 +14,24 @@ const path =require('path');
 
 const PUBLIC_DIR = path.join(__dirname, 'public');
 
+// 辅助函数，用于获取传递给模板的导航数据
+function getNavData(session) {
+    return {
+        username: session ? session.username : '访客',
+        userRole: session ? session.role : 'anonymous', // 如果没有 session，也视为匿名以便显示登录/注册
+        adminUserId: (session && session.role === 'admin') ? session.userId : '' // 仅管理员页面需要
+    };
+}
+
 module.exports = {
     getLoginPage: (context) => {
-        if (context.session) return redirect(context.res, '/');
-        const error = context.query.error || (context.body ? context.body.error_message_server : null);
+        if (context.session && context.session.role !== 'anonymous') {
+            return redirect(context.res, '/');
+        }
         serveHtmlWithPlaceholders(context.res, path.join(PUBLIC_DIR, 'login.html'), {
-            error_message: error || '',
-            username_value: context.body ? context.body.username : (context.query.username || '')
+            error_message: context.query.error || '',
+            username_value: context.query.username_value || '',
+            ...getNavData(context.session) // 添加导航数据
         });
     },
 
@@ -28,7 +39,8 @@ module.exports = {
         const { username, password } = context.body;
         if (!username) {
             return serveHtmlWithPlaceholders(context.res, path.join(PUBLIC_DIR, 'login.html'), {
-                error_message: '用户名不能为空。', username_value: username || ''
+                error_message: '用户名不能为空。', username_value: username || '',
+                ...getNavData(context.session)
             }, 400);
         }
         const user = storage.findUserByUsername(username); 
@@ -38,7 +50,8 @@ module.exports = {
             redirect(context.res, '/');
         } else {
             serveHtmlWithPlaceholders(context.res, path.join(PUBLIC_DIR, 'login.html'), {
-                error_message: '用户名或密码错误。', username_value: username || ''
+                error_message: '用户名或密码错误。', username_value: username || '',
+                ...getNavData(context.session)
             }, 401);
         }
     },
@@ -49,12 +62,16 @@ module.exports = {
     },
 
     getRegisterPage: (context) => {
-        if (context.session) return redirect(context.res, '/');
-        serveHtmlWithPlaceholders(context.res, path.join(PUBLIC_DIR, 'register.html'));
+        if (context.session && context.session.role !== 'anonymous') { 
+            return redirect(context.res, '/');
+        }
+        serveHtmlWithPlaceholders(context.res, path.join(PUBLIC_DIR, 'register.html'), {
+            ...getNavData(context.session) // 添加导航数据
+        });
     },
 
     registerUser: (context) => {
-        const { username, password } = context.body;
+        const { username, password } = context.body; 
         if (!username || username.trim() === '') {
             return sendBadRequest(context.res, JSON.stringify({ message: "用户名不能为空。" }));
         }
@@ -64,7 +81,7 @@ module.exports = {
         const newUser = storage.saveUser({
             username: username.trim(),
             password: password, 
-            role: 'user'
+            role: 'user' 
         });
         if (newUser && newUser.id) {
             serveJson(context.res, { id: newUser.id, username: newUser.username, role: newUser.role }, 201);
@@ -74,9 +91,10 @@ module.exports = {
     },
     
     getAdminUsersPage: (context) => {
+        // 权限应在 router 中检查
         serveHtmlWithPlaceholders(context.res, path.join(PUBLIC_DIR, 'admin.html'), {
-            adminUsername: context.session.username,
-            adminUserId: context.session.userId
+            // adminUsername 和 adminUserId 已由 getNavData 覆盖
+            ...getNavData(context.session)
         });
     },
 
@@ -93,11 +111,20 @@ module.exports = {
         const { username, password, role = 'user' } = context.body;
         if (!username || username.trim() === '') return sendBadRequest(context.res, "用户名不能为空。");
         if (role === 'admin' && (!password || password.trim() === '')) return sendBadRequest(context.res, "管理员的密码不能为空。");
-        if (storage.findUserByUsername(username)) return sendError(context.res, "用户名已存在。", 409);
+        
+        // 控制器层面再次检查用户名是否存在
+        if (storage.findUserByUsername(username.trim())) {
+            return sendError(context.res, "用户名已存在。", 409);
+        }
         
         const newUser = storage.saveUser({ username: username.trim(), password: password, role });
-        if (newUser) serveJson(context.res, { id: newUser.id, username: newUser.username, role: newUser.role }, 201);
-        else sendError(context.res, "创建用户失败。");
+        if (newUser && newUser.id) { // 检查 newUser 是否为 null (如果 storage.saveUser 因重复而失败)
+            serveJson(context.res, { id: newUser.id, username: newUser.username, role: newUser.role }, 201);
+        } else {
+            // 如果 newUser 为 null，可能是因为 storage.saveUser 内部的重复检查也失败了（理论上不应发生，如果控制器检查有效）
+            // 或者其他保存错误
+            sendError(context.res, "创建用户失败。可能是用户名已存在或发生内部错误。");
+        }
     },
 
     deleteUserByAdmin: (context) => {
@@ -139,9 +166,11 @@ module.exports = {
     },
 
     getChangePasswordPage: (context) => {
-        if (!context.session) return redirect(context.res, '/login');
+        if (!context.session || context.session.role === 'anonymous') { // 确保匿名用户不能访问
+             return redirect(context.res, '/login');
+        }
         serveHtmlWithPlaceholders(context.res, path.join(PUBLIC_DIR, 'change-password.html'), {
-            username: context.session.username
+            ...getNavData(context.session) // 添加导航数据
         });
     },
 
@@ -149,18 +178,12 @@ module.exports = {
         const { currentPassword, newPassword, confirmNewPassword } = context.body;
         const userId = context.session.userId;
 
-        // 允许 currentPassword, newPassword, confirmNewPassword 为空字符串
-        // 但 newPassword 和 confirmNewPassword 必须匹配
         if (newPassword !== confirmNewPassword) {
             return sendBadRequest(context.res, JSON.stringify({ message: "新密码和确认密码不匹配。" }));
         }
-        // 如果用户尝试设置非空的新密码，但没有提供当前密码（对于那些当前密码非空的用户）
-        // 或者如果用户尝试将密码改为空，但没有提供当前密码
-        // `auth.verifyPassword` 会处理当前密码的验证（包括空密码验证）
-        // 此处不再需要 `!currentPassword` 这种检查，因为空字符串是合法的当前密码
-
+        
         const user = storage.findUserById(userId);
-        if (!user || !user.salt) {
+        if (!user || !user.salt) { // 如果用户没有 salt (例如 "anyone" 用户，虽然他们不应该能到这里)
             return sendError(context.res, JSON.stringify({ message: "无法验证当前用户。" }));
         }
 
