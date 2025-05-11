@@ -8,38 +8,47 @@ const __dirname = path.dirname(__filename);
 
 const projectRootDir = path.resolve(__dirname, '..');
 const notesDir = path.join(projectRootDir, 'data', 'notes');
-const uploadsDir = path.join(projectRootDir, 'public', 'uploads');
+const uploadsBaseDir = path.join(projectRootDir, 'public', 'uploads'); // 基础上传目录
+const noteAttachmentsBaseDir = path.join(uploadsBaseDir, 'attachments'); // 记事附件的基础目录
 
-// 确保 notes 目录存在
-export async function ensureNotesDataDir() { // 改名以更清晰
+// 通用目录确保函数
+async function ensureDir(dirPath) {
   try {
-    await fs.access(notesDir);
+    await fs.access(dirPath);
   } catch (error) {
     if (error.code === 'ENOENT') {
-      await fs.mkdir(notesDir, { recursive: true });
-      console.log(`Created directory: ${notesDir}`);
+      await fs.mkdir(dirPath, { recursive: true });
+      console.log(`Created directory: ${dirPath}`);
     } else {
-      console.error('Error accessing notes directory:', error);
+      console.error(`Error accessing/creating directory ${dirPath}:`, error);
       throw error;
     }
   }
 }
 
+// 确保 notes 数据目录存在
+export async function ensureNotesDataDir() {
+  await ensureDir(notesDir);
+}
+
+// 确保 public/uploads 目录存在 (包含图片和附件的父目录)
 export async function ensureUploadsDir() {
-  try {
-    await fs.access(uploadsDir);
-  } catch (error) {
-    if (error.code === 'ENOENT') {
-      await fs.mkdir(uploadsDir, { recursive: true });
-      console.log(`Created directory: ${uploadsDir}`);
-    } else {
-      console.error('Error accessing uploads directory:', error);
-      throw error;
-    }
-  }
+  await ensureDir(uploadsBaseDir);
+  await ensureDir(noteAttachmentsBaseDir); // 同时确保附件的基础目录存在
 }
 
-ensureNotesDataDir().catch(err => console.error("Failed to ensure notes directory on startup:", err));
+// 确保特定记事的附件目录存在
+export async function ensureAttachmentDirForNote(noteId) {
+  const noteSpecificAttachmentDir = path.join(noteAttachmentsBaseDir, noteId);
+  await ensureDir(noteSpecificAttachmentDir);
+  return noteSpecificAttachmentDir; // 返回创建的目录路径
+}
+
+
+// 在模块加载时调用一次，以确保目录存在
+ensureNotesDataDir().catch(err => console.error("Failed to ensure notes data directory on startup:", err));
+ensureUploadsDir().catch(err => console.error("Failed to ensure uploads directory on startup:", err));
+
 
 export async function getAllNotes(userId, userRole) {
   try {
@@ -51,8 +60,6 @@ export async function getAllNotes(userId, userRole) {
         const filePath = path.join(notesDir, file);
         const data = await fs.readFile(filePath, 'utf-8');
         const note = JSON.parse(data);
-        // 如果是管理员，返回所有笔记
-        // 如果是普通用户，只返回他们自己的笔记
         if (userRole === 'admin' || note.userId === userId) {
             notes.push(note);
         }
@@ -60,6 +67,7 @@ export async function getAllNotes(userId, userRole) {
     }
     return notes;
   } catch (error) {
+    // ... (保持原有错误处理)
     if (error.code === 'ENOENT') {
         console.warn('Notes directory not found while getAllNotes, returning empty array.');
         return [];
@@ -75,14 +83,13 @@ export async function getNoteById(id, userId, userRole) {
     await ensureNotesDataDir();
     const data = await fs.readFile(filePath, 'utf-8');
     const note = JSON.parse(data);
-
-    // 权限检查
     if (userRole === 'admin' || note.userId === userId) {
         return note;
     } else {
-        return null; // 用户无权访问此笔记
+        return null;
     }
   } catch (error) {
+    // ... (保持原有错误处理)
     if (error.code === 'ENOENT') {
       return null;
     }
@@ -91,56 +98,131 @@ export async function getNoteById(id, userId, userRole) {
   }
 }
 
-// 保存笔记时需要传入 userId
 export async function saveNote(noteData, userId) {
   await ensureNotesDataDir();
   const id = noteData.id || uuidv4();
   const isNewNote = !noteData.id;
 
+  let existingAttachments = [];
+  if (!isNewNote) {
+    try {
+        const currentNote = await getNoteById(id, userId, 'any'); // 'any' role to fetch for check, auth done in route
+        if (currentNote) {
+            existingAttachments = currentNote.attachments || [];
+        }
+    } catch(e) { /* ignore if not found, it's a new note effectively */ }
+  }
+
   const note = {
     id: id,
-    userId: noteData.id ? noteData.userId : userId, // 如果是更新，保留原userId；如果是新建，使用当前用户ID
+    userId: isNewNote ? userId : noteData.userId,
     title: noteData.title,
     content: noteData.content || '',
+    attachments: noteData.attachments ? noteData.attachments : existingAttachments, // 保留或更新附件信息
     createdAt: isNewNote ? new Date().toISOString() : noteData.createdAt,
     updatedAt: new Date().toISOString()
   };
-
-  // 安全检查：确保用户在编辑笔记时，该笔记确实属于他们 (除非是管理员)
-  // 这一层检查也可以放在路由处理器中
-  if (!isNewNote && noteData.userId !== userId && (typeof req !== 'undefined' && req.session.user.role !== 'admin') ) { // 假设可以访问到 req
-      // throw new Error('Unauthorized attempt to save note for another user.');
-      // 或者直接返回 null/false，让路由处理器处理
-      console.warn(`User ${userId} attempted to save note ${id} belonging to ${noteData.userId}`);
-      // return null; // 应该由路由处理权限
-  }
-
 
   const filePath = path.join(notesDir, `${id}.json`);
   await fs.writeFile(filePath, JSON.stringify(note, null, 2), 'utf-8');
   return note;
 }
 
-// 删除笔记时也需要权限检查
 export async function deleteNoteById(id, userId, userRole) {
   await ensureNotesDataDir();
   const filePath = path.join(notesDir, `${id}.json`);
   try {
-    // 在删除前先读取笔记，检查所有权
     const noteData = await fs.readFile(filePath, 'utf-8');
     const note = JSON.parse(noteData);
 
     if (userRole !== 'admin' && note.userId !== userId) {
-        return false; // 无权删除
+        return false;
     }
 
     await fs.unlink(filePath);
+
+    // 删除关联的附件目录
+    const noteSpecificAttachmentDir = path.join(noteAttachmentsBaseDir, id);
+    try {
+        await fs.access(noteSpecificAttachmentDir); // 检查目录是否存在
+        await fs.rm(noteSpecificAttachmentDir, { recursive: true, force: true }); // force: true (Node.js 14.14+)
+        console.log(`Deleted attachment directory: ${noteSpecificAttachmentDir}`);
+    } catch (dirError) {
+        if (dirError.code !== 'ENOENT') { // 如果不是“目录不存在”的错误，则记录
+            console.error(`Error deleting attachment directory ${noteSpecificAttachmentDir}:`, dirError);
+        }
+    }
     return true;
   } catch (error) {
+    // ... (保持原有错误处理)
     if (error.code === 'ENOENT') {
       return false;
     }
     console.error(`Error deleting note ${id}:`, error);
     throw error;
   }
+}
+
+// 新增：向记事添加附件元数据
+export async function addAttachmentMetadataToNote(noteId, attachmentFile, userId, userRole) {
+    const note = await getNoteById(noteId, userId, userRole);
+    if (!note) {
+        throw new Error('记事未找到或无权修改');
+    }
+
+    if (note.userId !== userId && userRole !== 'admin') {
+        throw new Error('无权向此记事添加附件');
+    }
+
+    const newAttachment = {
+        filename: attachmentFile.filename, // multer 生成的文件名
+        originalname: attachmentFile.originalname,
+        mimetype: attachmentFile.mimetype,
+        size: attachmentFile.size,
+        // 路径相对于 public 目录，以便于前端访问
+        path: `/uploads/attachments/${noteId}/${attachmentFile.filename}`
+    };
+
+    if (!note.attachments) {
+        note.attachments = [];
+    }
+    note.attachments.push(newAttachment);
+    return await saveNote(note, note.userId); // 用笔记的原始userId保存
+}
+
+// 新增：从记事移除附件元数据并删除文件
+export async function removeAttachmentFromNote(noteId, attachmentFilename, userId, userRole) {
+    const note = await getNoteById(noteId, userId, userRole);
+    if (!note) {
+        throw new Error('记事未找到或无权修改');
+    }
+    if (note.userId !== userId && userRole !== 'admin') {
+        throw new Error('无权删除此记事的附件');
+    }
+
+    if (!note.attachments) {
+        return note; // 没有附件可删除
+    }
+
+    const attachmentToRemove = note.attachments.find(att => att.filename === attachmentFilename);
+    if (!attachmentToRemove) {
+        throw new Error('附件未找到');
+    }
+
+    // 从 note.attachments 数组中移除
+    note.attachments = note.attachments.filter(att => att.filename !== attachmentFilename);
+
+    // 更新记事 (保存更改后的 attachments 数组)
+    const updatedNote = await saveNote(note, note.userId);
+
+    // 从文件系统删除附件文件
+    const filePathOnServer = path.join(projectRootDir, 'public', attachmentToRemove.path);
+    try {
+        await fs.unlink(filePathOnServer);
+        console.log(`Deleted attachment file: ${filePathOnServer}`);
+    } catch (fileError) {
+        console.error(`Error deleting attachment file ${filePathOnServer}:`, fileError);
+        // 即使文件删除失败，元数据也已移除，这里可以根据需要决定是否抛出错误
+    }
+    return updatedNote;
 }
