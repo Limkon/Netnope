@@ -12,14 +12,14 @@
             background-color: #fdfdfd;
             border-radius: 5px;
             margin-top: 10px;
-            word-wrap: break-word; 
-            overflow-wrap: break-word; 
+            word-wrap: break-word; /* 确保长单词或链接能换行 */
+            overflow-wrap: break-word; /* 更现代的换行属性 */
         }
-        .note-view-content img { 
+        .note-view-content img { /* 确保嵌入的图片不会超出容器 */
             max-width: 100%;
             height: auto;
-            display: block; 
-            margin: 10px 0; 
+            display: block; /* 避免图片下方有多余空间 */
+            margin: 10px 0; /* 给图片一些上下边距 */
         }
         .note-view-meta {
             font-size: 0.85em;
@@ -43,8 +43,7 @@
         <h2 id="noteViewTitle">{{noteTitle}}</h2>
         
         <div class="note-view-content" id="noteViewContent">
-            {{{noteContent}}} 
-        </div>
+            {{{noteContent}}} </div>
 
         {{#if noteAttachmentPath}}
         <div class="note-view-attachment">
@@ -52,7 +51,8 @@
             <a href="/uploads/{{noteAttachmentPath}}" target="_blank" title="下载 {{noteAttachmentOriginalName}}">
                 {{noteAttachmentOriginalName}}
             </a>
-            {{#if noteAttachmentSizeKB}} (大小: {{noteAttachmentSizeKB}} KB) {{/if}}
+            {{#if noteAttachmentSizeKB}} <span>({{noteAttachmentSizeKB}} KB)</span>
+            {{/if}}
         </div>
         {{/if}}
 
@@ -64,8 +64,7 @@
 
         <div class="form-actions" style="margin-top: 30px;">
             <a href="/" class="button-action">返回列表</a>
-            {{#if canEdit}} 
-            <a href="/note/edit?id={{noteId}}" class="button-action">编辑此记事</a>
+            {{#if canEdit}} <a href="/note/edit?id={{noteId}}" class="button-action">编辑此记事</a>
             {{/if}}
         </div>
     </div>
@@ -74,18 +73,24 @@
     </footer>
     <script src="/js/main.js"></script>
     <script>
+        // 从服务器端模板获取初始用户信息 (如果已登录)
+        // 这些变量由后端在渲染此页面时通过 serveHtmlWithPlaceholders 注入
         const currentUsernameFromServer = "{{username}}"; 
         const currentUserRoleFromServer = "{{userRole}}";   
         const currentUserIdFromServer = "{{userId}}";     
 
         document.addEventListener('DOMContentLoaded', () => {
+            // setupNavigation 在 main.js 中定义，它会处理匿名和登录用户的情况
             setupNavigation(currentUsernameFromServer, currentUserRoleFromServer, currentUserIdFromServer);
             
+            // 页面标题已由服务器渲染，如果需要动态更新或确保一致性，可以在此进行
             const noteTitleElement = document.getElementById('noteViewTitle');
-            if (noteTitleElement && noteTitleElement.textContent) {
-                 document.title = `${noteTitleElement.textContent} - 记事本`;
-            } else if ("{{noteTitle}}") { 
+            if (noteTitleElement && noteTitleElement.textContent) { // 确保元素存在且有内容
+                 document.title = `${noteTitleElement.textContent.trim()} - 记事本`;
+            } else if ("{{noteTitle}}") { // Fallback if element not found but placeholder has value (不太可能发生)
                  document.title = `{{noteTitle}} - 记事本`;
+            } else {
+                 document.title = `查看记事 - 记事本`; // 最终的备用标题
             }
         });
     </script>
