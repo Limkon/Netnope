@@ -52,19 +52,19 @@ module.exports = {
     },
 
     getNoteViewPage: (context) => {
-        console.log(`\n[DEBUG getNoteViewPage] 开始处理查看记事请求，查询参数:`, context.query);
+        // console.log(`[DEBUG getNoteViewPage] 开始处理查看记事请求，查询参数:`, context.query);
         const noteId = context.query.id;
         if (!noteId) {
-            console.error("[DEBUG getNoteViewPage] 错误: 缺少记事ID。");
+            // console.error("[DEBUG getNoteViewPage] 错误: 缺少记事ID。");
             return sendBadRequest(context.res, "缺少记事ID。");
         }
-        console.log(`[DEBUG getNoteViewPage] 尝试查找记事 ID: ${noteId}`);
+        // console.log(`[DEBUG getNoteViewPage] 尝试查找记事 ID: ${noteId}`);
         const note = storage.findNoteById(noteId);
         if (!note) {
-            console.error(`[DEBUG getNoteViewPage] 错误: 找不到记事 ID: ${noteId}`);
+            // console.error(`[DEBUG getNoteViewPage] 错误: 找不到记事 ID: ${noteId}`);
             return sendNotFound(context.res, "找不到指定的记事。");
         }
-        console.log(`[DEBUG getNoteViewPage] 找到记事:`, {title: note.title, id: note.id});
+        // console.log(`[DEBUG getNoteViewPage] 找到记事:`, {title: note.title, id: note.id});
 
         const sessionRole = context.session ? context.session.role : 'anonymous_fallback';
         const sessionUserId = context.session ? context.session.userId : null;
@@ -77,7 +77,7 @@ module.exports = {
         }
 
         if (!canView) {
-            console.warn(`[DEBUG getNoteViewPage] 禁止访问: 用户 (ID: ${sessionUserId}, Role: ${sessionRole}) 尝试查看不属于自己的记事 (ID: ${noteId})`);
+            // console.warn(`[DEBUG getNoteViewPage] 禁止访问: 用户 (ID: ${sessionUserId}, Role: ${sessionRole}) 尝试查看不属于自己的记事 (ID: ${noteId})`);
             return sendForbidden(context.res, "您无权查看此记事。");
         }
 
@@ -95,17 +95,18 @@ module.exports = {
             noteAttachmentSizeKB: note.attachment ? (note.attachment.size / 1024).toFixed(1) : null,
             canEdit: context.session && context.session.role !== 'anonymous' && (context.session.role === 'admin' || note.userId === context.session.userId)
         };
-        console.log(`[DEBUG getNoteViewPage] 准备传递给模板的数据 (部分):`, {
-            noteTitle: templateData.noteTitle,
-            noteAttachmentPath: templateData.noteAttachmentPath,
-            noteAttachmentSizeKB: templateData.noteAttachmentSizeKB,
-            canEdit: templateData.canEdit,
-            username: templateData.username,
-            userRole: templateData.userRole
-        });
-        console.log(`[DEBUG getNoteViewPage] 调用 serveHtmlWithPlaceholders 渲染 view-note.html`);
+        // console.log(`[DEBUG getNoteViewPage] 准备传递给模板的数据 (部分):`, {
+        //     noteTitle: templateData.noteTitle,
+        //     noteAttachmentPath: templateData.noteAttachmentPath,
+        //     noteAttachmentSizeKB: templateData.noteAttachmentSizeKB,
+        //     canEdit: templateData.canEdit,
+        //     username: templateData.username,
+        //     userRole: templateData.userRole
+        // });
+        // console.log(`[DEBUG getNoteViewPage] 调用 serveHtmlWithPlaceholders 渲染 view-note.html`);
         serveHtmlWithPlaceholders(context.res, path.join(PUBLIC_DIR, 'view-note.html'), templateData);
     },
+
 
     getAllNotes: (context) => {
         const sessionRole = context.session ? context.session.role : 'anonymous_fallback';
