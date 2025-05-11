@@ -4,38 +4,67 @@
 async function fetchData(url, options = {}) {
     try {
         const response = await fetch(url, options);
-        if (response.status === 401) { // 未授權 (Session 過期或未登入)
+        if (response.status === 401) {
             alert('您的會話已過期或未登入，請重新登入。');
             window.location.href = '/login';
             return null;
         }
+        // For non-OK responses that are not 401, try to parse error message if JSON
         if (!response.ok) {
-            const errorText = await response.text();
-            console.error(`API 請求失敗 (${response.status}): ${errorText}`);
-            throw new Error(`伺服器回應錯誤: ${response.status} ${errorText || response.statusText}`);
+            let errorData;
+            const contentType = response.headers.get("content-type");
+            if (contentType && contentType.includes("application/json")) {
+                errorData = await response.json();
+            } else {
+                errorData = await response.text();
+            }
+            console.error(`API 請求失敗 (${response.status}):`, errorData);
+            // If errorData is an object with a message property, use that, otherwise use the text or statusText
+            const errorMessage = (typeof errorData === 'object' && errorData !== null && errorData.message) ? errorData.message : (errorData || response.statusText);
+            throw new Error(`伺服器回應錯誤: ${response.status} ${errorMessage}`);
         }
-        // 如果 Content-Type 是 application/json，則解析 JSON，否則返回 text
+
         const contentType = response.headers.get("content-type");
         if (contentType && contentType.includes("application/json")) {
             return response.json();
         }
-        return response.text(); // 例如用於登出後的成功訊息 (如果伺服器返回純文字)
+        return response.text();
     } catch (error) {
         console.error('Fetch API 呼叫失敗:', error);
-        displayMessage(error.message || '與伺服器通訊時發生錯誤。', 'error', 'formMessage'); // 嘗試顯示錯誤
-        return null; // 或拋出錯誤，讓呼叫者處理
+        const messageToDisplay = error.message || '與伺服器通訊時發生錯誤。';
+        // Try to determine a relevant elementId for the message
+        let msgElementId = 'formMessage'; // Default for note form
+        if (document.getElementById('notesContainer')) msgElementId = 'notesContainer'; // For index page
+        if (document.getElementById('adminMessages')) msgElementId = 'adminMessages'; // For admin page
+        if (document.getElementById('loginForm') && !document.getElementById('adminMessages') && !document.getElementById('notesContainer')) {
+             // For login page, error is typically handled by server redirect with placeholder
+        }
+
+        displayMessage(messageToDisplay, 'error', msgElementId);
+        return null;
     }
 }
 
 function displayMessage(message, type = 'info', elementId = 'messages') {
     const container = document.getElementById(elementId);
     if (container) {
+        // For notesContainer, we might want to prepend the message instead of replacing all notes
+        if (elementId === 'notesContainer' && type === 'error') {
+            const msgDiv = document.createElement('div');
+            msgDiv.className = `${type}-message`;
+            msgDiv.innerHTML = escapeHtml(message);
+            container.prepend(msgDiv); // Prepend so list is still visible
+             setTimeout(() => { if(msgDiv) msgDiv.remove(); }, 7000); // Auto-remove after a while
+            return;
+        }
         container.innerHTML = `<div class="${type}-message">${escapeHtml(message)}</div>`;
         container.style.display = 'block';
-        // 可選：幾秒後自動隱藏訊息
-        // setTimeout(() => { container.style.display = 'none'; container.innerHTML = ''; }, 5000);
+        if (type === 'success' && (elementId === 'formMessage' || elementId === 'adminMessages')) {
+            // Don't auto-hide success on forms immediately if a redirect is planned
+        } else if (elementId !== 'notesContainer') { // notesContainer error is handled above
+             // setTimeout(() => { container.style.display = 'none'; container.innerHTML = ''; }, 5000);
+        }
     } else {
-        // 如果特定訊息容器不存在，嘗試使用 alert
         if (type === 'error') alert(`錯誤: ${message}`);
         else if (type === 'success') alert(`成功: ${message}`);
         else alert(message);
@@ -43,7 +72,7 @@ function displayMessage(message, type = 'info', elementId = 'messages') {
 }
 
 function escapeHtml(unsafe) {
-    if (typeof unsafe !== 'string') return '';
+    if (typeof unsafe !== 'string') return String(unsafe); // Ensure it's a string
     return unsafe
          .replace(/&/g, "&amp;")
          .replace(/</g, "&lt;")
@@ -52,17 +81,16 @@ function escapeHtml(unsafe) {
          .replace(/'/g, "&#039;");
 }
 
-// --- 登出邏輯 ---
 async function handleLogout() {
     if (!confirm("您確定要登出嗎？")) return;
     try {
+        // No specific body needed for logout with POST if session is cookie-based
         const response = await fetch('/logout', { method: 'POST' });
         if (response.ok && response.redirected) {
             window.location.href = response.url + (response.url.includes('?') ? '&' : '?') + 'logged_out=true';
-        } else if (response.ok) { // 如果沒有重定向，但成功
+        } else if (response.ok) {
              window.location.href = '/login?logged_out=true';
-        }
-        else {
+        } else {
             const errorText = await response.text();
             console.error('登出失敗:', errorText);
             alert('登出失敗: ' + errorText);
@@ -73,27 +101,25 @@ async function handleLogout() {
     }
 }
 
-
-// --- 記事列表頁 (index.html) ---
 async function loadNotes() {
     const notesContainer = document.getElementById('notesContainer');
     if (!notesContainer) return;
 
-    const notes = await fetchData('/api/notes');
-    if (!notes) {
-        notesContainer.innerHTML = '<p class="error-message">無法載入記事。請稍後再試。</p>';
+    const notesData = await fetchData('/api/notes');
+    if (!notesData) {
+        // fetchData already displays an error in notesContainer if it's an error
+        if (!notesContainer.querySelector('.error-message')) {
+             notesContainer.innerHTML = '<p class="error-message">無法載入記事。請稍後再試。</p>';
+        }
         return;
     }
+    const notes = Array.isArray(notesData) ? notesData : [];
+
 
     if (notes.length === 0) {
         notesContainer.innerHTML = '<p>目前沒有記事。 <a href="/note/new">建立您的第一篇記事！</a></p>';
         return;
     }
-
-    // 取得目前登入使用者的角色和ID (假設已透過某種方式注入到頁面或可從 session 取得)
-    // 這裡我們依賴伺服器端 API 回傳的 notes 已經根據權限過濾
-    // const currentUserRole = document.body.dataset.userRole; // 假設在 body data-* 屬性中
-    // const currentUserId = document.body.dataset.userId;
 
     const ul = document.createElement('ul');
     ul.className = 'note-list';
@@ -103,24 +129,21 @@ async function loadNotes() {
         li.id = `note-${note.id}`;
 
         let ownerInfo = '';
-        if (note.ownerUsername) { // 如果是管理員視角，顯示擁有者
+        if (note.ownerUsername) {
             ownerInfo = `<span class="note-owner">(擁有者: ${escapeHtml(note.ownerUsername)})</span>`;
         }
 
-        // 內容預覽 (移除 HTML 標籤並截斷)
         const tempDiv = document.createElement("div");
-        tempDiv.innerHTML = note.content; // XSS 風險在這裡，但只是為了預覽長度
+        tempDiv.innerHTML = note.content;
         const textContentPreview = tempDiv.textContent || tempDiv.innerText || "";
         const preview = textContentPreview.substring(0, 100) + (textContentPreview.length > 100 ? '...' : '');
 
-
         let attachmentHtml = '';
         if (note.attachment && note.attachment.path) {
-            // 附件路徑應相對於 /uploads/
-            const attachmentUrl = `/uploads/${note.attachment.path}`;
+            const attachmentUrl = `/uploads/${encodeURIComponent(note.attachment.path)}`;
             attachmentHtml = `
                 <div class="note-attachment">
-                    附件: <a href="${encodeURI(attachmentUrl)}" target="_blank" title="下載 ${escapeHtml(note.attachment.originalName)} (${(note.attachment.size / 1024).toFixed(1)} KB)">
+                    附件: <a href="${attachmentUrl}" target="_blank" title="下載 ${escapeHtml(note.attachment.originalName)} (${(note.attachment.size / 1024).toFixed(1)} KB)">
                         ${escapeHtml(note.attachment.originalName)}
                     </a>
                 </div>`;
@@ -143,7 +166,9 @@ async function loadNotes() {
         `;
         ul.appendChild(li);
     });
-    notesContainer.innerHTML = ''; // 清空 "正在載入..."
+    const existingError = notesContainer.querySelector('.error-message');
+    notesContainer.innerHTML = ''; // Clear "loading..." or previous errors
+    if(existingError) notesContainer.appendChild(existingError); // Keep error if it was there
     notesContainer.appendChild(ul);
 }
 
@@ -153,26 +178,26 @@ async function deleteNote(noteId, noteTitle) {
     }
     const result = await fetchData(`/api/notes/${noteId}`, { method: 'DELETE' });
     if (result) {
-        // alert(result.message || '記事已刪除。');
-        displayMessage(result.message || '記事已刪除。', 'success', 'notesContainer'); // 顯示在列表上方
-        // 從列表中移除該記事的 DOM 元素
+        displayMessage(result.message || '記事已刪除。', 'success', 'notesContainer');
         const noteElement = document.getElementById(`note-${noteId}`);
         if (noteElement) {
             noteElement.remove();
         }
-        // 可選：如果列表為空，顯示提示
         const list = document.querySelector('.note-list');
         if (list && list.children.length === 0) {
-            document.getElementById('notesContainer').innerHTML = '<p>目前沒有記事。 <a href="/note/new">建立您的第一篇記事！</a></p>';
+            // If displayMessage put the success message inside notesContainer,
+            // this might overwrite it. Let's ensure it doesn't.
+            const successMsg = document.querySelector('#notesContainer .success-message');
+            document.getElementById('notesContainer').innerHTML = '';
+            if (successMsg) document.getElementById('notesContainer').appendChild(successMsg);
+            const p = document.createElement('p');
+            p.innerHTML = '目前沒有記事。 <a href="/note/new">建立您的第一篇記事！</a>';
+            document.getElementById('notesContainer').appendChild(p);
         }
-    } else {
-        // fetchData 內部已處理錯誤訊息顯示，或這裡可以再顯示一次
-        // displayMessage('刪除記事失敗。', 'error', 'notesContainer');
     }
 }
 
-// --- 記事表單頁 (note.html) ---
-let isSubmittingNote = false; // 防止重複提交
+let isSubmittingNote = false;
 
 function initializeRichTextEditor() {
     const toolbar = document.getElementById('richTextToolbar');
@@ -182,15 +207,15 @@ function initializeRichTextEditor() {
         toolbar.addEventListener('click', (event) => {
             const target = event.target.closest('button');
             if (target && target.dataset.command) {
-                event.preventDefault(); // 防止按鈕觸發提交（如果按鈕在 form 內）
+                event.preventDefault();
                 const command = target.dataset.command;
                 let value = null;
                 if (command === 'createLink') {
                     value = prompt('請輸入連結網址:', 'http://');
-                    if (!value) return; // 使用者取消
+                    if (!value) return;
                 }
                 document.execCommand(command, false, value);
-                contentArea.focus(); // 保持焦點在編輯區
+                contentArea.focus();
             }
         });
     }
@@ -200,17 +225,16 @@ function setupNoteForm() {
     const noteForm = document.getElementById('noteForm');
     const richContent = document.getElementById('richContent');
     const hiddenContent = document.getElementById('hiddenContent');
+    const saveButton = document.getElementById('saveNoteButton');
 
-    if (noteForm && richContent && hiddenContent) {
+    if (noteForm && richContent && hiddenContent && saveButton) {
         noteForm.addEventListener('submit', async (event) => {
             event.preventDefault();
-            if (isSubmittingNote) return; // 防止重複提交
+            if (isSubmittingNote) return;
             isSubmittingNote = true;
-            document.getElementById('saveNoteButton').disabled = true;
-            document.getElementById('saveNoteButton').textContent = '儲存中...';
+            saveButton.disabled = true;
+            saveButton.textContent = '儲存中...';
 
-
-            // 將 contenteditable 的內容複製到隱藏的 textarea
             hiddenContent.value = richContent.innerHTML;
 
             const formData = new FormData(noteForm);
@@ -218,93 +242,99 @@ function setupNoteForm() {
             const url = noteId ? `/api/notes/${noteId}` : '/api/notes';
             const method = noteId ? 'PUT' : 'POST';
 
-            try {
-                const response = await fetch(url, {
-                    method: method,
-                    body: formData // FormData 會自動設定 Content-Type 為 multipart/form-data
-                });
+            // Clear previous messages
+            displayMessage('', 'info', 'formMessage');
 
-                if (response.status === 401) {
-                     alert('您的會話已過期或未登入，請重新登入。');
-                     window.location.href = '/login';
-                     return;
-                }
 
-                const result = await response.json(); // 假設伺服器總是返回 JSON
+            const result = await fetchData(url, { method: method, body: formData });
 
-                if (response.ok) {
+            if (result) { // fetchData returns null on network error or 401
+                 // Check if result is the expected note object or a success message object
+                if (result.id && result.title) { // Assuming successful save/update returns the note object
                     displayMessage(noteId ? '記事已成功更新！' : '記事已成功建立！', 'success', 'formMessage');
-                    // 可選：延遲後跳轉回列表頁
                     setTimeout(() => { window.location.href = '/'; }, 1500);
-                } else {
-                    displayMessage(result.message || `操作失敗 (${response.status})`, 'error', 'formMessage');
+                } else if (result.message) { // If server sends a JSON with a message (e.g. for errors handled by controller)
+                    displayMessage(result.message, 'error', 'formMessage');
+                } else if (typeof result === 'string' && result.includes("成功")) { // Fallback for text success
+                     displayMessage(result, 'success', 'formMessage');
+                     setTimeout(() => { window.location.href = '/'; }, 1500);
                 }
-            } catch (error) {
-                console.error('提交記事表單錯誤:', error);
-                displayMessage('提交表單時發生網路或伺服器錯誤。', 'error', 'formMessage');
-            } finally {
-                isSubmittingNote = false;
-                document.getElementById('saveNoteButton').disabled = false;
-                document.getElementById('saveNoteButton').textContent = '儲存記事';
+                // If fetchData itself displayed an error, result might be null, and message already shown.
             }
+            // If fetchData returned null, it means it already handled displaying an error.
+
+            isSubmittingNote = false;
+            saveButton.disabled = false;
+            saveButton.textContent = '儲存記事';
         });
     }
 }
 
 async function loadNoteForEditing(noteId) {
     const note = await fetchData(`/api/notes/${noteId}`);
+    const saveButton = document.getElementById('saveNoteButton');
     if (note) {
         document.getElementById('title').value = note.title;
-        document.getElementById('richContent').innerHTML = note.content; // XSS 風險! 應由伺服器端清理或使用更安全的渲染方式
-        // document.getElementById('noteId').value = note.id; // 已由模板設定
+        document.getElementById('richContent').innerHTML = note.content;
 
         const currentAttachmentDiv = document.getElementById('currentAttachment');
         const removeAttachmentContainer = document.getElementById('removeAttachmentContainer');
         if (note.attachment && note.attachment.path) {
-            const attachmentUrl = `/uploads/${note.attachment.path}`;
+            const attachmentUrl = `/uploads/${encodeURIComponent(note.attachment.path)}`;
             currentAttachmentDiv.innerHTML = `
-                目前附件: <a href="${encodeURI(attachmentUrl)}" target="_blank">${escapeHtml(note.attachment.originalName)}</a>
+                目前附件: <a href="${attachmentUrl}" target="_blank">${escapeHtml(note.attachment.originalName)}</a>
             `;
             removeAttachmentContainer.style.display = 'block';
+            document.getElementById('removeAttachmentCheckbox').checked = false; // Reset checkbox
         } else {
             currentAttachmentDiv.innerHTML = '目前沒有附件。';
             removeAttachmentContainer.style.display = 'none';
         }
     } else {
         displayMessage('無法載入記事進行編輯。', 'error', 'formMessage');
-        // 可能需要禁用表單或重定向
-        document.getElementById('saveNoteButton').disabled = true;
+        if(saveButton) saveButton.disabled = true;
     }
 }
 
-
-// --- 管理員使用者管理頁 (admin.html) ---
 async function loadUsersForAdmin() {
     const userListUl = document.getElementById('userList');
     if (!userListUl) return;
 
-    const users = await fetchData('/api/admin/users');
-    if (!users) {
-        userListUl.innerHTML = '<li class="error-message">無法載入使用者列表。</li>';
+    const usersData = await fetchData('/api/admin/users');
+     if (!usersData) {
+        if(!userListUl.querySelector('.error-message')){
+            userListUl.innerHTML = '<li class="error-message">無法載入使用者列表。</li>';
+        }
         return;
     }
+    const users = Array.isArray(usersData) ? usersData : [];
+
 
     if (users.length === 0) {
         userListUl.innerHTML = '<li>目前沒有其他使用者。</li>';
         return;
     }
 
-    userListUl.innerHTML = ''; // 清空 "正在載入..."
+    const currentAdminUsernameElement = document.getElementById('adminUsernameDisplay');
+    const currentAdminUsername = currentAdminUsernameElement ? currentAdminUsernameElement.textContent : '';
+
+
+    userListUl.innerHTML = '';
     users.forEach(user => {
         const li = document.createElement('li');
         li.className = 'user-item';
         li.id = `user-admin-${user.id}`;
+
+        let actionHtml = '';
+        if (user.username !== currentAdminUsername) {
+            actionHtml = `<button class="danger" onclick="deleteUserByAdmin('${user.id}', '${escapeHtml(user.username)}')">刪除</button>`;
+        } else {
+            actionHtml = '<span style="font-size:0.8em; color:#777;">(目前登入)</span>';
+        }
+
         li.innerHTML = `
             <span><strong>${escapeHtml(user.username)}</strong> (ID: ${user.id}, 角色: ${escapeHtml(user.role)})</span>
-            ${user.username !== 'admin' ? // 不允許刪除主要的 'admin' 帳號 (或當前登入的管理員)
-                `<button class="danger" onclick="deleteUserByAdmin('${user.id}', '${escapeHtml(user.username)}')">刪除</button>`
-                : '<span style="font-size:0.8em; color:#777;">(預設管理員)</span>'
-            }
+            ${actionHtml}
         `;
         userListUl.appendChild(li);
     });
@@ -318,7 +348,6 @@ function setupAdminUserForm() {
             const formData = new FormData(addUserForm);
             const data = Object.fromEntries(formData.entries());
 
-            // 簡單的前端驗證
             if (!data.username || data.username.trim() === '') {
                 displayMessage('使用者名稱不能為空。', 'error', 'adminMessages');
                 return;
@@ -327,7 +356,8 @@ function setupAdminUserForm() {
                 displayMessage('管理員的密碼不能為空。', 'error', 'adminMessages');
                 return;
             }
-
+            // Clear previous messages
+            displayMessage('', 'info', 'adminMessages');
 
             const result = await fetchData('/api/admin/users', {
                 method: 'POST',
@@ -335,65 +365,31 @@ function setupAdminUserForm() {
                 body: JSON.stringify(data)
             });
 
-            if (result && result.id) { // 假設成功時伺服器返回包含 id 的使用者物件
+            if (result && result.id) {
                 displayMessage(`使用者 "${escapeHtml(result.username)}" 已成功建立。`, 'success', 'adminMessages');
                 addUserForm.reset();
-                loadUsersForAdmin(); // 重新載入列表
-            } else if (result && result.message) { // 伺服器返回錯誤訊息
+                loadUsersForAdmin();
+            } else if (result && result.message) { // Server might send back a JSON with a message property for handled errors
                  displayMessage(result.message, 'error', 'adminMessages');
-            } else {
-                // fetchData 內部可能已處理，或這裡再顯示通用錯誤
-                // displayMessage('建立使用者失敗。請檢查伺服器日誌。', 'error', 'adminMessages');
             }
+            // If fetchData returned null, an error message was already displayed by fetchData itself.
         });
     }
 }
 
 async function deleteUserByAdmin(userId, username) {
-    if (!confirm(`您確定要刪除使用者 "${username}" (ID: ${userId}) 嗎？此操作將同時刪除該使用者的所有記事和附件，且無法復原。`)) {
+    if (!confirm(`您確定要刪除使用者 "${username}" (ID: ${userId}) 嗎？此操作將同時刪除该使用者的所有記事和附件，且無法復原。`)) {
         return;
     }
-
-    // 防止管理員刪除自己 (雖然伺服器端也有檢查)
-    // const currentAdminId = document.body.dataset.adminId; // 假設有此屬性
-    // if (userId === currentAdminId) {
-    //     displayMessage('管理員不能刪除自己的帳號。', 'error', 'adminMessages');
-    //     return;
-    // }
+    // Clear previous messages
+    displayMessage('', 'info', 'adminMessages');
 
     const result = await fetchData(`/api/admin/users/${userId}`, { method: 'DELETE' });
-    if (result && result.message) {
+    if (result && result.message && !result.message.toLowerCase().includes("錯誤")) { // Check if message indicates success
         displayMessage(result.message, 'success', 'adminMessages');
-        loadUsersForAdmin(); // 重新載入列表
-    } else if (result && result.error) { // 假設錯誤時返回 { error: "message" }
-        displayMessage(result.error, 'error', 'adminMessages');
-    } else {
-        // fetchData 內部可能已處理
+        loadUsersForAdmin();
+    } else if (result && result.message) { // Server sent back a JSON with a message (likely an error it handled)
+         displayMessage(result.message, 'error', 'adminMessages');
     }
+    // If fetchData returned null, an error message was already displayed by fetchData itself.
 }
-
-// --- 初始化邏輯 (如果頁面載入時就需要執行) ---
-// (已移至各 HTML 檔案的 script 標籤中，以便傳遞伺服器端渲染的變數)
-// document.addEventListener('DOMContentLoaded', () => {
-//     const path = window.location.pathname;
-//     if (path === '/' || path === '/index.html') {
-//         // loadNotes(); // 已在 index.html 中呼叫
-//     } else if (path.startsWith('/note/')) {
-//         // initializeRichTextEditor(); // 已在 note.html 中呼叫
-//         // setupNoteForm(); // 已在 note.html 中呼叫
-//         // const urlParams = new URLSearchParams(window.location.search);
-//         // const noteId = urlParams.get('id');
-//         // if (noteId) {
-//         //     loadNoteForEditing(noteId); // 已在 note.html 中呼叫
-//         // }
-//     } else if (path === '/admin/users') {
-//         // loadUsersForAdmin(); // 已在 admin.html 中呼叫
-//         // setupAdminUserForm(); // 已在 admin.html 中呼叫
-//     }
-
-//     // 通用登出按鈕 (如果頁面上有)
-//     const logoutButton = document.getElementById('logoutButton');
-//     if (logoutButton) {
-//         logoutButton.addEventListener('click', handleLogout);
-//     }
-// });
