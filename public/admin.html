@@ -3,16 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>管理使用者 - 原生Node記事本</title>
+    <title>管理使用者 - 記事本</title>
     <link rel="stylesheet" href="/css/style.css">
 </head>
 <body>
     <header>
-        <h1>原生 Node.js 記事本 - 管理員面板</h1>
+        <h1>記事本 - 管理員面板</h1>
         <nav>
-            <span style="margin-right:20px;">管理員: <strong id="adminUsernameDisplay">{{adminUsername}}</strong></span>
-            <a href="/">返回記事列表</a>
-            <button id="logoutButton" style="background-color: #d9534f;">登出</button>
+            <span class="welcome-user">管理員: <strong id="adminUsernameDisplay">{{adminUsername}}</strong></span>
+            <a href="/" class="button-header">返回記事列表</a>
+            <button id="logoutButton" class="button-header danger">登出</button>
         </nav>
     </header>
     <div class="container">
@@ -21,13 +21,13 @@
         <div id="adminMessages"></div>
 
         <h3>新增使用者</h3>
-        <form id="addUserForm" style="margin-bottom: 30px; padding: 15px; background-color:#f9f9f9; border-radius:5px;">
+        <form id="addUserForm" class="form-styled">
             <div>
                 <label for="newUsername">使用者名稱:</label>
                 <input type="text" id="newUsername" name="username" required>
             </div>
             <div>
-                <label for="newPassword">密碼 (普通使用者可為空, 管理員不可):</label>
+                <label for="newPassword">密碼:</label>
                 <input type="password" id="newPassword" name="password">
             </div>
             <div>
@@ -37,7 +37,9 @@
                     <option value="admin">管理員 (admin)</option>
                 </select>
             </div>
-            <button type="submit">新增使用者</button>
+            <div class="form-actions">
+                <button type="submit" class="button-primary">新增使用者</button>
+            </div>
         </form>
 
         <h3>現有使用者列表</h3>
@@ -46,7 +48,7 @@
         </ul>
     </div>
     <footer>
-        <p>&copy; 2025 原生Node記事本。僅供演示。</p>
+        <p>&copy; 2025 記事本。僅供演示。</p>
     </footer>
     <script src="/js/main.js"></script>
     <script>
