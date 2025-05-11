@@ -216,7 +216,7 @@ function setupNoteForm() {
                     displayMessage(noteId ? '记事已成功更新！' : '记事已成功创建！', 'success', 'formMessage');
                     setTimeout(() => { window.location.href = '/'; }, 1500);
                 } else if (result.message) displayMessage(result.message, 'error', 'formMessage');
-                else if (typeof result === 'string' && result.includes("成功")) { // 后端可能直接返回文本成功消息
+                else if (typeof result === 'string' && result.includes("成功")) {
                      displayMessage(result, 'success', 'formMessage');
                      setTimeout(() => { window.location.href = '/'; }, 1500);
                 }
@@ -250,7 +250,6 @@ async function loadNoteForEditing(noteId) {
     }
 }
 
-// --- 管理员用户管理 ---
 async function loadUsersForAdmin(currentAdminId) {
     const userListUl = document.getElementById('userList');
     if (!userListUl) return;
@@ -337,7 +336,7 @@ function showPasswordResetForm(userId, username, listItemElement) {
     saveButton.style.marginRight = '10px';
     const cancelButton = document.createElement('button');
     cancelButton.type = 'button';
-    cancelButton.className = 'button-action button-cancel'; // 确保取消按钮也使用统一的操作按钮样式
+    cancelButton.className = 'button-action button-cancel';
     cancelButton.textContent = '取消';
     cancelButton.onclick = () => formContainer.remove();
     form.appendChild(currentUserP);
@@ -468,26 +467,41 @@ function setupChangeOwnPasswordForm() {
         form.addEventListener('submit', async (event) => {
             event.preventDefault();
             if (isChangingOwnPassword) return;
-            const currentPassword = document.getElementById('currentPassword').value;
+
+            const currentPassword = document.getElementById('currentPassword').value; // 可以是空字符串
             const newPassword = document.getElementById('newPasswordUser').value;
             const confirmNewPassword = document.getElementById('confirmNewPasswordUser').value;
+
             displayMessage('', 'info', messageContainerId);
-            if (!currentPassword || !newPassword || !confirmNewPassword) {
-                displayMessage('所有密码字段都不能为空。', 'error', messageContainerId);
-                return;
+
+            // 仅当用户尝试设置非空新密码时，才要求新密码和确认密码不能为空
+            if (newPassword || confirmNewPassword) { // 如果其中一个有值，则另一个也应该有值且匹配
+                if (newPassword !== confirmNewPassword) {
+                    displayMessage('新密码和确认密码不匹配。', 'error', messageContainerId);
+                    return;
+                }
+                // 如果 newPassword 为空但 confirmNewPassword 不为空（或反之），上面的匹配检查会处理
+                // 如果两者都非空，则继续
+            } else {
+                 // 如果 newPassword 和 confirmNewPassword 都为空,
+                 // 检查 currentPassword 是否也为空，如果是，则提示用户至少输入新密码
+                 // 或者，如果用户确实想把非空密码改为空密码，这里允许。
+                 // 假设：如果新密码字段都为空，则用户意图是将密码设置为空（如果当前密码正确）
             }
-            if (newPassword !== confirmNewPassword) {
-                displayMessage('新密码和确认密码不匹配。', 'error', messageContainerId);
-                return;
-            }
+            // 移除了 (!currentPassword || !newPassword || !confirmNewPassword) 的检查
+            // 因为 currentPassword 可以为空。
+            // newPassword 和 confirmNewPassword 的非空性取决于用户意图。
+
             isChangingOwnPassword = true;
             submitButton.disabled = true;
             submitButton.textContent = '正在提交...';
+
             const result = await fetchData('/api/users/me/password', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ currentPassword, newPassword, confirmNewPassword })
             });
+
             if (result && result.message && result.message.includes("成功")) {
                 displayMessage(result.message + ' 您可能需要重新登录。', 'success', messageContainerId);
                 form.reset();
@@ -497,6 +511,7 @@ function setupChangeOwnPasswordForm() {
             } else if (result && result.message) {
                 displayMessage(result.message, 'error', messageContainerId);
             }
+
             isChangingOwnPassword = false;
             submitButton.disabled = false;
             submitButton.textContent = '确认修改';
