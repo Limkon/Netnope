@@ -31,10 +31,9 @@ function initializeDirectories() {
 function initializeAdminUser() {
     const adminUsername = 'admin';
     if (!storage.findUserByUsername(adminUsername)) {
-        // 传递明文密码给 storage.saveUser，它内部会哈希
         storage.saveUser({
             username: adminUsername,
-            password: 'admin', // 初始明文密码
+            password: 'admin', // 初始明文密码，storage.saveUser 会哈希
             role: 'admin'
         });
         console.log(`默认管理员账户 '${adminUsername}' (密码: 'admin') 已创建。`);
@@ -57,8 +56,9 @@ const server = http.createServer((req, res) => {
 
 server.listen(PORT, () => {
     initializeDirectories();
-    storage.initializeAnonymousUser(); // 新增：确保 "anyone" 用户存在
-    initializeAdminUser(); // 初始化管理员（如果不存在）
+    // 移除了 storage.initializeAnonymousUser(); 
+    // "anyone" 用户现在由管理员通过用户管理界面手动创建/删除。
+    initializeAdminUser(); 
     console.log(`服务器正在监听 http://localhost:${PORT}/`);
     console.log("提示：密码已加密存储。");
 });
