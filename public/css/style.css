@@ -1,11 +1,11 @@
-/* public/css/style.css - 按鈕與富文本樣式更新 */
+/* public/css/style.css - 浅色主题和按钮更新 */
 body {
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
     line-height: 1.6;
     margin: 0;
     padding: 0;
-    background-color: #f8f9fa;
-    color: #212529;
+    background-color: #f0f2f5; /* 更明亮的背景色 */
+    color: #1f1f1f; /* 深色文字以保证对比度 */
     display: flex;
     flex-direction: column;
     min-height: 100vh;
@@ -15,239 +15,242 @@ body {
     width: 90%;
     max-width: 1024px;
     margin: 30px auto;
-    padding: 25px;
+    padding: 30px; /* 增加内边距 */
     background-color: #ffffff;
-    box-shadow: 0 2px 15px rgba(0, 0, 0, 0.08);
-    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08); /* 更柔和的阴影 */
+    border-radius: 10px; /* 更大的圆角 */
     flex-grow: 1;
 }
 
 header {
-    background-color: #343a40;
-    color: #ffffff;
-    padding: 1.2rem 0;
+    background-color: #ffffff; /* 浅色头部 */
+    color: #1f1f1f;
+    padding: 1.5rem 0; /* 增加头部内边距 */
     text-align: center;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    border-bottom: 1px solid #dcdcdc; /* 细边框 */
 }
 
 header h1 {
     margin: 0;
-    font-size: 2rem;
+    font-size: 2.2rem;
     font-weight: 500;
+    color: #1a73e8; /* 主题蓝色 */
 }
 
 header nav {
-    margin-top: 12px;
+    margin-top: 15px;
     display: flex;
     justify-content: center;
     align-items: center;
-    gap: 15px;
+    gap: 18px;
 }
 .welcome-user {
-    color: #adb5bd;
-    font-size: 0.9rem;
+    color: #5f6368; /* 头部欢迎文字颜色 */
+    font-size: 0.95rem;
 }
 .welcome-user strong {
-    color: #ffffff;
+    color: #1a73e8;
 }
 
-/* --- 通用按鈕樣式 --- */
-.button, button, input[type="submit"], .button-like, .button-header {
-    display: inline-flex; /* Use flex for better alignment of content inside button */
+/* --- 统一操作按钮样式 (除富文本、登出、删除外) --- */
+.button-action,
+input[type="submit"], /* 登录页的提交按钮 */
+.button-like, /* <a> 标签模拟的按钮 */
+.button-header:not(.danger) /* 头部非危险按钮 */
+{
+    display: inline-flex;
     align-items: center;
     justify-content: center;
-    font-weight: 400;
+    font-weight: 500; /* 中等粗细 */
     color: #ffffff;
     text-align: center;
     vertical-align: middle;
     cursor: pointer;
     user-select: none;
-    background-color: transparent;
-    border: 1px solid transparent;
-    padding: 0.55rem 1.1rem; /* Slightly more padding for better touch targets */
+    background-color: #1a73e8; /* 主题蓝色 */
+    border: 1px solid #1a73e8;
+    padding: 0.6rem 1.2rem;
     font-size: 0.95rem;
     line-height: 1.5;
-    border-radius: 0.3rem;
-    transition: color 0.15s ease-in-out, background-color 0.15s ease-in-out, border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+    border-radius: 0.35rem; /* 统一圆角 */
+    transition: background-color 0.15s ease-in-out, border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
     text-decoration: none;
-    min-height: 38px; /* Ensure consistent height */
+    min-height: 40px;
     box-sizing: border-box;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
 }
+.button-action:hover,
+input[type="submit"]:hover,
+.button-like:hover,
+.button-header:not(.danger):hover {
+    background-color: #1765c7; /* 悬停时加深 */
+    border-color: #1765c7;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.08);
+}
+.button-action:focus,
+input[type="submit"]:focus,
+.button-like:focus,
+.button-header:not(.danger):focus {
+    outline: none;
+    box-shadow: 0 0 0 0.2rem rgba(26, 115, 232, 0.35); /* 聚焦光晕 */
+}
+/* 取消按钮，也使用主要操作样式，但可以有细微差别，或完全一致 */
+.button-cancel { /* 如果需要特定取消样式，否则它会继承 .button-action */
+    /* background-color: #e8eaed;
+    border-color: #dadce0;
+    color: #3c4043; */
+    /* 按要求，与“储存记事”按钮样式一致，所以这里注释掉，它将使用 .button-action */
+}
+/* .button-cancel:hover {
+    background-color: #dadce0;
+    border-color: #c4c7ca;
+} */
 
-/* Primary Button */
-.button-primary, input[type="submit"]#loginForm button { /* More specific for login if needed */
-    color: #ffffff;
-    background-color: #007bff;
-    border-color: #007bff;
-}
-.button-primary:hover {
-    color: #ffffff;
-    background-color: #0069d9;
-    border-color: #0062cc;
-}
-.button-primary:focus {
-    box-shadow: 0 0 0 0.2rem rgba(38, 143, 255, 0.5);
-}
 
-/* Secondary Button */
-.button-secondary {
+/* 危险操作按钮 (登出, 删除) */
+.button-danger, button.danger, .button-header.danger {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 500;
     color: #ffffff;
-    background-color: #6c757d;
-    border-color: #6c757d;
+    text-align: center;
+    vertical-align: middle;
+    cursor: pointer;
+    user-select: none;
+    background-color: #d93025; /* 红色 */
+    border: 1px solid #d93025;
+    padding: 0.6rem 1.2rem;
+    font-size: 0.95rem;
+    line-height: 1.5;
+    border-radius: 0.35rem;
+    transition: background-color 0.15s ease-in-out, border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+    text-decoration: none;
+    min-height: 40px;
+    box-sizing: border-box;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
 }
-.button-secondary:hover {
-    color: #ffffff;
-    background-color: #5a6268;
-    border-color: #545b62;
+.button-danger:hover, button.danger:hover, .button-header.danger:hover {
+    background-color: #c5221f; /* 悬停时加深 */
+    border-color: #c5221f;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.08);
 }
-.button-secondary:focus {
-    box-shadow: 0 0 0 0.2rem rgba(130, 138, 145, 0.5);
+.button-danger:focus, button.danger:focus, .button-header.danger:focus {
+    outline: none;
+    box-shadow: 0 0 0 0.2rem rgba(217, 48, 37, 0.35);
 }
-
-/* Danger Button */
-.button-danger, button.danger {
-    color: #ffffff;
-    background-color: #dc3545;
-    border-color: #dc3545;
-}
-.button-danger:hover, button.danger:hover {
-    color: #ffffff;
-    background-color: #c82333;
-    border-color: #bd2130;
-}
-.button-danger:focus, button.danger:focus {
-    box-shadow: 0 0 0 0.2rem rgba(225, 83, 97, 0.5);
-}
-
-/* Header Buttons */
-.button-header {
-    color: #f8f9fa;
-    border-color: #6c757d;
-    padding: 0.4rem 0.8rem; /* Slightly smaller for header */
-    font-size: 0.9rem;
-    min-height: auto; /* Override min-height for header buttons if needed */
-}
-.button-header:hover {
-    color: #ffffff;
-    background-color: #495057;
-    border-color: #495057;
-}
+/* 头部登出按钮微调 */
 .button-header.danger {
-    border-color: #dc3545;
-}
-.button-header.danger:hover {
-    background-color: #c82333;
-    border-color: #bd2130;
+    padding: 0.45rem 0.9rem; /* 头部按钮可以稍小 */
 }
 
 
 h2 {
-    color: #343a40;
-    border-bottom: 1px solid #dee2e6;
-    padding-bottom: 12px;
+    color: #1a73e8; /* 标题也用主题蓝 */
+    border-bottom: 1px solid #e0e0e0;
+    padding-bottom: 15px;
     margin-top: 0;
-    margin-bottom: 25px;
+    margin-bottom: 30px;
     font-weight: 500;
+    font-size: 1.8rem;
 }
 
-/* Form styling */
+/* 表单样式 */
 .form-styled div, form div {
-    margin-bottom: 1.2rem;
+    margin-bottom: 1.5rem;
 }
-
 .form-styled label, form label {
     display: block;
-    margin-bottom: 0.5rem;
+    margin-bottom: 0.6rem;
     font-weight: 500;
-    color: #495057;
+    color: #3c4043; /* 表单标签颜色 */
 }
 .checkbox-label {
     display: inline-block !important;
     font-weight: normal !important;
-    margin-left: 0.3rem;
+    margin-left: 0.4rem;
     vertical-align: middle;
 }
-
 
 .form-styled input[type="text"], .form-styled input[type="password"], .form-styled select, .form-styled textarea,
 form input[type="text"], form input[type="password"], form select, form textarea {
     display: block;
     width: 100%;
-    padding: 0.5rem 0.75rem;
+    padding: 0.6rem 0.85rem;
     font-size: 0.95rem;
     line-height: 1.5;
-    color: #495057;
+    color: #3c4043;
     background-color: #ffffff;
     background-clip: padding-box;
-    border: 1px solid #ced4da;
-    border-radius: 0.25rem;
+    border: 1px solid #dadce0; /* 表单输入框边框 */
+    border-radius: 0.3rem;
     box-sizing: border-box;
     transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
-    min-height: 38px; /* Consistent height with buttons */
+    min-height: 40px;
 }
 .form-styled input[type="file"], form input[type="file"] {
     padding: 10px 0;
-    min-height: auto; /* File input height is different */
+    min-height: auto;
+    border: none; /* 文件输入框通常不需要边框 */
 }
 
 .form-styled input:focus, form input:focus,
 .form-styled select:focus, form select:focus,
 .form-styled textarea:focus, form textarea:focus {
-    border-color: #80bdff;
+    border-color: #1a73e8; /* 聚焦时主题蓝边框 */
     outline: 0;
-    box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+    box-shadow: 0 0 0 0.2rem rgba(26, 115, 232, 0.25);
 }
 
 .form-actions {
-    margin-top: 1.5rem;
+    margin-top: 2rem;
     display: flex;
-    gap: 12px; /* Increased gap */
-    align-items: center; /* Vertically align buttons if they wrap */
-    flex-wrap: wrap; /* Allow buttons to wrap on smaller screens */
+    gap: 12px;
+    align-items: center;
+    flex-wrap: wrap;
 }
+/* 确保表单内的按钮使用 .button-action 或 .button-danger */
 
 
-/* Note List */
+/* 记事列表 */
 .note-list {
     list-style: none;
     padding: 0;
 }
-
 .note-item {
     background-color: #ffffff;
-    border: 1px solid #e9ecef;
-    padding: 20px;
-    margin-bottom: 15px;
-    border-radius: 6px;
+    border: 1px solid #e0e0e0;
+    padding: 25px;
+    margin-bottom: 18px;
+    border-radius: 8px;
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 12px;
     transition: box-shadow 0.2s ease-in-out;
 }
 .note-item:hover {
-    box-shadow: 0 4px 8px rgba(0,0,0,0.05);
+    box-shadow: 0 5px 15px rgba(0,0,0,0.07);
 }
-
 .note-item h3 {
     margin-top: 0;
     margin-bottom: 8px;
-    font-size: 1.3rem;
+    font-size: 1.4rem;
     font-weight: 500;
-    color: #007bff;
+    color: #1a73e8;
 }
 .note-item .note-owner {
     font-size: 0.85rem;
-    color: #6c757d;
+    color: #5f6368;
     font-weight: normal;
 }
 .note-item .note-meta {
     font-size: 0.8rem;
-    color: #6c757d;
+    color: #5f6368;
     margin-bottom: 12px;
 }
 .note-item .note-content-preview {
     font-size: 0.95rem;
-    color: #495057;
+    color: #3c4043;
     word-break: break-word;
     max-height: 60px;
     overflow: hidden;
@@ -260,22 +263,21 @@ form input[type="text"], form input[type="password"], form select, form textarea
     align-items: center;
     align-self: flex-start;
 }
-/* Ensure action buttons in note items are consistently sized and styled */
-.note-item .note-actions .button-secondary, /* Target "Edit" */
-.note-item .note-actions .button-danger {  /* Target "Delete" */
-    padding: 0.4rem 0.8rem; /* Adjusted padding for these specific buttons */
-    font-size: 0.875rem;
-    min-width: 75px; /* Ensure they have a decent minimum width */
+/* 记事列表中的编辑和删除按钮 */
+.note-item .note-actions .button-action, /* 编辑按钮 */
+.note-item .note-actions .button-danger { /* 删除按钮 */
+    padding: 0.45rem 0.9rem; /* 稍小一些 */
+    font-size: 0.9rem;
+    min-width: 75px;
 }
-
 
 .current-attachment-info, .note-attachment {
-    margin-top: 8px;
+    margin-top: 10px;
     font-size: 0.9em;
-    color: #495057;
+    color: #3c4043;
 }
 .current-attachment-info a, .note-attachment a {
-    color: #007bff;
+    color: #1a73e8;
     text-decoration: none;
     font-weight: 500;
 }
@@ -283,155 +285,156 @@ form input[type="text"], form input[type="password"], form select, form textarea
     text-decoration: underline;
 }
 
-
-/* Rich Text Editor Toolbar */
+/* 富文本编辑器按钮 - 恢复到以前的简单样式 */
 #richTextToolbar {
-    margin-bottom: 0; /* Remove bottom margin, border will separate */
-    padding: 8px; /* More padding */
-    background-color: #f8f9fa;
-    border: 1px solid #ced4da;
-    border-bottom: none; /* Border is on the content area below */
-    border-top-left-radius: 0.25rem;
-    border-top-right-radius: 0.25rem;
-    display: flex; /* Use flex for better alignment of toolbar items */
-    flex-wrap: wrap; /* Allow items to wrap */
-    gap: 6px; /* Space between toolbar items */
+    margin-bottom: 0;
+    padding: 6px; /* 减少一点内边距 */
+    background-color: #f1f3f4; /* 浅灰色背景 */
+    border: 1px solid #dadce0;
+    border-bottom: none;
+    border-top-left-radius: 0.3rem;
+    border-top-right-radius: 0.3rem;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px; /* 按钮间距 */
 }
 #richTextToolbar button,
 #richTextToolbar select,
 #richTextToolbar input[type="color"] {
-    padding: 5px 8px;
+    padding: 5px 8px; /* 恢复较小的内边距 */
     font-size: 0.9rem;
-    background-color: #ffffff;
-    color: #495057;
-    border: 1px solid #ced4da;
-    border-radius: 0.2rem;
-    height: 32px; /* Consistent height for toolbar items */
+    background-color: #ffffff; /* 白色背景 */
+    color: #3c4043; /* 深灰色文字 */
+    border: 1px solid #bdc1c6; /* 较深的边框 */
+    border-radius: 0.25rem; /* 较小的圆角 */
+    height: 30px; /* 统一高度 */
     box-sizing: border-box;
     vertical-align: middle;
+    box-shadow: none; /* 移除阴影 */
+    transition: background-color 0.1s ease, border-color 0.1s ease;
 }
 #richTextToolbar button:hover,
 #richTextToolbar select:hover,
 #richTextToolbar input[type="color"]:hover {
-    background-color: #e9ecef;
-    border-color: #adb5bd;
+    background-color: #e8eaed; /* 悬停时浅灰色 */
+    border-color: #adb1b5;
 }
 #richTextToolbar input[type="color"] {
-    padding: 2px; /* Adjust padding for color input */
-    width: 40px; /* Specific width for color picker */
+    padding: 1px 2px; /* 颜色选择器特殊内边距 */
+    width: 30px; /* 调整宽度 */
+    height: 30px;
 }
 #richTextToolbar select {
-    min-width: 80px; /* Minimum width for select dropdowns */
+    min-width: 75px;
 }
 
 #richContent {
-    border: 1px solid #ced4da;
-    padding: 12px;
-    min-height: 200px; /* Increased height */
+    border: 1px solid #dadce0;
+    padding: 15px; /* 增加内容区内边距 */
+    min-height: 220px;
     background-color: #ffffff;
-    border-bottom-left-radius: 0.25rem;
-    border-bottom-right-radius: 0.25rem;
+    border-bottom-left-radius: 0.3rem;
+    border-bottom-right-radius: 0.3rem;
     overflow-y: auto;
     line-height: 1.7;
+    color: #1f1f1f;
 }
 #richContent:focus {
-    border-color: #80bdff;
+    border-color: #1a73e8;
     outline: 0;
-    box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25) inset;
+    box-shadow: 0 0 0 0.2rem rgba(26, 115, 232, 0.2) inset; /* 聚焦时内阴影 */
 }
 
-
-/* Message styling */
+/* 消息提示 */
 .error-message, .success-message {
     border: 1px solid transparent;
-    padding: 0.75rem 1.25rem;
-    margin-bottom: 1rem;
-    border-radius: 0.25rem;
+    padding: 0.8rem 1.3rem;
+    margin-bottom: 1.2rem;
+    border-radius: 0.3rem;
     font-size: 0.95rem;
 }
 .error-message {
-    color: #721c24;
-    background-color: #f8d7da;
-    border-color: #f5c6cb;
+    color: #a50e0e; /* 更深的红色文字 */
+    background-color: #fdd8d6; /* 浅红色背景 */
+    border-color: #f7c5c2;
 }
 .success-message {
-    color: #155724;
-    background-color: #d4edda;
-    border-color: #c3e6cb;
+    color: #0d652d; /* 更深的绿色文字 */
+    background-color: #d3eadd; /* 浅绿色背景 */
+    border-color: #bde4ca;
 }
 
-/* User Management List */
+/* 用户管理列表 */
 .user-list {
     list-style-type: none;
     padding: 0;
-    margin-top: 20px;
+    margin-top: 25px;
 }
 .user-item {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 12px 15px;
-    border: 1px solid #e9ecef;
+    padding: 14px 18px;
+    border: 1px solid #e0e0e0;
     margin-bottom: -1px;
     background-color: #fff;
 }
 .user-item:first-child {
-    border-top-left-radius: 0.25rem;
-    border-top-right-radius: 0.25rem;
+    border-top-left-radius: 0.3rem;
+    border-top-right-radius: 0.3rem;
 }
 .user-item:last-child {
-    border-bottom-left-radius: 0.25rem;
-    border-bottom-right-radius: 0.25rem;
+    border-bottom-left-radius: 0.3rem;
+    border-bottom-right-radius: 0.3rem;
     margin-bottom: 0;
 }
 .user-item span {
-    margin-right: 10px;
-    color: #495057;
+    margin-right: 12px;
+    color: #3c4043;
 }
 .user-item span strong {
-    color: #212529;
+    color: #1f1f1f;
 }
-.user-item .button-danger {
-    padding: 0.3rem 0.6rem;
-    font-size: 0.85rem;
-    min-width: 60px;
+.user-item .button-danger { /* 用户列表中的删除按钮 */
+    padding: 0.4rem 0.8rem;
+    font-size: 0.9rem;
+    min-width: 70px;
 }
-
 
 footer {
     text-align: center;
     padding: 25px;
-    background-color: #343a40;
-    color: #adb5bd;
+    background-color: #ffffff; /* 页脚也用浅色 */
+    color: #5f6368;
     margin-top: auto;
     font-size: 0.9rem;
+    border-top: 1px solid #dcdcdc;
 }
 
-/* Responsive adjustments */
+/* 响应式调整 */
 @media (max-width: 768px) {
     .container {
         width: 95%;
         padding: 20px;
-        margin: 15px auto;
+        margin: 20px auto;
     }
     header h1 {
-        font-size: 1.7rem;
+        font-size: 1.8rem;
     }
     header nav {
         flex-direction: column;
-        gap: 8px;
+        gap: 10px;
     }
     .form-actions {
         flex-direction: column;
         align-items: stretch;
     }
-    .form-actions .button-primary, .form-actions .button-secondary {
+    .form-actions .button-action, .form-actions .button-danger {
         width: 100%;
     }
-    .form-actions .button-secondary {
-        margin-top: 8px;
+    .form-actions .button-action + .button-action { /* 如果有多个同类按钮 */
+        margin-top: 10px;
     }
-
     .note-item .note-actions {
         flex-direction: row;
         flex-wrap: wrap;
@@ -441,9 +444,9 @@ footer {
     .user-item {
         flex-direction: column;
         align-items: flex-start;
-        gap: 8px;
+        gap: 10px;
     }
     #richTextToolbar {
-        justify-content: flex-start; /* Align toolbar items to start on small screens */
+        justify-content: flex-start;
     }
 }
