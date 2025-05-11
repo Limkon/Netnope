@@ -109,15 +109,34 @@ module.exports = {
                 else return sendForbidden(res, "禁止访问此路径的静态资源。");
             }
             if (pathname.startsWith('/uploads/')) {
-                if (!context.session || context.session.role === 'anonymous') {
-                    return sendForbidden(res, "您无权下载附件。");
+                // Step 1: 如果完全没有会话 (即 "anyone" 用户不存在且用户未登录)，则禁止访问。
+                if (!context.session) {
+                    return sendForbidden(res, "您需要登录或启用匿名访问才能下载附件。");
                 }
+
                 const requestedFileRelativePath = decodeURIComponent(pathname.substring('/uploads/'.length));
                 const fullPath = path.join(UPLOADS_DIR, requestedFileRelativePath);
-                if (!path.resolve(fullPath).startsWith(path.resolve(UPLOADS_DIR))) return sendForbidden(res, "禁止访问此文件路径！");
-                const note = storage.getNotes().find(n => n.attachment && n.attachment.path === requestedFileRelativePath);
-                if (context.session.role !== 'admin' && (!note || note.userId !== context.session.userId)) return sendForbidden(res, "您无权访问此附件。");
-                if (!fs.existsSync(fullPath)) return sendNotFound(res, "请求的附件不存在。");
+
+                // Step 2: 安全性 - 路径遍历检查 (始终重要)
+                if (!path.resolve(fullPath).startsWith(path.resolve(UPLOADS_DIR))) {
+                    return sendForbidden(res, "禁止访问此文件路径！");
+                }
+
+                // Step 3: 文件存在性检查
+                if (!fs.existsSync(fullPath)) {
+                    return sendNotFound(res, "请求的附件不存在。");
+                }
+
+                // Step 4: 权限检查
+                // 如果是匿名用户 (通过 "anyone" 登录) 或管理员，则允许下载。
+                // 如果是普通登录用户，则检查他们是否是该附件所属记事的所有者。
+                if (context.session.role !== 'anonymous' && context.session.role !== 'admin') {
+                    const note = storage.getNotes().find(n => n.attachment && n.attachment.path === requestedFileRelativePath);
+                    if (!note || note.userId !== context.session.userId) {
+                         return sendForbidden(res, "您无权下载此附件。");
+                    }
+                }
+                // 允许匿名用户、管理员或已验证所有权的普通用户下载
                 return serveStaticFile(res, fullPath);
             }
         }
@@ -126,49 +145,48 @@ module.exports = {
         if (pathname === '/login' && method === 'POST') return userController.loginUser(context);
         if (pathname === '/register' && method === 'GET') return userController.getRegisterPage(context);
         if (pathname === '/api/users/register' && method === 'POST') return userController.registerUser(context);
-        
-        // 新增：查看单个记事页面路由
         if (pathname === '/note/view' && method === 'GET') return noteController.getNoteViewPage(context);
 
 
         if (context.session && context.session.role === 'anonymous') {
             if ((pathname === '/' || pathname === '/index.html') && method === 'GET') return noteController.getNotesPage(context);
-            if (pathname === '/api/notes' && method === 'GET') return noteController.getAllNotes(context); // 允许匿名获取所有笔记API
-            // /note/view GET 已在上面处理，匿名用户可以访问
-            // 匿名用户不能访问 /api/notes/:id (此API用于编辑数据加载)
+            if (pathname === '/api/notes' && method === 'GET') return noteController.getAllNotes(context);
+            // /note/view GET 已在上面处理
             
-            if (method !== 'GET' || (pathname !== '/' && pathname !== '/index.html' && pathname !== '/note/view' && !pathname.startsWith('/api/notes'))) {
+            // 匿名用户不能访问API获取单个笔记数据 (getNoteById)
+            if (pathname.startsWith('/api/notes/') && method === 'GET' && pathname.split('/').length > 3) { // 避免匹配 /api/notes
+                return sendForbidden(res, "匿名用户无权直接访问此API。");
+            }
+
+            if (method !== 'GET' || (pathname !== '/' && pathname !== '/index.html' && pathname !== '/note/view' && pathname !== '/api/notes')) {
                 if (pathname.startsWith('/api/')) return sendForbidden(res, "匿名用户无权执行此操作。");
                 return redirect(res, '/login');
             }
         }
 
         if (!context.session || context.session.role === 'anonymous') {
-            if (pathname.startsWith('/api/') && pathname !== '/api/notes') { // 允许匿名用户访问 /api/notes
+            // 对于 /api/notes，如果匿名访问未启用 (context.session 为 null)，则禁止
+            if (pathname === '/api/notes' && !context.session) {
                  return sendUnauthorized(res, "请先登录后再操作。");
             }
-            // 对于非API的、需要登录的页面，如果不是登录或注册页，则重定向
+            if (pathname.startsWith('/api/') && pathname !== '/api/notes') { 
+                 return sendUnauthorized(res, "请先登录后再操作。");
+            }
             if (!pathname.startsWith('/api/') && pathname !== '/login' && pathname !== '/register' && pathname !== '/note/view' && pathname !== '/' && pathname !== '/index.html') {
                  return redirect(res, '/login');
             }
-            // 如果是首页或查看页，但匿名访问未启用（即 context.session 为 null），则也应重定向
             if (!context.session && (pathname === '/' || pathname === '/index.html' || pathname === '/note/view')) {
                 return redirect(res, '/login');
             }
-            if (!context.session && pathname.startsWith('/api/notes')) { // 如果匿名访问未启用，禁止访问笔记API
-                 return sendUnauthorized(res, "请先登录后再操作。");
-            }
-            // 如果是其他情况（例如匿名用户访问允许的页面），则不执行任何操作，让后续路由处理
         }
-
 
         if (pathname === '/logout' && method === 'POST') return userController.logoutUser(context);
         if (pathname === '/change-password' && method === 'GET') return userController.getChangePasswordPage(context);
         if (pathname === '/api/users/me/password' && method === 'POST') return userController.changeOwnPassword(context);
         if ((pathname === '/' || pathname === '/index.html') && method === 'GET') return noteController.getNotesPage(context);
-        if (pathname === '/api/notes' && method === 'GET') return noteController.getAllNotes(context); // 已登录用户获取笔记
+        if (pathname === '/api/notes' && method === 'GET') return noteController.getAllNotes(context);
         if (pathname === '/api/notes' && method === 'POST') return noteController.createNote(context);
-        if (pathname.startsWith('/api/notes/') && method === 'GET') return noteController.getNoteById(context); // API 获取单个笔记数据
+        if (pathname.startsWith('/api/notes/') && method === 'GET') return noteController.getNoteById(context);
         if (pathname.startsWith('/api/notes/') && method === 'PUT') return noteController.updateNote(context);
         if (pathname.startsWith('/api/notes/') && method === 'DELETE') return noteController.deleteNoteById(context);
         if (pathname === '/note/new' && method === 'GET') return noteController.getNoteFormPage(context, null);
@@ -177,7 +195,7 @@ module.exports = {
             return noteController.getNoteFormPage(context, query.id);
         }
 
-        if (context.session && context.session.role === 'admin') { // 确保 session 存在再检查 role
+        if (context.session && context.session.role === 'admin') {
             if (pathname === '/admin/users' && method === 'GET') return userController.getAdminUsersPage(context);
             if (pathname === '/api/admin/users' && method === 'GET') return userController.listAllUsers(context);
             if (pathname === '/api/admin/users' && method === 'POST') return userController.createUserByAdmin(context);
