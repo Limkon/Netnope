@@ -1,68 +1,62 @@
 <!DOCTYPE html>
-<html lang="zh-TW">
+<html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>管理使用者 - 記事本</title>
+    <title>管理用户 - 记事本</title>
     <link rel="stylesheet" href="/css/style.css">
 </head>
 <body>
     <header>
-        <h1>記事本 - 管理員面板</h1>
+        <h1>记事本 - 管理员面板</h1>
         <nav>
-            <span class="welcome-user">管理員: <strong id="adminUsernameDisplay">{{adminUsername}}</strong></span>
-            <a href="/" class="button-header">返回記事列表</a>
-            <button id="logoutButton" class="button-header danger">登出</button>
+            <span class="welcome-user">管理员: <strong id="adminUsernameDisplay">{{adminUsername}}</strong></span>
+            <a href="/" class="button-action">返回记事列表</a>
+            <button id="logoutButton" class="button-danger">登出</button>
         </nav>
     </header>
     <div class="container">
-        <h2>使用者管理</h2>
+        <h2>用户管理</h2>
 
         <div id="adminMessages"></div>
-
-        <h3>新增使用者</h3>
+        <h3>新建用户</h3>
         <form id="addUserForm" class="form-styled">
             <div>
-                <label for="newUsername">使用者名稱:</label>
+                <label for="newUsername">用户名:</label>
                 <input type="text" id="newUsername" name="username" required>
             </div>
             <div>
-                <label for="newPassword">密碼:</label>
+                <label for="newPassword">密码:</label>
                 <input type="password" id="newPassword" name="password">
             </div>
             <div>
                 <label for="newRole">角色:</label>
                 <select id="newRole" name="role">
-                    <option value="user" selected>普通使用者 (user)</option>
-                    <option value="admin">管理員 (admin)</option>
+                    <option value="user" selected>普通用户 (user)</option>
+                    <option value="admin">管理员 (admin)</option>
                 </select>
             </div>
             <div class="form-actions">
-                <button type="submit" class="button-primary">新增使用者</button>
+                <button type="submit" class="button-action">新建用户</button>
             </div>
         </form>
 
-        <h3>現有使用者列表</h3>
+        <h3>现有用户列表</h3>
         <ul id="userList" class="user-list">
-            <li>正在載入使用者列表...</li>
+            <li>正在加载用户列表...</li>
         </ul>
     </div>
     <footer>
-        <p>&copy; 2025 記事本。僅供演示。</p>
+        <p>&copy; 2025 记事本。仅供演示。</p>
     </footer>
     <script src="/js/main.js"></script>
     <script>
         const currentAdminUsername = "{{adminUsername}}";
+        const currentAdminId = "{{adminUserId}}";
         document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('adminUsernameDisplay').textContent = currentAdminUsername || 'Admin';
-            
-            loadUsersForAdmin(); // main.js
-            setupAdminUserForm(); // main.js
-
-            const logoutButton = document.getElementById('logoutButton');
-            if(logoutButton) {
-                logoutButton.addEventListener('click', handleLogout); // main.js
-            }
+            loadUsersForAdmin(currentAdminId);
+            setupAdminUserForm();
         });
     </script>
 </body>
