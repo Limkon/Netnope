@@ -78,13 +78,9 @@ function setupNavigation(username, role, userId) {
     currentUserRoleGlobal = isValidRole ? role : 'anonymous';
     currentUserIdGlobal = isValidUserId ? userId : '';
 
-    // console.log("[DEBUG setupNavigation] Input - username:", username, "role:", role, "userId:", userId);
-    // console.log("[DEBUG setupNavigation] Parsed - Username:", currentUsernameGlobal, "Role:", currentUserRoleGlobal, "UserID:", currentUserIdGlobal);
-
     const navContainer = document.getElementById('mainNav');
-    const usernameDisplaySpan = document.getElementById('usernameDisplay'); // 独立的用户名称显示元素
+    const usernameDisplaySpan = document.getElementById('usernameDisplay'); 
 
-    // 更新独立的 usernameDisplay (例如在 note.html, admin.html 的 header 中)
     if (usernameDisplaySpan) { 
         usernameDisplaySpan.textContent = escapeHtml(currentUsernameGlobal);
     }
@@ -278,7 +274,8 @@ function initializeRichTextEditor() {
     contentArea.addEventListener('blur', () => { savedRange = saveSelection(); });
     contentArea.addEventListener('click', () => { savedRange = saveSelection(); });
     contentArea.addEventListener('keyup', () => { savedRange = saveSelection(); });
-    
+    contentArea.addEventListener('mouseup', () => { savedRange = saveSelection(); }); 
+
     toolbar.addEventListener('mousedown', (event) => { 
         if (event.target.tagName !== 'SELECT' && event.target.tagName !== 'INPUT') {
             event.preventDefault(); 
@@ -298,27 +295,29 @@ function initializeRichTextEditor() {
         if (targetButton) {
             const command = targetButton.dataset.command;
             
-            contentArea.focus(); // 确保在执行命令前编辑器有焦点
-            let rangeToUseForCommand = saveSelection() || savedRange; // 优先使用当前最新选区
-            restoreSelection(rangeToUseForCommand); // 恢复选区
+            contentArea.focus(); // 确保编辑器有焦点
+            let rangeForCommand = saveSelection() || savedRange; // 获取最新或已保存的选区
+            restoreSelection(rangeForCommand); // 恢复选区
 
             if (command === 'createLink') {
                 const selection = window.getSelection();
-                let defaultUrl = 'https://';
-                if (selection && selection.rangeCount > 0 && !selection.isCollapsed) {
-                    let parentNode = selection.getRangeAt(0).commonAncestorContainer;
-                    if (parentNode.nodeType !== Node.ELEMENT_NODE) parentNode = parentNode.parentNode;
-                    if (parentNode && parentNode.tagName === 'A') defaultUrl = parentNode.getAttribute('href') || 'https://';
+                if (!selection || selection.isCollapsed || selection.rangeCount === 0) {
+                    alert("请先选中文本，然后再创建链接。");
+                    return; 
                 }
+
+                let defaultUrl = 'https://';
+                let currentRange = selection.getRangeAt(0);
+                let parentElement = currentRange.commonAncestorContainer;
+                if (parentElement.nodeType !== Node.ELEMENT_NODE) parentElement = parentNode.parentNode;
+                if (parentElement && parentElement.tagName === 'A') defaultUrl = parentElement.getAttribute('href') || 'https://';
                 
-                // 在 prompt 之前，保存最新的选区
-                const rangeBeforePrompt = saveSelection(); 
+                const rangeBeforePrompt = saveSelection(); // 在 prompt 前再次保存精确的选区
 
                 const url = prompt('请输入链接网址:', defaultUrl);
                 
-                // 在 prompt 后，焦点可能已丢失，需要重新聚焦并恢复 *prompt之前* 的选区
                 contentArea.focus(); 
-                restoreSelection(rangeBeforePrompt); 
+                restoreSelection(rangeBeforePrompt); // 严格恢复 prompt 之前的选区
 
                 if (url && url.trim() !== "" && url.trim().toLowerCase() !== 'https://') {
                     document.execCommand('createLink', false, url.trim());
