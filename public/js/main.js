@@ -63,7 +63,7 @@ function displayMessage(message, type = 'info', elementId = 'globalMessageArea')
 
 function escapeHtml(unsafe) {
     if (typeof unsafe !== 'string') return String(unsafe);
-    return unsafe.replace(/&/g, "&").replace(/</g, "<").replace(/>/g, ">").replace(/"/g, """).replace(/'/g, "'");
+    return unsafe.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
 }
 
 function setupNavigation(username, role, userId) {
@@ -251,6 +251,7 @@ function initializeRichTextEditor() {
     function saveSelection() {
         if (window.getSelection && window.getSelection().rangeCount > 0) {
             const selection = window.getSelection();
+            // 确保选区在编辑器内部
             if (contentArea.contains(selection.anchorNode) && contentArea.contains(selection.focusNode)) {
                 return selection.getRangeAt(0).cloneRange();
             }
@@ -259,7 +260,7 @@ function initializeRichTextEditor() {
     }
 
     function restoreSelection(range) {
-        contentArea.focus(); 
+        contentArea.focus(); // 总是先聚焦
         if (range) {
             const selection = window.getSelection();
             selection.removeAllRanges();
@@ -276,10 +277,11 @@ function initializeRichTextEditor() {
 
     toolbar.addEventListener('mousedown', (event) => { 
         if (event.target.tagName !== 'SELECT' && event.target.tagName !== 'INPUT') {
-            event.preventDefault(); 
+            event.preventDefault(); // 防止编辑器失焦
         }
-        savedRange = saveSelection();
+        savedRange = saveSelection(); // 在点击工具栏按钮前保存选区
     });
+
 
     const fontNameSelector = document.getElementById('fontNameSelector');
     const fontSizeSelector = document.getElementById('fontSizeSelector');
@@ -292,56 +294,45 @@ function initializeRichTextEditor() {
         if (targetButton) {
             const command = targetButton.dataset.command;
             
+            // 在执行命令前，先让编辑器获得焦点，然后恢复之前（mousedown时）保存的选区
             restoreSelection(savedRange); 
 
             if (command === 'createLink') {
                 const selection = window.getSelection();
-                if (!selection || selection.isCollapsed || selection.rangeCount === 0) {
+                // 必须先选中文本
+                if (!selection || selection.rangeCount === 0 || selection.isCollapsed) {
                     alert("请先选中文本，然后再创建链接。");
-                    contentArea.focus(); 
+                    contentArea.focus(); // 确保焦点返回编辑器
+                    savedRange = saveSelection(); // 更新保存的选区（可能是光标位置）
                     return; 
                 }
 
-                savedRange = saveSelection(); // 保存当前选区
-
-                const linkDialog = document.getElementById('linkDialog');
-                const linkUrlInput = document.getElementById('linkUrl');
-                const confirmLinkButton = document.getElementById('confirmLink');
-                const cancelLinkButton = document.getElementById('cancelLink');
-
-                if (!linkDialog || !linkUrlInput || !confirmLinkButton || !cancelLinkButton) {
-                    alert("链接对话框未正确加载，请检查页面配置。");
-                    return;
-                }
-
-                linkUrlInput.value = 'https://'; // 默认值
+                let defaultUrl = 'https://';
+                // 尝试获取已选中链接的href作为默认值
                 let currentRange = selection.getRangeAt(0);
                 let parentElement = currentRange.commonAncestorContainer;
                 if (parentElement.nodeType !== Node.ELEMENT_NODE) {
                     parentElement = parentElement.parentNode;
                 }
                 if (parentElement && parentElement.tagName === 'A') {
-                    linkUrlInput.value = parentElement.getAttribute('href') || 'https://';
+                    defaultUrl = parentElement.getAttribute('href') || 'https://';
                 }
+                
+                // 在 prompt 之前，再次确保选区是最新的，因为用户可能在 mousedown 后又调整了选区
+                // `savedRange` 此时应该是在 mousedown 时保存的，是可靠的
+                const rangeForLink = savedRange ? savedRange.cloneRange() : null;
 
-                linkDialog.style.display = 'block'; // 显示对话框
-                linkUrlInput.focus();
+                const url = prompt('请输入链接网址:', defaultUrl);
+                
+                // 在 prompt 后，焦点可能已丢失，需要重新聚焦并恢复 *prompt之前* 的选区
+                restoreSelection(rangeForLink); 
 
-                confirmLinkButton.onclick = () => {
-                    const url = linkUrlInput.value.trim();
-                    if (url && url !== 'https://') {
-                        restoreSelection(savedRange);
-                        document.execCommand('createLink', false, url);
-                        savedRange = saveSelection();
-                        linkDialog.style.display = 'none'; // 关闭对话框
-                    } else {
-                        alert("您输入的链接无效。");
-                    }
-                };
-
-                cancelLinkButton.onclick = () => {
-                    linkDialog.style.display = 'none'; // 关闭对话框
-                };
+                if (url && url.trim() !== "" && url.trim().toLowerCase() !== 'https://') {
+                    document.execCommand('createLink', false, url.trim());
+                } else if (url !== null) { // 用户点击了确定但输入无效或未改动默认的 "https://"
+                    alert("您输入的链接无效或已取消。");
+                }
+                // 如果用户取消 prompt (url is null)，则不执行任何操作
             } else {
                 document.execCommand(command, false, null); 
             }
@@ -436,7 +427,7 @@ async function loadNoteForEditing(noteId) {
         document.getElementById('title').value = note.title;
         document.getElementById('richContent').innerHTML = note.content;
         const currentAttachmentDiv = document.getElementById('currentAttachment');
-        const removeAttachmentContainer = document.getElementById('removeAttachmentsContainer');
+        const removeAttachmentContainer = document.getElementById('removeAttachmentContainer');
         if (note.attachment && note.attachment.path) {
             const attachmentUrl = `/uploads/${encodeURIComponent(note.attachment.path)}`;
             currentAttachmentDiv.innerHTML = `当前附件: <a href="${attachmentUrl}" target="_blank">${escapeHtml(note.attachment.originalName)}</a>`;
@@ -753,6 +744,7 @@ document.addEventListener('DOMContentLoaded', () => {
     currentUserIdGlobal = userIdFromServer;   
 
     setupNavigation(usernameFromServer, roleFromServer, userIdFromServer);
+
 
     if (path === '/' || path === '/index.html') {
         const urlParams = new URLSearchParams(window.location.search);
