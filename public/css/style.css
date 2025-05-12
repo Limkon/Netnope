@@ -126,7 +126,7 @@ input[type="submit"]:focus,
     outline: none;
     box-shadow: 0 0 0 0.2rem rgba(217, 48, 37, 0.35);
 }
-.button-header.danger {
+.button-header.danger { /* 这个是桌面端的，移动端会覆盖 */
     padding: 0.45rem 0.9rem;
 }
 
@@ -244,7 +244,7 @@ form input[type="text"], form input[type="password"], form select, form textarea
     gap: 10px;
     align-items: center;
     align-self: flex-start;
-    flex-wrap: wrap; /* 允许记事操作按钮换行 */
+    flex-wrap: wrap; 
 }
 .note-item .note-actions .button-action,
 .note-item .note-actions .button-danger {
@@ -308,8 +308,6 @@ form input[type="text"], form input[type="password"], form select, form textarea
 }
 
 #richTextToolbar > button {
-    /* padding-top: 1px;
-    padding-bottom: 1px; */
 }
 
 #richTextToolbar > select {
@@ -413,9 +411,9 @@ form input[type="text"], form input[type="password"], form select, form textarea
 .user-item span strong {
     color: #1f1f1f;
 }
-.user-item .user-item-actions { /* 容器允许换行 */
+.user-item .user-item-actions { 
     display: flex;
-    gap: 8px; /* 按钮间距 */
+    gap: 8px; 
     flex-wrap: wrap;
 }
 .user-item .user-item-actions .button-action,
@@ -440,51 +438,63 @@ footer {
 @media (max-width: 768px) {
     .container {
         width: 95%;
-        padding: 15px; /* 减小移动端容器内边距 */
+        padding: 15px; 
         margin: 15px auto;
     }
     header h1 {
         font-size: 1.8rem;
     }
     header nav {
-        flex-direction: column; /* 头部导航垂直堆叠 */
-        gap: 10px;
+        /* 移除 flex-direction: column; 以允许横向排列和换行 */
+        /* flex-direction: column;  <-- 移除这一行 */
+        flex-wrap: wrap; /* 确保换行 */
+        justify-content: center; /* 居中对齐换行的行 */
+        gap: 8px; /* 减小移动端导航按钮间距 */
     }
-    /* 移动端通用按钮调整 */
-    .button-action,
-    input[type="submit"],
-    .button-like,
-    .button-header, /* 包括头部按钮 */
-    .button-danger {
-        padding: 0.5rem 0.8rem; /* 减小移动端按钮内边距 */
-        font-size: 0.9rem;    /* 减小移动端按钮字体大小 */
-        min-height: 36px;     /* 减小移动端按钮最小高度 */
+    /* 移动端头部导航按钮调整 */
+    header nav .button-action,
+    header nav .button-danger {
+        padding: 0.4rem 0.7rem; /* 进一步减小头部按钮内边距 */
+        font-size: 0.85rem;   /* 进一步减小头部按钮字体 */
+        min-height: 32px;    /* 减小头部按钮最小高度 */
+        flex-grow: 0; /* 不允许拉伸 */
+        flex-shrink: 1; /* 允许收缩 */
     }
-    .button-header.danger { /* 确保头部危险按钮也调整 */
-        padding: 0.4rem 0.7rem;
+    header nav .welcome-user {
+        width: 100%; /* 欢迎语在移动端占满一行，避免挤压按钮 */
+        text-align: center;
+        margin-bottom: 8px;
     }
 
+
+    /* 移动端通用按钮调整 (排除头部导航按钮，因为它们有更具体的规则) */
+    .button-action:not(.button-header),
+    input[type="submit"]:not(.button-header),
+    .button-like:not(.button-header),
+    .button-danger:not(.button-header) {
+        padding: 0.5rem 0.8rem; 
+        font-size: 0.9rem;    
+        min-height: 36px;     
+    }
+    
 
     .form-actions {
         flex-direction: column;
         align-items: stretch;
     }
     .form-actions .button-action, .form-actions .button-danger {
-        width: 100%; /* 表单操作按钮在移动端占满宽度 */
-        margin-bottom: 8px; /* 堆叠时增加间距 */
+        width: 100%; 
+        margin-bottom: 8px; 
     }
     .form-actions .button-action:last-child, 
     .form-actions .button-danger:last-child {
         margin-bottom: 0;
     }
-    /* .form-actions .button-action + .button-action { 
-        margin-top: 10px; 
-    } */
-    /* 搜索表单按钮调整 */
+    
     .toolbar-actions form#searchForm button[type="submit"] {
-        padding: 0.5rem 0.8rem; /* 与其他移动端按钮一致 */
+        padding: 0.5rem 0.8rem; 
         font-size: 0.9rem;
-        min-width: 70px; /* 调整搜索按钮最小宽度 */
+        min-width: 70px; 
     }
     .toolbar-actions button#clearSearchButton {
         padding: 0.5rem 0.8rem;
@@ -498,14 +508,13 @@ footer {
         flex-wrap: wrap;
         width: 100%;
         justify-content: flex-start;
-        gap: 8px; /* 调整记事操作按钮间距 */
+        gap: 8px; 
     }
-    /* 移动端记事列表中的按钮 */
     .note-item .note-actions .button-action,
     .note-item .note-actions .button-danger {
-        padding: 0.35rem 0.7rem; /* 进一步减小 */
-        font-size: 0.85rem;    /* 进一步减小 */
-        min-width: 65px;      /* 进一步减小 */
+        padding: 0.35rem 0.7rem; 
+        font-size: 0.85rem;    
+        min-width: 65px;      
     }
 
     .user-item {
@@ -513,32 +522,30 @@ footer {
         align-items: flex-start;
         gap: 10px;
     }
-     /* 移动端用户列表中的按钮 */
     .user-item .user-item-actions .button-action,
     .user-item .user-item-actions .button-danger {
         padding: 0.35rem 0.7rem;
         font-size: 0.85rem;
-        min-width: auto; /* 允许按钮根据内容收缩 */
-        flex-grow: 1; /* 如果希望它们在可用空间内平均分配 */
+        min-width: auto; 
+        flex-grow: 1; 
     }
 
 
     #richTextToolbar {
         justify-content: flex-start;
-        gap: 3px; /* 移动端工具栏间隙 */
+        gap: 3px; 
         padding: 4px;
     }
-    /* 移动端富文本工具栏按钮 */
     #richTextToolbar > button,
     #richTextToolbar > select,
     #richTextToolbar > input[type="color"] {
-        padding: 2px 4px; /* 非常紧凑 */
-        font-size: 0.75rem; /* 更小字体 */
-        height: 26px; /* 保持高度 */
+        padding: 2px 4px; 
+        font-size: 0.75rem; 
+        height: 26px; 
     }
     #richTextToolbar > select {
         min-width: 50px;
-        max-width: 90px; /* 限制最大宽度 */
+        max-width: 90px; 
     }
     #richTextToolbar > input[type="color"] {
         width: 26px;
