@@ -63,7 +63,7 @@ function displayMessage(message, type = 'info', elementId = 'globalMessageArea')
 
 function escapeHtml(unsafe) {
     if (typeof unsafe !== 'string') return String(unsafe);
-    return unsafe.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+    return unsafe.replace(/&/g, "&").replace(/</g, "<").replace(/>/g, ">").replace(/"/g, """).replace(/'/g, "'");
 }
 
 function setupNavigation(username, role, userId) {
@@ -278,9 +278,8 @@ function initializeRichTextEditor() {
         if (event.target.tagName !== 'SELECT' && event.target.tagName !== 'INPUT') {
             event.preventDefault(); 
         }
-        savedRange = saveSelection(); // 总是保存最新的选区
+        savedRange = saveSelection();
     });
-
 
     const fontNameSelector = document.getElementById('fontNameSelector');
     const fontSizeSelector = document.getElementById('fontSizeSelector');
@@ -293,42 +292,56 @@ function initializeRichTextEditor() {
         if (targetButton) {
             const command = targetButton.dataset.command;
             
-            // 在执行命令前，先让编辑器获得焦点，然后恢复之前（mousedown时）保存的选区
-            contentArea.focus();
             restoreSelection(savedRange); 
 
             if (command === 'createLink') {
                 const selection = window.getSelection();
-                if (!selection || selection.rangeCount === 0 || selection.isCollapsed) {
+                if (!selection || selection.isCollapsed || selection.rangeCount === 0) {
                     alert("请先选中文本，然后再创建链接。");
                     contentArea.focus(); 
-                    savedRange = saveSelection(); // 更新保存的选区（可能是光标位置）
                     return; 
                 }
 
-                let defaultUrl = 'https://';
+                savedRange = saveSelection(); // 保存当前选区
+
+                const linkDialog = document.getElementById('linkDialog');
+                const linkUrlInput = document.getElementById('linkUrl');
+                const confirmLinkButton = document.getElementById('confirmLink');
+                const cancelLinkButton = document.getElementById('cancelLink');
+
+                if (!linkDialog || !linkUrlInput || !confirmLinkButton || !cancelLinkButton) {
+                    alert("链接对话框未正确加载，请检查页面配置。");
+                    return;
+                }
+
+                linkUrlInput.value = 'https://'; // 默认值
                 let currentRange = selection.getRangeAt(0);
                 let parentElement = currentRange.commonAncestorContainer;
                 if (parentElement.nodeType !== Node.ELEMENT_NODE) {
                     parentElement = parentElement.parentNode;
                 }
                 if (parentElement && parentElement.tagName === 'A') {
-                    defaultUrl = parentElement.getAttribute('href') || 'https://';
+                    linkUrlInput.value = parentElement.getAttribute('href') || 'https://';
                 }
-                
-                // prompt 会导致编辑器失焦，所以选区需要在 prompt 之前保存，并在之后恢复
-                // savedRange 此处应该已经是 mousedown 时保存的正确选区
-                const url = prompt('请输入链接网址:', defaultUrl);
-                
-                // 在 prompt 后，焦点可能已丢失，需要重新聚焦并恢复 *mousedown时* 的选区
-                contentArea.focus(); 
-                restoreSelection(savedRange); // 严格使用 mousedown 时保存的选区
 
-                if (url && url.trim() !== "" && url.trim().toLowerCase() !== 'https://') {
-                    document.execCommand('createLink', false, url.trim());
-                } else if (url !== null) { 
-                    alert("您输入的链接无效或已取消。");
-                }
+                linkDialog.style.display = 'block'; // 显示对话框
+                linkUrlInput.focus();
+
+                confirmLinkButton.onclick = () => {
+                    const url = linkUrlInput.value.trim();
+                    if (url && url !== 'https://') {
+                        restoreSelection(savedRange);
+                        document.execCommand('createLink', false, url);
+                        savedRange = saveSelection();
+                        linkDialog.style.display = 'none'; // 关闭对话框
+                    } else {
+                        alert("您输入的链接无效。");
+                    }
+                };
+
+                cancelLinkButton.onclick = () => {
+                    linkDialog.style.display = 'none'; // 关闭对话框
+                };
             } else {
                 document.execCommand(command, false, null); 
             }
@@ -423,7 +436,7 @@ async function loadNoteForEditing(noteId) {
         document.getElementById('title').value = note.title;
         document.getElementById('richContent').innerHTML = note.content;
         const currentAttachmentDiv = document.getElementById('currentAttachment');
-        const removeAttachmentContainer = document.getElementById('removeAttachmentContainer');
+        const removeAttachmentContainer = document.getElementById('removeAttachmentsContainer');
         if (note.attachment && note.attachment.path) {
             const attachmentUrl = `/uploads/${encodeURIComponent(note.attachment.path)}`;
             currentAttachmentDiv.innerHTML = `当前附件: <a href="${attachmentUrl}" target="_blank">${escapeHtml(note.attachment.originalName)}</a>`;
@@ -740,7 +753,6 @@ document.addEventListener('DOMContentLoaded', () => {
     currentUserIdGlobal = userIdFromServer;   
 
     setupNavigation(usernameFromServer, roleFromServer, userIdFromServer);
-
 
     if (path === '/' || path === '/index.html') {
         const urlParams = new URLSearchParams(window.location.search);
