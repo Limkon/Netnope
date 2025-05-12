@@ -11,7 +11,8 @@ let savedRange = null; // 用于保存富文本编辑器的选区
 async function fetchData(url, options = {}) {
     try {
         const response = await fetch(url, options);
-        if (response.status === 401 && !(options.method === 'GET' && currentUserRoleGlobal === 'anonymous')) {
+        // 调整401处理：只有当不是匿名用户且不是GET请求时才强制跳转
+        if (response.status === 401 && !(currentUserRoleGlobal === 'anonymous' && (options.method === 'GET' || !options.method))) {
             alert('您的会话已过期或未授权，请重新登录。');
             window.location.href = '/login';
             return null;
@@ -26,6 +27,7 @@ async function fetchData(url, options = {}) {
             }
             console.error(`API 请求失败 (${response.status}):`, errorData);
             const errorMessage = (typeof errorData === 'object' && errorData !== null && errorData.message) ? errorData.message : (errorData || response.statusText);
+            // 对于403，也避免匿名用户被不必要地重定向
             if ((response.status === 401 || response.status === 403) && currentUserRoleGlobal !== 'anonymous') {
                  alert('操作未授权或会话已过期，请重新登录。');
             }
@@ -55,6 +57,7 @@ function displayMessage(message, type = 'info', elementId = 'globalMessageArea')
         container.innerHTML = message ? `<div class="${type}-message">${escapeHtml(message)}</div>` : '';
         container.style.display = message ? 'block' : 'none';
     } else {
+        // Fallback for pages that might not have a dedicated message area for all types of messages
         if (type === 'error' && message) alert(`错误: ${message}`);
         else if (type === 'success' && message) alert(`成功: ${message}`);
         else if (message) alert(message);
@@ -62,7 +65,7 @@ function displayMessage(message, type = 'info', elementId = 'globalMessageArea')
 }
 
 function escapeHtml(unsafe) {
-    if (typeof unsafe !== 'string') return String(unsafe);
+    if (typeof unsafe !== 'string') return String(unsafe); // Ensure it's a string
     return unsafe.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
 }
 
@@ -72,7 +75,7 @@ function setupNavigation(username, role, userId) {
     currentUserIdGlobal = userId || '';
 
     const navContainer = document.getElementById('mainNav');
-    if (!navContainer) {
+    if (!navContainer) { // Fallback for pages without a mainNav (e.g., login, register might have simpler headers)
         const usernameDisplaySpan = document.getElementById('usernameDisplay');
         if (usernameDisplaySpan) {
             usernameDisplaySpan.textContent = escapeHtml(currentUsernameGlobal);
@@ -85,12 +88,14 @@ function setupNavigation(username, role, userId) {
         navHtml += `<a href="/login" class="button-action">登录</a>`;
         navHtml += `<a href="/register" class="button-action" style="background-color: #6c757d; border-color: #6c757d;">注册</a>`;
     } else {
+        // Conditional display of navigation links based on current page
         if (window.location.pathname !== '/note/new' && !window.location.pathname.startsWith('/note/edit') && window.location.pathname !== '/note/view') {
              navHtml += `<a href="/note/new" class="button-action">新建记事</a>`;
         }
         if (window.location.pathname !== '/change-password') {
             navHtml += `<a href="/change-password" class="button-action">修改密码</a>`;
         }
+        // "返回列表" should only show if not on the main list page
         if (window.location.pathname !== '/' && window.location.pathname !== '/index.html') {
              navHtml += `<a href="/" class="button-action">返回列表</a>`;
         }
@@ -116,7 +121,7 @@ async function handleLogout() {
     } catch (error) {
         console.error('登出请求错误:', error);
         alert('登出时发生错误。');
-        window.location.href = '/login';
+        window.location.href = '/login'; // Fallback redirect
     }
 }
 
@@ -234,25 +239,27 @@ function initializeRichTextEditor() {
     const contentArea = document.getElementById('richContent');
     if (!toolbar || !contentArea) return;
 
-    // 保存选区相关的逻辑
-    contentArea.addEventListener('blur', () => { // 当编辑器失去焦点时保存选区
-        if (window.getSelection().rangeCount > 0) {
+    function saveSelection() {
+        if (window.getSelection && window.getSelection().rangeCount > 0) {
             const selection = window.getSelection();
-            // 确保选区在编辑器内部
             if (contentArea.contains(selection.anchorNode) && contentArea.contains(selection.focusNode)) {
-                 savedRange = selection.getRangeAt(0).cloneRange();
+                return selection.getRangeAt(0).cloneRange();
             }
         }
-    });
-    contentArea.addEventListener('focus', () => { // 编辑器获得焦点时，尝试恢复选区（如果之前有保存）
-        // 这可能不是必需的，因为点击工具栏按钮时会重新获取选区
-        // if (savedRange) {
-        //     const selection = window.getSelection();
-        //     selection.removeAllRanges();
-        //     selection.addRange(savedRange);
-        // }
-    });
+        return null;
+    }
 
+    function restoreSelection(range) {
+        if (range) {
+            const selection = window.getSelection();
+            selection.removeAllRanges();
+            selection.addRange(range);
+        }
+    }
+    
+    contentArea.addEventListener('blur', () => { savedRange = saveSelection(); });
+    contentArea.addEventListener('click', () => { savedRange = saveSelection(); });
+    contentArea.addEventListener('keyup', () => { savedRange = saveSelection(); });
 
     const fontNameSelector = document.getElementById('fontNameSelector');
     const fontSizeSelector = document.getElementById('fontSizeSelector');
@@ -261,108 +268,100 @@ function initializeRichTextEditor() {
     const imageUploadInput = document.getElementById('imageUploadInput');
 
     toolbar.addEventListener('click', (event) => {
-        const target = event.target.closest('button');
-        if (target && target.dataset.command) {
-            event.preventDefault(); // 防止按钮的默认行为（例如提交表单）
-            const command = target.dataset.command;
-            let value = null;
-
-            // 在执行命令前，确保编辑器有焦点并恢复选区
-            contentArea.focus(); // 确保编辑器获得焦点
-            if (savedRange) { // 如果有已保存的选区，则恢复它
-                const selection = window.getSelection();
-                selection.removeAllRanges();
-                selection.addRange(savedRange);
-            }
-
+        const targetButton = event.target.closest('button[data-command]');
+        if (targetButton) {
+            event.preventDefault();
+            const command = targetButton.dataset.command;
+            
+            contentArea.focus(); 
+            restoreSelection(savedRange); 
 
             if (command === 'createLink') {
-                // 对于创建链接，先获取当前选区
-                const selection = window.getSelection();
-                if (!selection.rangeCount || selection.isCollapsed) {
-                     // 如果没有选中文本，提示用户先选择文本
-                    const linkText = prompt("请输入链接文本（如果未选择文本）:", "");
-                    if (!linkText) return; // 用户取消
-                     // 创建一个文本节点并插入，然后选中它
-                    const textNode = document.createTextNode(linkText);
-                    const currentRange = selection.getRangeAt(0); // 获取当前光标位置
-                    currentRange.insertNode(textNode);
-                    currentRange.selectNode(textNode); // 选中新插入的文本
-                    selection.removeAllRanges();
-                    selection.addRange(currentRange);
-                    savedRange = currentRange.cloneRange(); // 更新保存的选区
+                const currentSelection = window.getSelection();
+                let initialUrl = 'https://';
+                // 如果选区不是折叠的（即有文本被选中），尝试将其作为链接文本
+                // 并且如果选中的是已有的链接，尝试获取其href作为prompt的默认值
+                if (!currentSelection.isCollapsed && currentSelection.rangeCount > 0) {
+                    const range = currentSelection.getRangeAt(0);
+                    let parentElement = range.commonAncestorContainer;
+                    if (parentElement.nodeType !== Node.ELEMENT_NODE) {
+                        parentElement = parentElement.parentNode;
+                    }
+                    if (parentElement && parentElement.tagName === 'A') {
+                        initialUrl = parentElement.getAttribute('href') || 'https://';
+                    }
                 }
-                
-                value = prompt('请输入链接网址:', 'https://');
-                if (!value) { // 用户取消输入URL
-                    // 如果之前插入了临时文本，可能需要移除或保持原样
-                    return; 
-                }
-                // 再次确保选区正确
-                if (savedRange) {
-                    const currentSelection = window.getSelection();
-                    currentSelection.removeAllRanges();
-                    currentSelection.addRange(savedRange);
-                }
-                document.execCommand('createLink', false, value);
 
-            } else if (command === 'insertImageFromUrl') { // 这个命令我们改成了本地图片
-                // 此处的逻辑已移至 insertLocalImageButton 的事件监听器中
-                return; 
+                let url = prompt('请输入链接网址:', initialUrl);
+                if (url && url.trim() !== "" && url.trim().toLowerCase() !== 'https://') {
+                    // 确保在执行命令前选区是正确的
+                    if (currentSelection.isCollapsed && currentSelection.rangeCount > 0) {
+                        const linkText = prompt("没有选中文本。请输入链接要显示的文本:", "我的链接");
+                        if (linkText && linkText.trim() !== "") {
+                            // 恢复光标位置再插入文本
+                            restoreSelection(savedRange);
+                            document.execCommand('insertText', false, linkText);
+                            // 插入文本后，选区会改变，需要重新获取并选中新文本
+                            const newRange = document.createRange();
+                            const insertedNode = currentSelection.anchorNode.childNodes[currentSelection.anchorOffset - linkText.length]; // 尝试定位
+                            if (insertedNode && insertedNode.nodeType === Node.TEXT_NODE && insertedNode.nodeValue === linkText) {
+                                newRange.selectNode(insertedNode);
+                                currentSelection.removeAllRanges();
+                                currentSelection.addRange(newRange);
+                                savedRange = newRange.cloneRange(); // 更新保存的选区
+                            } else {
+                                // 如果定位失败，就简单地不自动选中了
+                            }
+                        } else {
+                            return; 
+                        }
+                    }
+                    // 再次确保选区（如果用户之前有选区）
+                    restoreSelection(savedRange);
+                    document.execCommand('createLink', false, url.trim());
+                } else if (url !== null) { 
+                    alert("您输入的链接无效。");
+                }
             } else {
-                document.execCommand(command, false, value);
+                document.execCommand(command, false, null); 
             }
             
-            // 执行命令后，再次保存选区，因为命令执行可能会改变选区
-            if (window.getSelection().rangeCount > 0) {
-                 savedRange = window.getSelection().getRangeAt(0).cloneRange();
-            }
-            // contentArea.focus(); // 确保焦点仍在编辑器
+            savedRange = saveSelection(); 
+            contentArea.focus(); 
         }
     });
 
     if (fontNameSelector) {
         fontNameSelector.addEventListener('change', (event) => {
-            contentArea.focus();
-            if (savedRange) { const s = window.getSelection(); s.removeAllRanges(); s.addRange(savedRange); }
+            contentArea.focus(); restoreSelection(savedRange);
             document.execCommand('fontName', false, event.target.value);
-            if (window.getSelection().rangeCount > 0) savedRange = window.getSelection().getRangeAt(0).cloneRange();
+            savedRange = saveSelection();
         });
     }
     if (fontSizeSelector) {
         fontSizeSelector.addEventListener('change', (event) => {
-            contentArea.focus();
-            if (savedRange) { const s = window.getSelection(); s.removeAllRanges(); s.addRange(savedRange); }
+            contentArea.focus(); restoreSelection(savedRange);
             document.execCommand('fontSize', false, event.target.value);
-            if (window.getSelection().rangeCount > 0) savedRange = window.getSelection().getRangeAt(0).cloneRange();
+            savedRange = saveSelection();
         });
     }
     if (foreColorPicker) {
-        foreColorPicker.addEventListener('input', (event) => { // 使用 'input' 实现实时预览
-            // 对于颜色选择器，通常不需要恢复选区，因为它直接作用于当前选区或插入点
-            contentArea.focus();
+        foreColorPicker.addEventListener('input', (event) => { 
+            contentArea.focus(); 
             document.execCommand('foreColor', false, event.target.value);
-            // 不在 input 事件后保存选区，避免过于频繁
         });
-        foreColorPicker.addEventListener('change', (event) => { // 'change' 在颜色选择完成后触发
-            contentArea.focus();
-            if (savedRange) { const s = window.getSelection(); s.removeAllRanges(); s.addRange(savedRange); }
+        foreColorPicker.addEventListener('change', (event) => { 
+            contentArea.focus(); 
+            restoreSelection(savedRange); // 颜色选择完成后恢复选区再应用
             document.execCommand('foreColor', false, event.target.value);
-            if (window.getSelection().rangeCount > 0) savedRange = window.getSelection().getRangeAt(0).cloneRange();
+            savedRange = saveSelection(); 
         });
     }
 
     if (insertLocalImageButton && imageUploadInput) {
         insertLocalImageButton.addEventListener('click', () => {
-            contentArea.focus(); // 确保编辑器有焦点
-            if (window.getSelection().rangeCount > 0) { // 保存当前光标位置或选区
-                savedRange = window.getSelection().getRangeAt(0).cloneRange();
-            } else { // 如果没有选区，创建一个表示当前光标位置的选区
-                const tempRange = document.createRange();
-                tempRange.selectNodeContents(contentArea); // 选择整个内容区
-                tempRange.collapse(true); // 折叠到开始位置 (或者 false 到结束位置)
-                savedRange = tempRange;
-            }
+            contentArea.focus(); 
+            savedRange = saveSelection(); 
             imageUploadInput.click();
         });
         imageUploadInput.addEventListener('change', (event) => {
@@ -370,14 +369,10 @@ function initializeRichTextEditor() {
             if (file && file.type.startsWith('image/')) {
                 const reader = new FileReader();
                 reader.onload = (e) => {
-                    contentArea.focus(); // 重新聚焦
-                    if (savedRange) { // 恢复选区（光标位置）
-                        const selection = window.getSelection();
-                        selection.removeAllRanges();
-                        selection.addRange(savedRange);
-                    }
+                    contentArea.focus(); 
+                    restoreSelection(savedRange); 
                     document.execCommand('insertImage', false, e.target.result);
-                    if (window.getSelection().rangeCount > 0) savedRange = window.getSelection().getRangeAt(0).cloneRange(); // 保存新选区
+                    savedRange = saveSelection(); 
                 };
                 reader.readAsDataURL(file);
                 imageUploadInput.value = '';
@@ -387,8 +382,6 @@ function initializeRichTextEditor() {
         });
     }
 }
-
-// ... (其余函数保持不变) ...
 
 function setupNoteForm() {
     const noteForm = document.getElementById('noteForm');
