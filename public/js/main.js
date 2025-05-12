@@ -67,7 +67,6 @@ function escapeHtml(unsafe) {
 }
 
 function setupNavigation(username, role, userId) {
-    // 明确检查传入的值是否是模板占位符本身或表示未登录的默认值
     const isValidUser = username && username !== "{{username}}" && username !== "访客";
     const isValidRole = role && role !== "{{userRole}}" && role !== "anonymous";
     const isValidUserId = userId && userId !== "{{userId}}";
@@ -77,9 +76,8 @@ function setupNavigation(username, role, userId) {
     currentUserIdGlobal = isValidUserId ? userId : '';
 
     const navContainer = document.getElementById('mainNav');
-    const usernameDisplaySpan = document.getElementById('usernameDisplay'); // 独立的用户名称显示元素
+    const usernameDisplaySpan = document.getElementById('usernameDisplay'); 
 
-    // 更新独立的 usernameDisplay (例如在 note.html, admin.html 的 header 中)
     if (usernameDisplaySpan) { 
         usernameDisplaySpan.textContent = escapeHtml(currentUsernameGlobal);
     }
@@ -276,12 +274,11 @@ function initializeRichTextEditor() {
     contentArea.addEventListener('keyup', () => { savedRange = saveSelection(); });
     contentArea.addEventListener('mouseup', () => { savedRange = saveSelection(); }); 
 
-    // 在工具栏按钮被点击 *之前* 保存选区 (使用 mousedown)
     toolbar.addEventListener('mousedown', (event) => { 
         if (event.target.tagName !== 'SELECT' && event.target.tagName !== 'INPUT') {
             event.preventDefault(); 
         }
-        savedRange = saveSelection(); // 总是保存最新的选区
+        savedRange = saveSelection();
     });
 
 
@@ -297,35 +294,35 @@ function initializeRichTextEditor() {
             const command = targetButton.dataset.command;
             
             // 确保在执行命令前编辑器有焦点，并使用最近保存的选区
+            // `savedRange` 应该在 mousedown 时已更新为最新的选区
             restoreSelection(savedRange); 
 
             if (command === 'createLink') {
                 const selection = window.getSelection();
-                // 必须先选中文本
                 if (!selection || selection.isCollapsed || selection.rangeCount === 0) {
                     alert("请先选中文本，然后再创建链接。");
-                    contentArea.focus(); // 确保焦点返回编辑器
+                    contentArea.focus(); 
                     return; 
                 }
 
                 let defaultUrl = 'https://';
-                // 尝试获取已选中链接的href作为默认值
                 let currentRange = selection.getRangeAt(0);
                 let parentElement = currentRange.commonAncestorContainer;
                 if (parentElement.nodeType !== Node.ELEMENT_NODE) {
-                    parentElement = parentNode.parentNode;
+                    parentElement = parentElement.parentNode;
                 }
                 if (parentElement && parentElement.tagName === 'A') {
                     defaultUrl = parentElement.getAttribute('href') || 'https://';
                 }
                 
-                // 在 prompt 之前，再次确保选区是最新的
-                const rangeBeforePrompt = saveSelection(); 
+                // 在 prompt 之前，保存的是 mousedown 时的选区 (savedRange)
+                // 我们将使用这个选区来恢复
+                const rangeForLink = savedRange ? savedRange.cloneRange() : null;
 
                 const url = prompt('请输入链接网址:', defaultUrl);
                 
                 // 在 prompt 后，焦点可能已丢失，需要重新聚焦并恢复 *prompt之前* 的选区
-                restoreSelection(rangeBeforePrompt); 
+                restoreSelection(rangeForLink); 
 
                 if (url && url.trim() !== "" && url.trim().toLowerCase() !== 'https://') {
                     document.execCommand('createLink', false, url.trim());
@@ -734,7 +731,6 @@ function setupChangeOwnPasswordForm() {
 document.addEventListener('DOMContentLoaded', () => {
     const path = window.location.pathname;
     
-    // 这些变量应该由每个HTML页面的内联脚本通过服务器端模板注入来定义
     const usernameFromServer = (typeof currentUsername !== 'undefined' && currentUsername !== "{{username}}") ? currentUsername : '访客';
     const roleFromServer = (typeof currentUserRole !== 'undefined' && currentUserRole !== "{{userRole}}") ? currentUserRole : 'anonymous';
     const userIdFromServer = (typeof currentUserId !== 'undefined' && currentUserId !== "{{userId}}") ? currentUserId : ''; 
