@@ -11,7 +11,6 @@ let savedRange = null; // 用于保存富文本编辑器的选区
 async function fetchData(url, options = {}) {
     try {
         const response = await fetch(url, options);
-        // 调整401处理：只有当不是匿名用户且不是GET请求时才强制跳转
         if (response.status === 401 && !(currentUserRoleGlobal === 'anonymous' && (options.method === 'GET' || !options.method))) {
             alert('您的会话已过期或未授权，请重新登录。');
             window.location.href = '/login';
@@ -27,7 +26,6 @@ async function fetchData(url, options = {}) {
             }
             console.error(`API 请求失败 (${response.status}):`, errorData);
             const errorMessage = (typeof errorData === 'object' && errorData !== null && errorData.message) ? errorData.message : (errorData || response.statusText);
-            // 对于403，也避免匿名用户被不必要地重定向
             if ((response.status === 401 || response.status === 403) && currentUserRoleGlobal !== 'anonymous') {
                  alert('操作未授权或会话已过期，请重新登录。');
             }
@@ -79,13 +77,15 @@ function setupNavigation(username, role, userId) {
     currentUserIdGlobal = isValidUserId ? userId : '';
 
     const navContainer = document.getElementById('mainNav');
-    const usernameDisplaySpan = document.getElementById('usernameDisplay'); 
+    const usernameDisplaySpan = document.getElementById('usernameDisplay'); // 独立的用户名称显示元素
 
-    if (usernameDisplaySpan) { 
+    // 更新独立的 usernameDisplay (例如在 note.html, admin.html 的 header 中)
+    if (usernameDisplaySpan) {
         usernameDisplaySpan.textContent = escapeHtml(currentUsernameGlobal);
     }
     
     if (!navContainer) { 
+        // 对于没有 mainNav 的页面（例如登录页），确保其他地方的登出按钮（如果存在且未被 mainNav 包裹）也能工作
         document.querySelectorAll('#logoutButton:not([data-listener-attached])').forEach(button => {
             if (!button.closest('#mainNav')) { 
                 button.addEventListener('click', handleLogout);
@@ -95,6 +95,9 @@ function setupNavigation(username, role, userId) {
         return;
     }
 
+    // 构建导航栏 HTML
+    // 注意：如果 usernameDisplay 也在 mainNav 内部，则不需要上面的独立更新逻辑
+    // 但为了兼容性，可以保留，或确保 mainNav 内的 usernameDisplay 有不同的 ID
     let navHtml = `<span class="welcome-user">欢迎, <strong id="usernameDisplayInNav">${escapeHtml(currentUsernameGlobal)}</strong>!</span>`;
     if (currentUserRoleGlobal === 'anonymous') {
         navHtml += `<a href="/login" class="button-action">登录</a>`;
@@ -262,27 +265,21 @@ function initializeRichTextEditor() {
     }
 
     function restoreSelection(range) {
-        contentArea.focus(); 
         if (range) {
+            contentArea.focus(); 
             const selection = window.getSelection();
             selection.removeAllRanges();
             selection.addRange(range);
+        } else {
+            contentArea.focus(); 
         }
     }
     
-    // 保存选区的时机
     contentArea.addEventListener('focus', () => { savedRange = saveSelection(); });
-    contentArea.addEventListener('blur', () => { savedRange = saveSelection(); }); 
+    contentArea.addEventListener('blur', () => { savedRange = saveSelection(); });
     contentArea.addEventListener('click', () => { savedRange = saveSelection(); });
     contentArea.addEventListener('keyup', () => { savedRange = saveSelection(); });
-    contentArea.addEventListener('mouseup', () => { savedRange = saveSelection(); }); 
-
-    toolbar.addEventListener('mousedown', (event) => { 
-        if (event.target.tagName !== 'SELECT' && event.target.tagName !== 'INPUT') {
-            event.preventDefault(); 
-        }
-        savedRange = saveSelection(); 
-    });
+    toolbar.addEventListener('mousedown', () => { savedRange = saveSelection(); });
 
 
     const fontNameSelector = document.getElementById('fontNameSelector');
@@ -294,57 +291,44 @@ function initializeRichTextEditor() {
     toolbar.addEventListener('click', (event) => {
         const targetButton = event.target.closest('button[data-command]');
         if (targetButton) {
+            event.preventDefault();
             const command = targetButton.dataset.command;
             
-            // 在执行命令前，先让编辑器获得焦点，然后恢复之前（mousedown时）保存的选区
-            contentArea.focus(); 
-            restoreSelection(savedRange); 
+            restoreSelection(savedRange); // 恢复选区前先聚焦
 
             if (command === 'createLink') {
                 const selection = window.getSelection();
-                if (!selection || selection.rangeCount === 0 || selection.isCollapsed) {
-                    alert("请先选中文本，然后再创建链接。");
-                    contentArea.focus(); 
-                    savedRange = saveSelection(); 
-                    return; 
-                }
-
                 let defaultUrl = 'https://';
-                let currentRange = selection.getRangeAt(0);
-                let parentElement = currentRange.commonAncestorContainer;
-                if (parentElement.nodeType !== Node.ELEMENT_NODE) {
-                    parentElement = parentElement.parentNode;
-                }
-                if (parentElement && parentElement.tagName === 'A') {
-                    defaultUrl = parentElement.getAttribute('href') || 'https://';
-                }
-                
-                // 在 prompt 之前，再次确保选区是最新的
-                const rangeForLink = saveSelection(); 
-
-                // 使用 setTimeout 将 prompt 的调用推迟到当前事件流之外
-                // 这样可以避免 prompt 阻塞导致的选区丢失问题
-                setTimeout(() => {
-                    contentArea.focus(); // 重新聚焦
-                    restoreSelection(rangeForLink); // 恢复 prompt 之前的选区
-
-                    const url = prompt('请输入链接网址:', defaultUrl);
-                
-                    if (url && url.trim() !== "" && url.trim().toLowerCase() !== 'https://') {
-                        // 在 prompt 返回后，再次恢复选区，因为焦点可能再次改变
-                        restoreSelection(rangeForLink); 
-                        document.execCommand('createLink', false, url.trim());
-                    } else if (url !== null) { 
-                        alert("您输入的链接无效或已取消。");
+                // 如果选区是一个链接，尝试获取其 href 作为默认值
+                if (selection && selection.rangeCount > 0 && !selection.isCollapsed) {
+                    let parentNode = selection.getRangeAt(0).commonAncestorContainer;
+                    if (parentNode.nodeType !== Node.ELEMENT_NODE) {
+                        parentNode = parentNode.parentNode;
                     }
-                    savedRange = saveSelection(); // 执行命令后更新选区
-                    contentArea.focus(); // 确保焦点最终在编辑器
-                }, 0); // 延迟0毫秒，足以将其放入事件队列的下一个tick
+                    if (parentNode && parentNode.tagName === 'A') {
+                        defaultUrl = parentNode.getAttribute('href') || 'https://';
+                    }
+                }
 
-            } else { // 其他命令
-                document.execCommand(command, false, null); 
+                // 确保在 prompt 前保存一次最新的选区状态
                 savedRange = saveSelection(); 
+                const url = prompt('请输入链接网址:', defaultUrl);
+                
+                // 在 prompt 后，焦点可能已丢失，需要重新聚焦并恢复选区
+                contentArea.focus(); 
+                restoreSelection(savedRange);
+
+                if (url && url.trim() !== "" && url.trim().toLowerCase() !== 'https://') {
+                    document.execCommand('createLink', false, url.trim());
+                } else if (url !== null) { // 用户点击了确定但输入无效或未改动默认的 "https://"
+                    alert("您输入的链接无效或已取消。");
+                }
+                // 如果用户取消 prompt (url is null)，则不执行任何操作
+            } else {
+                document.execCommand(command, false, null); 
             }
+            
+            savedRange = saveSelection(); // 执行命令后更新选区
         }
     });
 
@@ -363,6 +347,10 @@ function initializeRichTextEditor() {
         });
     }
     if (foreColorPicker) {
+        foreColorPicker.addEventListener('input', (event) => { 
+            restoreSelection(savedRange); 
+            document.execCommand('foreColor', false, event.target.value);
+        });
         foreColorPicker.addEventListener('change', (event) => { 
             restoreSelection(savedRange); 
             document.execCommand('foreColor', false, event.target.value);
@@ -742,6 +730,7 @@ function setupChangeOwnPasswordForm() {
 document.addEventListener('DOMContentLoaded', () => {
     const path = window.location.pathname;
     
+    // 这些变量应该由每个HTML页面的内联脚本通过服务器端模板注入来定义
     const usernameFromServer = (typeof currentUsername !== 'undefined' && currentUsername !== "{{username}}") ? currentUsername : '访客';
     const roleFromServer = (typeof currentUserRole !== 'undefined' && currentUserRole !== "{{userRole}}") ? currentUserRole : 'anonymous';
     const userIdFromServer = (typeof currentUserId !== 'undefined' && currentUserId !== "{{userId}}") ? currentUserId : ''; 
