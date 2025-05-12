@@ -52,7 +52,6 @@ module.exports = {
     },
 
     getNoteViewPage: (context) => {
-        // console.log(`[DEBUG getNoteViewPage] 开始处理查看记事请求，查询参数:`, context.query);
         const noteId = context.query.id;
         if (!noteId) {
             return sendBadRequest(context.res, "缺少记事ID。");
@@ -61,9 +60,6 @@ module.exports = {
         if (!note) {
             return sendNotFound(context.res, "找不到指定的记事。");
         }
-        
-        // **** 新增日志：记录从 storage 获取的原始 note.content ****
-        console.log(`[DEBUG getNoteViewPage] 从 storage 获取的原始 note.content: "${note.content}"`);
 
         const sessionRole = context.session ? context.session.role : 'anonymous_fallback';
         const sessionUserId = context.session ? context.session.userId : null;
@@ -83,7 +79,7 @@ module.exports = {
         const templateData = {
             ...getNavData(context.session),
             noteTitle: note.title,
-            noteContent: note.content, // 这里传递的是原始 content
+            noteContent: note.content, 
             noteId: note.id,
             noteOwnerUsername: owner ? owner.username : '未知用户',
             noteCreatedAt: new Date(note.createdAt).toLocaleString('zh-CN'),
@@ -93,9 +89,9 @@ module.exports = {
             noteAttachmentSizeKB: note.attachment ? (note.attachment.size / 1024).toFixed(1) : null,
             canEdit: context.session && context.session.role !== 'anonymous' && (context.session.role === 'admin' || note.userId === context.session.userId)
         };
-        // console.log(`[DEBUG getNoteViewPage] 准备传递给模板的数据 (部分):`, { /* ... */ });
         serveHtmlWithPlaceholders(context.res, path.join(PUBLIC_DIR, 'view-note.html'), templateData);
     },
+
 
     getAllNotes: (context) => {
         const sessionRole = context.session ? context.session.role : 'anonymous_fallback';
@@ -143,10 +139,11 @@ module.exports = {
         }
         const { title, content } = context.body;
         const attachmentFile = context.files && context.files.attachment;
-        if (!title || title.trim() === '' || !content || content.trim() === '') { // 确保 content 也被检查
-            return sendBadRequest(context.res, "标题和内容不能为空。");
+        if (!title || title.trim() === '' || !content ) { // 允许 content 为空字符串，但不能是 undefined/null
+             if (content === undefined || content === null) { // 严格检查 content 是否缺失
+                return sendBadRequest(context.res, "标题和内容不能为空。");
+             }
         }
-        console.log(`[DEBUG createNote] 准备保存的内容: "${content}"`); // 记录保存前的内容
         const newNoteData = { userId: context.session.userId, title: title.trim(), content: content, attachment: null };
         if (attachmentFile && attachmentFile.content && attachmentFile.filename) {
             const userUploadDir = path.join(UPLOADS_DIR, context.session.userId);
@@ -166,7 +163,7 @@ module.exports = {
                     size: attachmentFile.content.length
                 };
             } catch (e) { 
-                console.error("保存附件失败:", e);
+                // console.error("保存附件失败:", e); // 可选保留
                 return sendError(context.res, "保存附件时发生错误。"); 
             }
         }
@@ -187,15 +184,14 @@ module.exports = {
         if (context.session.role !== 'admin' && existingNote.userId !== context.session.userId) {
             return sendForbidden(context.res, "您无权修改此记事。");
         }
-        if (!title || title.trim() === '' || !content || content.trim() === '') { // 确保 content 也被检查
+        if (!title || title.trim() === '' || content === undefined || content === null ) {
             return sendBadRequest(context.res, "标题和内容不能为空。");
         }
-        console.log(`[DEBUG updateNote] 准备更新的内容: "${content}"`); // 记录更新前的内容
         const updatedNoteData = { id: noteId, userId: existingNote.userId, title: title.trim(), content: content, attachment: existingNote.attachment };
         if (removeAttachment === 'true' && existingNote.attachment) {
             const oldAttachmentPath = path.join(UPLOADS_DIR, existingNote.attachment.path);
             if (fs.existsSync(oldAttachmentPath)) {
-                try { fs.unlinkSync(oldAttachmentPath); } catch (e) { console.error(`删除旧附件 ${oldAttachmentPath} 失败:`, e); }
+                try { fs.unlinkSync(oldAttachmentPath); } catch (e) { /* console.error(`删除旧附件 ${oldAttachmentPath} 失败:`, e); */ }
             }
             updatedNoteData.attachment = null;
         }
@@ -203,7 +199,7 @@ module.exports = {
             if (updatedNoteData.attachment && updatedNoteData.attachment.path) {
                  const oldAttachmentPath = path.join(UPLOADS_DIR, updatedNoteData.attachment.path);
                  if (fs.existsSync(oldAttachmentPath)) {
-                    try { fs.unlinkSync(oldAttachmentPath); } catch (e) { console.error(`取代旧附件 ${oldAttachmentPath} 时删除失败:`, e); }
+                    try { fs.unlinkSync(oldAttachmentPath); } catch (e) { /* console.error(`取代旧附件 ${oldAttachmentPath} 时删除失败:`, e); */ }
                  }
             }
             const userUploadDir = path.join(UPLOADS_DIR, existingNote.userId);
@@ -223,7 +219,7 @@ module.exports = {
                     size: attachmentFile.content.length
                 };
             } catch (e) { 
-                console.error("更新时保存新附件失败:", e);
+                // console.error("更新时保存新附件失败:", e); // 可选保留
                 return sendError(context.res, "更新时保存新附件失败。"); 
             }
         }
