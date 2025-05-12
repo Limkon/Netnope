@@ -11,6 +11,7 @@ let savedRange = null; // 用于保存富文本编辑器的选区
 async function fetchData(url, options = {}) {
     try {
         const response = await fetch(url, options);
+        // 调整401处理：只有当不是匿名用户且不是GET请求时才强制跳转
         if (response.status === 401 && !(currentUserRoleGlobal === 'anonymous' && (options.method === 'GET' || !options.method))) {
             alert('您的会话已过期或未授权，请重新登录。');
             window.location.href = '/login';
@@ -26,6 +27,7 @@ async function fetchData(url, options = {}) {
             }
             console.error(`API 请求失败 (${response.status}):`, errorData);
             const errorMessage = (typeof errorData === 'object' && errorData !== null && errorData.message) ? errorData.message : (errorData || response.statusText);
+            // 对于403，也避免匿名用户被不必要地重定向
             if ((response.status === 401 || response.status === 403) && currentUserRoleGlobal !== 'anonymous') {
                  alert('操作未授权或会话已过期，请重新登录。');
             }
@@ -67,7 +69,7 @@ function escapeHtml(unsafe) {
 }
 
 function setupNavigation(username, role, userId) {
-    // 明确检查传入的值是否是模板占位符本身或表示未登录的默认值
+    // 更稳健地判断是否为有效用户信息，而不是原始模板字符串
     const isValidUser = username && username !== "{{username}}" && username !== "访客";
     const isValidRole = role && role !== "{{userRole}}" && role !== "anonymous";
     const isValidUserId = userId && userId !== "{{userId}}";
@@ -80,7 +82,7 @@ function setupNavigation(username, role, userId) {
     const usernameDisplaySpan = document.getElementById('usernameDisplay'); // 独立的用户名称显示元素
 
     // 更新独立的 usernameDisplay (例如在 note.html, admin.html 的 header 中)
-    if (usernameDisplaySpan) {
+    if (usernameDisplaySpan) { // 总是尝试更新独立的 usernameDisplay，无论 mainNav 是否存在
         usernameDisplaySpan.textContent = escapeHtml(currentUsernameGlobal);
     }
     
@@ -121,6 +123,7 @@ function setupNavigation(username, role, userId) {
     }
     navContainer.innerHTML = navHtml;
     
+    // 为动态添加的登出按钮绑定事件
     const logoutButtonInNav = document.getElementById('logoutButtonInNav');
     if (logoutButtonInNav && !logoutButtonInNav.hasAttribute('data-listener-attached')) {
         logoutButtonInNav.addEventListener('click', handleLogout);
@@ -265,13 +268,11 @@ function initializeRichTextEditor() {
     }
 
     function restoreSelection(range) {
+        contentArea.focus(); 
         if (range) {
-            contentArea.focus(); 
             const selection = window.getSelection();
             selection.removeAllRanges();
             selection.addRange(range);
-        } else {
-            contentArea.focus(); 
         }
     }
     
@@ -279,7 +280,12 @@ function initializeRichTextEditor() {
     contentArea.addEventListener('blur', () => { savedRange = saveSelection(); });
     contentArea.addEventListener('click', () => { savedRange = saveSelection(); });
     contentArea.addEventListener('keyup', () => { savedRange = saveSelection(); });
-    toolbar.addEventListener('mousedown', () => { savedRange = saveSelection(); });
+    toolbar.addEventListener('mousedown', (event) => { 
+        if (event.target.tagName !== 'SELECT' && event.target.tagName !== 'INPUT') {
+            event.preventDefault(); 
+        }
+        savedRange = saveSelection();
+    });
 
 
     const fontNameSelector = document.getElementById('fontNameSelector');
@@ -291,44 +297,34 @@ function initializeRichTextEditor() {
     toolbar.addEventListener('click', (event) => {
         const targetButton = event.target.closest('button[data-command]');
         if (targetButton) {
-            event.preventDefault();
+            // event.preventDefault(); // 已在 mousedown 中处理
             const command = targetButton.dataset.command;
             
-            restoreSelection(savedRange); // 恢复选区前先聚焦
+            restoreSelection(savedRange); 
 
             if (command === 'createLink') {
                 const selection = window.getSelection();
                 let defaultUrl = 'https://';
-                // 如果选区是一个链接，尝试获取其 href 作为默认值
-                if (selection && selection.rangeCount > 0 && !selection.isCollapsed) {
+                if (selection && selection.rangeCount > 0) {
                     let parentNode = selection.getRangeAt(0).commonAncestorContainer;
-                    if (parentNode.nodeType !== Node.ELEMENT_NODE) {
-                        parentNode = parentNode.parentNode;
-                    }
-                    if (parentNode && parentNode.tagName === 'A') {
-                        defaultUrl = parentNode.getAttribute('href') || 'https://';
-                    }
+                    if (parentNode.nodeType !== Node.ELEMENT_NODE) parentNode = parentNode.parentNode;
+                    if (parentNode && parentNode.tagName === 'A') defaultUrl = parentNode.getAttribute('href') || 'https://';
                 }
-
-                // 确保在 prompt 前保存一次最新的选区状态
-                savedRange = saveSelection(); 
+                
                 const url = prompt('请输入链接网址:', defaultUrl);
                 
-                // 在 prompt 后，焦点可能已丢失，需要重新聚焦并恢复选区
-                contentArea.focus(); 
-                restoreSelection(savedRange);
+                restoreSelection(savedRange); 
 
                 if (url && url.trim() !== "" && url.trim().toLowerCase() !== 'https://') {
                     document.execCommand('createLink', false, url.trim());
-                } else if (url !== null) { // 用户点击了确定但输入无效或未改动默认的 "https://"
+                } else if (url !== null) { 
                     alert("您输入的链接无效或已取消。");
                 }
-                // 如果用户取消 prompt (url is null)，则不执行任何操作
             } else {
                 document.execCommand(command, false, null); 
             }
             
-            savedRange = saveSelection(); // 执行命令后更新选区
+            savedRange = saveSelection(); 
         }
     });
 
@@ -347,10 +343,6 @@ function initializeRichTextEditor() {
         });
     }
     if (foreColorPicker) {
-        foreColorPicker.addEventListener('input', (event) => { 
-            restoreSelection(savedRange); 
-            document.execCommand('foreColor', false, event.target.value);
-        });
         foreColorPicker.addEventListener('change', (event) => { 
             restoreSelection(savedRange); 
             document.execCommand('foreColor', false, event.target.value);
@@ -730,7 +722,6 @@ function setupChangeOwnPasswordForm() {
 document.addEventListener('DOMContentLoaded', () => {
     const path = window.location.pathname;
     
-    // 这些变量应该由每个HTML页面的内联脚本通过服务器端模板注入来定义
     const usernameFromServer = (typeof currentUsername !== 'undefined' && currentUsername !== "{{username}}") ? currentUsername : '访客';
     const roleFromServer = (typeof currentUserRole !== 'undefined' && currentUserRole !== "{{userRole}}") ? currentUserRole : 'anonymous';
     const userIdFromServer = (typeof currentUserId !== 'undefined' && currentUserId !== "{{userId}}") ? currentUserId : ''; 
