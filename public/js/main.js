@@ -67,7 +67,6 @@ function escapeHtml(unsafe) {
 }
 
 function setupNavigation(username, role, userId) {
-    // 明确检查传入的值是否是模板占位符本身或表示未登录的默认值
     const isValidUser = username && username !== "{{username}}" && username !== "访客";
     const isValidRole = role && role !== "{{userRole}}" && role !== "anonymous";
     const isValidUserId = userId && userId !== "{{userId}}";
@@ -77,15 +76,13 @@ function setupNavigation(username, role, userId) {
     currentUserIdGlobal = isValidUserId ? userId : '';
 
     const navContainer = document.getElementById('mainNav');
-    const usernameDisplaySpan = document.getElementById('usernameDisplay'); // 独立的用户名称显示元素
+    const usernameDisplaySpan = document.getElementById('usernameDisplay'); 
 
-    // 更新独立的 usernameDisplay (例如在 note.html, admin.html 的 header 中)
-    if (usernameDisplaySpan) {
+    if (usernameDisplaySpan) { 
         usernameDisplaySpan.textContent = escapeHtml(currentUsernameGlobal);
     }
     
     if (!navContainer) { 
-        // 对于没有 mainNav 的页面（例如登录页），确保其他地方的登出按钮（如果存在且未被 mainNav 包裹）也能工作
         document.querySelectorAll('#logoutButton:not([data-listener-attached])').forEach(button => {
             if (!button.closest('#mainNav')) { 
                 button.addEventListener('click', handleLogout);
@@ -95,9 +92,6 @@ function setupNavigation(username, role, userId) {
         return;
     }
 
-    // 构建导航栏 HTML
-    // 注意：如果 usernameDisplay 也在 mainNav 内部，则不需要上面的独立更新逻辑
-    // 但为了兼容性，可以保留，或确保 mainNav 内的 usernameDisplay 有不同的 ID
     let navHtml = `<span class="welcome-user">欢迎, <strong id="usernameDisplayInNav">${escapeHtml(currentUsernameGlobal)}</strong>!</span>`;
     if (currentUserRoleGlobal === 'anonymous') {
         navHtml += `<a href="/login" class="button-action">登录</a>`;
@@ -254,32 +248,43 @@ function initializeRichTextEditor() {
     const contentArea = document.getElementById('richContent');
     if (!toolbar || !contentArea) return;
 
-    function saveSelection() {
-        if (window.getSelection && window.getSelection().rangeCount > 0) {
-            const selection = window.getSelection();
-            if (contentArea.contains(selection.anchorNode) && contentArea.contains(selection.focusNode)) {
-                return selection.getRangeAt(0).cloneRange();
+    let currentRange = null; // 用于保存选区
+
+    function saveCurrentRange() {
+        const selection = window.getSelection();
+        if (selection.rangeCount > 0) {
+            const range = selection.getRangeAt(0);
+            if (contentArea.contains(range.commonAncestorContainer) || 
+                contentArea === range.commonAncestorContainer) {
+                currentRange = range.cloneRange();
             }
+        } else {
+            currentRange = null;
         }
-        return null;
     }
 
-    function restoreSelection(range) {
-        if (range) {
-            contentArea.focus(); 
+    function restoreCurrentRange() {
+        contentArea.focus();
+        if (currentRange) {
             const selection = window.getSelection();
             selection.removeAllRanges();
-            selection.addRange(range);
-        } else {
-            contentArea.focus(); 
+            selection.addRange(currentRange);
         }
     }
     
-    contentArea.addEventListener('focus', () => { savedRange = saveSelection(); });
-    contentArea.addEventListener('blur', () => { savedRange = saveSelection(); });
-    contentArea.addEventListener('click', () => { savedRange = saveSelection(); });
-    contentArea.addEventListener('keyup', () => { savedRange = saveSelection(); });
-    toolbar.addEventListener('mousedown', () => { savedRange = saveSelection(); });
+    // 监听可能改变选区的事件
+    contentArea.addEventListener('focus', saveCurrentRange);
+    contentArea.addEventListener('blur', saveCurrentRange); 
+    contentArea.addEventListener('click', saveCurrentRange);
+    contentArea.addEventListener('keyup', saveCurrentRange);
+    contentArea.addEventListener('mouseup', saveCurrentRange); 
+
+    toolbar.addEventListener('mousedown', (event) => { 
+        if (event.target.tagName !== 'SELECT' && event.target.tagName !== 'INPUT') {
+            event.preventDefault(); 
+        }
+        saveCurrentRange(); 
+    });
 
 
     const fontNameSelector = document.getElementById('fontNameSelector');
@@ -291,86 +296,86 @@ function initializeRichTextEditor() {
     toolbar.addEventListener('click', (event) => {
         const targetButton = event.target.closest('button[data-command]');
         if (targetButton) {
-            event.preventDefault();
             const command = targetButton.dataset.command;
             
-            restoreSelection(savedRange); // 恢复选区前先聚焦
+            restoreCurrentRange(); 
 
             if (command === 'createLink') {
                 const selection = window.getSelection();
-                let defaultUrl = 'https://';
-                // 如果选区是一个链接，尝试获取其 href 作为默认值
-                if (selection && selection.rangeCount > 0 && !selection.isCollapsed) {
-                    let parentNode = selection.getRangeAt(0).commonAncestorContainer;
-                    if (parentNode.nodeType !== Node.ELEMENT_NODE) {
-                        parentNode = parentNode.parentNode;
-                    }
-                    if (parentNode && parentNode.tagName === 'A') {
-                        defaultUrl = parentNode.getAttribute('href') || 'https://';
-                    }
+                if (!currentRange || currentRange.collapsed) { 
+                    alert("请先在编辑器中选中文本，然后再创建链接。");
+                    contentArea.focus(); 
+                    return; 
                 }
 
-                // 确保在 prompt 前保存一次最新的选区状态
-                savedRange = saveSelection(); 
+                let defaultUrl = 'https://';
+                let parentElement = currentRange.commonAncestorContainer;
+                if (parentElement.nodeType !== Node.ELEMENT_NODE) {
+                    parentElement = parentElement.parentNode;
+                }
+                if (parentElement && parentElement.tagName === 'A') {
+                    defaultUrl = parentElement.getAttribute('href') || 'https://';
+                }
+                
+                const rangeBeforePrompt = currentRange.cloneRange(); // 保存 prompt 前的选区
+
                 const url = prompt('请输入链接网址:', defaultUrl);
                 
-                // 在 prompt 后，焦点可能已丢失，需要重新聚焦并恢复选区
-                contentArea.focus(); 
-                restoreSelection(savedRange);
+                restoreCurrentRange(); // 严格恢复 prompt 之前的选区
 
                 if (url && url.trim() !== "" && url.trim().toLowerCase() !== 'https://') {
+                    // 确保选区仍然是 rangeBeforePrompt 代表的那个
+                    const currentSelectionAfterPrompt = window.getSelection();
+                    currentSelectionAfterPrompt.removeAllRanges();
+                    currentSelectionAfterPrompt.addRange(rangeBeforePrompt);
+                    
                     document.execCommand('createLink', false, url.trim());
-                } else if (url !== null) { // 用户点击了确定但输入无效或未改动默认的 "https://"
+                } else if (url !== null) { 
                     alert("您输入的链接无效或已取消。");
                 }
-                // 如果用户取消 prompt (url is null)，则不执行任何操作
-            } else {
+            } else { 
                 document.execCommand(command, false, null); 
             }
             
-            savedRange = saveSelection(); // 执行命令后更新选区
+            saveCurrentRange(); 
         }
     });
 
     if (fontNameSelector) {
         fontNameSelector.addEventListener('change', (event) => {
-            restoreSelection(savedRange);
+            restoreCurrentRange();
             document.execCommand('fontName', false, event.target.value);
-            savedRange = saveSelection();
+            saveCurrentRange();
         });
     }
     if (fontSizeSelector) {
         fontSizeSelector.addEventListener('change', (event) => {
-            restoreSelection(savedRange);
+            restoreCurrentRange();
             document.execCommand('fontSize', false, event.target.value);
-            savedRange = saveSelection();
+            saveCurrentRange();
         });
     }
     if (foreColorPicker) {
-        foreColorPicker.addEventListener('input', (event) => { 
-            restoreSelection(savedRange); 
-            document.execCommand('foreColor', false, event.target.value);
-        });
         foreColorPicker.addEventListener('change', (event) => { 
-            restoreSelection(savedRange); 
+            restoreCurrentRange(); 
             document.execCommand('foreColor', false, event.target.value);
-            savedRange = saveSelection(); 
+            saveCurrentRange(); 
         });
     }
 
     if (insertLocalImageButton && imageUploadInput) {
-        insertLocalImageButton.addEventListener('click', () => {
-            savedRange = saveSelection(); 
-            imageUploadInput.click();
+        insertLocalImageButton.addEventListener('click', () => { 
+            saveCurrentRange(); 
+            imageUploadInput.click(); 
         });
-        imageUploadInput.addEventListener('change', (event) => {
+        imageUploadInput.addEventListener('change', (event) => { 
             const file = event.target.files[0];
             if (file && file.type.startsWith('image/')) {
                 const reader = new FileReader();
                 reader.onload = (e) => {
-                    restoreSelection(savedRange); 
+                    restoreCurrentRange(); 
                     document.execCommand('insertImage', false, e.target.result);
-                    savedRange = saveSelection(); 
+                    saveCurrentRange(); 
                 };
                 reader.readAsDataURL(file);
                 imageUploadInput.value = ''; 
@@ -730,7 +735,6 @@ function setupChangeOwnPasswordForm() {
 document.addEventListener('DOMContentLoaded', () => {
     const path = window.location.pathname;
     
-    // 这些变量应该由每个HTML页面的内联脚本通过服务器端模板注入来定义
     const usernameFromServer = (typeof currentUsername !== 'undefined' && currentUsername !== "{{username}}") ? currentUsername : '访客';
     const roleFromServer = (typeof currentUserRole !== 'undefined' && currentUserRole !== "{{userRole}}") ? currentUserRole : 'anonymous';
     const userIdFromServer = (typeof currentUserId !== 'undefined' && currentUserId !== "{{userId}}") ? currentUserId : ''; 
