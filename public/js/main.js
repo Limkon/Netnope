@@ -70,24 +70,25 @@ function escapeHtml(unsafe) {
 
 function setupNavigation(username, role, userId) {
     // 更稳健地判断是否为有效用户信息，而不是原始模板字符串
-    const isValidUser = username && username !== "{{username}}"; 
-    const isValidRole = role && role !== "{{userRole}}";
+    const isValidUser = username && username !== "{{username}}" && username !== "访客";
+    const isValidRole = role && role !== "{{userRole}}" && role !== "anonymous";
+    const isValidUserId = userId && userId !== "{{userId}}";
 
     currentUsernameGlobal = isValidUser ? username : '访客';
     currentUserRoleGlobal = isValidRole ? role : 'anonymous';
-    currentUserIdGlobal = (userId && userId !== "{{userId}}") ? userId : '';
-
+    currentUserIdGlobal = isValidUserId ? userId : '';
 
     const navContainer = document.getElementById('mainNav');
-    const usernameDisplaySpan = document.getElementById('usernameDisplay'); // 通常在 navContainer 外部
+    const usernameDisplaySpan = document.getElementById('usernameDisplay'); // 通常在 navContainer 外部的独立显示
 
-    // 更新独立的 usernameDisplay (如果存在且不在 mainNav 内)
-    if (usernameDisplaySpan && !usernameDisplaySpan.closest('#mainNav')) {
+    // 更新独立的 usernameDisplay (例如在 note.html, admin.html 的 header 中)
+    // 这个 usernameDisplaySpan 是给那些没有 mainNav 但有独立欢迎语的页面准备的
+    if (usernameDisplaySpan && !navContainer) { // 只在没有 mainNav 时才单独更新 usernameDisplay
         usernameDisplaySpan.textContent = escapeHtml(currentUsernameGlobal);
     }
     
     if (!navContainer) { 
-        // 对于没有 mainNav 的页面（例如登录页），确保其他地方的登出按钮（如果存在）也能工作
+        // 对于没有 mainNav 的页面（例如登录页），确保其他地方的登出按钮（如果存在且未被 mainNav 包裹）也能工作
         document.querySelectorAll('#logoutButton:not([data-listener-attached])').forEach(button => {
             if (!button.closest('#mainNav')) { 
                 button.addEventListener('click', handleLogout);
@@ -103,11 +104,9 @@ function setupNavigation(username, role, userId) {
         navHtml += `<a href="/login" class="button-action">登录</a>`;
         navHtml += `<a href="/register" class="button-action" style="background-color: #6c757d; border-color: #6c757d;">注册</a>`;
     } else {
-        // 只有在非主页时才显示“返回列表”
         if (window.location.pathname !== '/' && window.location.pathname !== '/index.html') {
              navHtml += `<a href="/" class="button-action">返回列表</a>`;
         }
-        // 只有在非笔记编辑/新建/查看页面才显示“新建记事”
         if (window.location.pathname !== '/note/new' && !window.location.pathname.startsWith('/note/edit') && !window.location.pathname.startsWith('/note/view')) {
              navHtml += `<a href="/note/new" class="button-action">新建记事</a>`;
         }
@@ -279,11 +278,14 @@ function initializeRichTextEditor() {
     }
     
     contentArea.addEventListener('focus', () => { 
-        savedRange = saveSelection(); // 每次聚焦时都尝试保存当前选区或光标
+        savedRange = saveSelection(); 
     });
     contentArea.addEventListener('blur', () => { savedRange = saveSelection(); });
     contentArea.addEventListener('click', () => { savedRange = saveSelection(); });
     contentArea.addEventListener('keyup', () => { savedRange = saveSelection(); });
+    toolbar.addEventListener('mousedown', () => { 
+        savedRange = saveSelection();
+    });
 
 
     const fontNameSelector = document.getElementById('fontNameSelector');
@@ -302,74 +304,25 @@ function initializeRichTextEditor() {
 
             if (command === 'createLink') {
                 const selection = window.getSelection();
-                let currentSelectedText = "";
-                if (selection && selection.rangeCount > 0 && !selection.isCollapsed) {
-                    currentSelectedText = selection.toString();
-                }
-
-                let initialUrl = 'https://';
-                if (currentSelectedText && (currentSelectedText.startsWith('http://') || currentSelectedText.startsWith('https://'))) {
-                    initialUrl = currentSelectedText;
-                } else if (savedRange) { // 尝试从已保存的选区获取链接
-                    let parentElement = savedRange.commonAncestorContainer;
-                    if (parentElement.nodeType !== Node.ELEMENT_NODE) {
-                        parentElement = parentElement.parentNode;
+                let defaultUrl = 'https://';
+                if (selection && selection.rangeCount > 0) {
+                    let parentNode = selection.getRangeAt(0).commonAncestorContainer;
+                    if (parentNode.nodeType !== Node.ELEMENT_NODE) {
+                        parentNode = parentNode.parentNode;
                     }
-                    if (parentElement && parentElement.tagName === 'A') {
-                        initialUrl = parentElement.getAttribute('href') || 'https://';
+                    if (parentNode && parentNode.tagName === 'A') {
+                        defaultUrl = parentNode.getAttribute('href') || 'https://';
                     }
                 }
 
-
-                let url = prompt('请输入链接网址:', initialUrl);
+                const url = prompt('请输入链接网址:', defaultUrl);
                 
                 if (url && url.trim() !== "" && url.trim().toLowerCase() !== 'https://') {
                     contentArea.focus(); 
-                    restoreSelection(savedRange); 
-
-                    if (selection.isCollapsed) { 
-                        const linkText = prompt("请输入链接要显示的文本 (如果留空，将使用网址作为文本):", "");
-                        if (linkText && linkText.trim() !== "") {
-                            document.execCommand('insertText', false, linkText);
-                            // 选中刚插入的文本
-                            const newRange = document.createRange();
-                            const anchorNode = window.getSelection().anchorNode;
-                            const anchorOffset = window.getSelection().anchorOffset;
-                            if(anchorNode && anchorNode.nodeType === Node.TEXT_NODE && anchorOffset >= linkText.length){
-                                newRange.setStart(anchorNode, anchorOffset - linkText.length);
-                                newRange.setEnd(anchorNode, anchorOffset);
-                                window.getSelection().removeAllRanges();
-                                window.getSelection().addRange(newRange);
-                                savedRange = newRange.cloneRange(); // 更新保存的选区
-                            } else {
-                                // 如果无法精确选中，则不执行后续 createLink，避免错误
-                                alert("无法为新文本创建链接，请先手动选中文本。");
-                                return;
-                            }
-                        } else if (!linkText && url) { // 用户没输入文本，但输入了URL
-                             document.execCommand('insertText', false, url.trim()); // 用URL作为文本
-                             // 类似地选中
-                             const newRange = document.createRange();
-                             const anchorNode = window.getSelection().anchorNode;
-                             const anchorOffset = window.getSelection().anchorOffset;
-                             if(anchorNode && anchorNode.nodeType === Node.TEXT_NODE && anchorOffset >= url.trim().length){
-                                newRange.setStart(anchorNode, anchorOffset - url.trim().length);
-                                newRange.setEnd(anchorNode, anchorOffset);
-                                window.getSelection().removeAllRanges();
-                                window.getSelection().addRange(newRange);
-                                savedRange = newRange.cloneRange();
-                             } else {
-                                 alert("无法为新文本创建链接，请先手动选中文本。");
-                                 return;
-                             }
-                        } else {
-                            savedRange = saveSelection(); 
-                            return; 
-                        }
-                    }
+                    restoreSelection(savedRange); // 确保在 prompt 后选区仍然有效
                     document.execCommand('createLink', false, url.trim());
                 } else if (url !== null) { 
-                    alert("您输入的链接无效或已取消。");
+                    alert("您输入的链接无效或未更改。");
                 }
             } else {
                 document.execCommand(command, false, null); 
@@ -420,7 +373,7 @@ function initializeRichTextEditor() {
                     savedRange = saveSelection(); 
                 };
                 reader.readAsDataURL(file);
-                imageUploadInput.value = '';
+                imageUploadInput.value = ''; 
             } else if (file) {
                 alert('请选择一个有效的图片文件 (例如 JPG, PNG, GIF)。');
             }
@@ -806,8 +759,6 @@ document.addEventListener('DOMContentLoaded', () => {
         } else if (clearSearchButton) {
             clearSearchButton.style.display = 'none';
         }
-        // 搜索表单的事件监听器应该在 index.html 的内联脚本中，因为它只在该页面存在
-        // 或者在这里添加，但需要检查 searchForm 是否存在
         const searchForm = document.getElementById('searchForm');
         if (searchForm && searchInput && clearSearchButton) {
              searchForm.addEventListener('submit', (event) => {
@@ -826,8 +777,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 clearSearchButton.style.display = 'none';
             });
         }
-
-
     } else if (path.startsWith('/note/')) {
         if (path.startsWith('/note/new') || path.startsWith('/note/edit')) {
             initializeRichTextEditor();
@@ -849,10 +798,11 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // 全局登出按钮 (如果不是由 setupNavigation 动态添加的)
-    document.querySelectorAll('#logoutButton:not([data-listener-attached])').forEach(button => {
-        if (!button.closest('#mainNav')) { 
-            button.addEventListener('click', handleLogout);
-            button.setAttribute('data-listener-attached', 'true');
-        }
-    });
+    // setupNavigation 已经处理了动态添加的登出按钮的事件监听
+    // document.querySelectorAll('#logoutButton:not([data-listener-attached])').forEach(button => {
+    //     if (!button.closest('#mainNav')) { 
+    //         button.addEventListener('click', handleLogout);
+    //         button.setAttribute('data-listener-attached', 'true');
+    //     }
+    // });
 });
