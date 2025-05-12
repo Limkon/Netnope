@@ -9,7 +9,7 @@ const {
     sendUnauthorized,
     sendForbidden,
     sendBadRequest,
-    sendNotFound // **** 确保 sendNotFound 已正确引入 ****
+    sendNotFound 
 } = require('./responseUtils');
 const path =require('path');
 
@@ -141,8 +141,8 @@ module.exports = {
     },
 
     deleteUserByAdmin: (context) => {
-        const pathParts = context.pathname.split('/'); // ['', 'api', 'admin', 'users', 'userIdToDelete']
-        const userIdToDelete = pathParts[4]; // 用户ID在索引4
+        const pathParts = context.pathname.split('/'); 
+        const userIdToDelete = pathParts[4]; 
         
         if (!userIdToDelete) {
              context.res.writeHead(400, { 'Content-Type': 'application/json; charset=utf-8' });
@@ -174,29 +174,28 @@ module.exports = {
     },
 
     updateUserPasswordByAdmin: (context) => {
-        const pathParts = context.pathname.split('/'); // ['', 'api', 'admin', 'users', 'userIdToUpdate', 'password']
-        const userIdToUpdate = pathParts[4]; // **** 修正ID提取，用户ID应该在索引4 ****
+        const pathParts = context.pathname.split('/'); 
+        const userIdToUpdate = pathParts[4]; 
         const { newPassword } = context.body;
         
-        console.log(`[Admin Reset Password] Pathname: ${context.pathname}`);
-        console.log(`[Admin Reset Password] Extracted User ID: ${userIdToUpdate}`);
-        console.log(`[Admin Reset Password] Received new password (length): ${newPassword ? newPassword.length : 'undefined/null'}`);
+        // console.log(`[Admin Reset Password] Attempting to reset password for user ID: ${userIdToUpdate}`);
+        // console.log(`[Admin Reset Password] Received new password (length): ${newPassword ? newPassword.length : 'undefined/null'}`);
 
         if (!userIdToUpdate) {
-            console.error("[Admin Reset Password] Error: Missing user ID from path.");
+            // console.error("[Admin Reset Password] Error: Missing user ID from path.");
             return sendBadRequest(context.res, JSON.stringify({ message: "路径中缺少用户 ID。" }));
         }
         const userToUpdate = storage.findUserById(userIdToUpdate);
         if (!userToUpdate) {
-            console.error(`[Admin Reset Password] Error: User not found for ID: ${userIdToUpdate}`);
+            // console.error(`[Admin Reset Password] Error: User not found for ID: ${userIdToUpdate}`);
             context.res.writeHead(404, { 'Content-Type': 'application/json; charset=utf-8' });
             return context.res.end(JSON.stringify({ message: "找不到要更新密码的用户。" }));
         }
 
-        console.log(`[Admin Reset Password] User found: ${userToUpdate.username}, Role: ${userToUpdate.role}`);
+        // console.log(`[Admin Reset Password] User found: ${userToUpdate.username}, Role: ${userToUpdate.role}`);
 
         if (userToUpdate.role === 'admin' && (newPassword === undefined || newPassword === null || newPassword.trim() === '')) {
-            console.warn(`[Admin Reset Password] Error: Admin user (${userToUpdate.username}) cannot have an empty password.`);
+            // console.warn(`[Admin Reset Password] Error: Admin user (${userToUpdate.username}) cannot have an empty password.`);
             return sendBadRequest(context.res, JSON.stringify({ message: "管理员的新密码不能为空。" }));
         }
         
@@ -208,14 +207,14 @@ module.exports = {
             password: newPassword 
         };
 
-        console.log(`[Admin Reset Password] Calling storage.saveUser for user: ${userToUpdate.username}`);
+        // console.log(`[Admin Reset Password] Calling storage.saveUser for user: ${userToUpdate.username}`);
         const updatedUser = storage.saveUser(userDataForUpdate);
         
         if (updatedUser && updatedUser.id) { 
-            console.log(`[Admin Reset Password] Successfully updated password for user: ${userToUpdate.username}`);
+            // console.log(`[Admin Reset Password] Successfully updated password for user: ${userToUpdate.username}`);
             serveJson(context.res, { message: `用户 ${userToUpdate.username} 的密码已成功更新。` });
         } else {
-            console.error(`[Admin Reset Password] Failed to update password for user: ${userToUpdate.username}. storage.saveUser returned:`, updatedUser);
+            // console.error(`[Admin Reset Password] Failed to update password for user: ${userToUpdate.username}. storage.saveUser returned:`, updatedUser);
             context.res.writeHead(500, { 'Content-Type': 'application/json; charset=utf-8' });
             context.res.end(JSON.stringify({ message: "更新密码失败。请查看服务器日志。" }));
         }
@@ -240,7 +239,6 @@ module.exports = {
         
         const user = storage.findUserById(userId);
         if (!user || !user.salt) { 
-            // 对于这种情况，也返回JSON错误
             context.res.writeHead(500, { 'Content-Type': 'application/json; charset=utf-8' });
             return context.res.end(JSON.stringify({ message: "无法验证当前用户。" }));
         }
