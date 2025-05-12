@@ -69,7 +69,7 @@ function escapeHtml(unsafe) {
 }
 
 function setupNavigation(username, role, userId) {
-    // 更稳健地判断是否为有效用户信息，而不是原始模板字符串
+    // 明确检查传入的值是否是模板占位符本身或表示未登录的默认值
     const isValidUser = username && username !== "{{username}}" && username !== "访客";
     const isValidRole = role && role !== "{{userRole}}" && role !== "anonymous";
     const isValidUserId = userId && userId !== "{{userId}}";
@@ -78,16 +78,18 @@ function setupNavigation(username, role, userId) {
     currentUserRoleGlobal = isValidRole ? role : 'anonymous';
     currentUserIdGlobal = isValidUserId ? userId : '';
 
+    // console.log("[DEBUG setupNavigation] Input - username:", username, "role:", role, "userId:", userId);
+    // console.log("[DEBUG setupNavigation] Parsed - Username:", currentUsernameGlobal, "Role:", currentUserRoleGlobal, "UserID:", currentUserIdGlobal);
+
     const navContainer = document.getElementById('mainNav');
     const usernameDisplaySpan = document.getElementById('usernameDisplay'); // 独立的用户名称显示元素
 
     // 更新独立的 usernameDisplay (例如在 note.html, admin.html 的 header 中)
-    if (usernameDisplaySpan) { // 总是尝试更新独立的 usernameDisplay，无论 mainNav 是否存在
+    if (usernameDisplaySpan) { 
         usernameDisplaySpan.textContent = escapeHtml(currentUsernameGlobal);
     }
     
     if (!navContainer) { 
-        // 对于没有 mainNav 的页面（例如登录页），确保其他地方的登出按钮（如果存在且未被 mainNav 包裹）也能工作
         document.querySelectorAll('#logoutButton:not([data-listener-attached])').forEach(button => {
             if (!button.closest('#mainNav')) { 
                 button.addEventListener('click', handleLogout);
@@ -97,9 +99,6 @@ function setupNavigation(username, role, userId) {
         return;
     }
 
-    // 构建导航栏 HTML
-    // 注意：如果 usernameDisplay 也在 mainNav 内部，则不需要上面的独立更新逻辑
-    // 但为了兼容性，可以保留，或确保 mainNav 内的 usernameDisplay 有不同的 ID
     let navHtml = `<span class="welcome-user">欢迎, <strong id="usernameDisplayInNav">${escapeHtml(currentUsernameGlobal)}</strong>!</span>`;
     if (currentUserRoleGlobal === 'anonymous') {
         navHtml += `<a href="/login" class="button-action">登录</a>`;
@@ -123,7 +122,6 @@ function setupNavigation(username, role, userId) {
     }
     navContainer.innerHTML = navHtml;
     
-    // 为动态添加的登出按钮绑定事件
     const logoutButtonInNav = document.getElementById('logoutButtonInNav');
     if (logoutButtonInNav && !logoutButtonInNav.hasAttribute('data-listener-attached')) {
         logoutButtonInNav.addEventListener('click', handleLogout);
@@ -280,6 +278,7 @@ function initializeRichTextEditor() {
     contentArea.addEventListener('blur', () => { savedRange = saveSelection(); });
     contentArea.addEventListener('click', () => { savedRange = saveSelection(); });
     contentArea.addEventListener('keyup', () => { savedRange = saveSelection(); });
+    
     toolbar.addEventListener('mousedown', (event) => { 
         if (event.target.tagName !== 'SELECT' && event.target.tagName !== 'INPUT') {
             event.preventDefault(); 
@@ -297,23 +296,29 @@ function initializeRichTextEditor() {
     toolbar.addEventListener('click', (event) => {
         const targetButton = event.target.closest('button[data-command]');
         if (targetButton) {
-            // event.preventDefault(); // 已在 mousedown 中处理
             const command = targetButton.dataset.command;
             
-            restoreSelection(savedRange); 
+            contentArea.focus(); // 确保在执行命令前编辑器有焦点
+            let rangeToUseForCommand = saveSelection() || savedRange; // 优先使用当前最新选区
+            restoreSelection(rangeToUseForCommand); // 恢复选区
 
             if (command === 'createLink') {
                 const selection = window.getSelection();
                 let defaultUrl = 'https://';
-                if (selection && selection.rangeCount > 0) {
+                if (selection && selection.rangeCount > 0 && !selection.isCollapsed) {
                     let parentNode = selection.getRangeAt(0).commonAncestorContainer;
                     if (parentNode.nodeType !== Node.ELEMENT_NODE) parentNode = parentNode.parentNode;
                     if (parentNode && parentNode.tagName === 'A') defaultUrl = parentNode.getAttribute('href') || 'https://';
                 }
                 
+                // 在 prompt 之前，保存最新的选区
+                const rangeBeforePrompt = saveSelection(); 
+
                 const url = prompt('请输入链接网址:', defaultUrl);
                 
-                restoreSelection(savedRange); 
+                // 在 prompt 后，焦点可能已丢失，需要重新聚焦并恢复 *prompt之前* 的选区
+                contentArea.focus(); 
+                restoreSelection(rangeBeforePrompt); 
 
                 if (url && url.trim() !== "" && url.trim().toLowerCase() !== 'https://') {
                     document.execCommand('createLink', false, url.trim());
@@ -324,7 +329,7 @@ function initializeRichTextEditor() {
                 document.execCommand(command, false, null); 
             }
             
-            savedRange = saveSelection(); 
+            savedRange = saveSelection(); // 执行命令后更新选区
         }
     });
 
@@ -722,6 +727,7 @@ function setupChangeOwnPasswordForm() {
 document.addEventListener('DOMContentLoaded', () => {
     const path = window.location.pathname;
     
+    // 这些变量应该由每个HTML页面的内联脚本通过服务器端模板注入来定义
     const usernameFromServer = (typeof currentUsername !== 'undefined' && currentUsername !== "{{username}}") ? currentUsername : '访客';
     const roleFromServer = (typeof currentUserRole !== 'undefined' && currentUserRole !== "{{userRole}}") ? currentUserRole : 'anonymous';
     const userIdFromServer = (typeof currentUserId !== 'undefined' && currentUserId !== "{{userId}}") ? currentUserId : ''; 
