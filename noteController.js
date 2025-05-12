@@ -15,11 +15,12 @@ const fs = require('fs');
 const PUBLIC_DIR = path.join(__dirname, 'public');
 const UPLOADS_DIR = storage.UPLOADS_DIR;
 
+// 辅助函数，用于获取传递给模板的导航数据
 function getNavData(session) {
     return {
         username: session ? session.username : '访客',
-        userRole: session ? session.role : 'anonymous',
-        userId: session ? session.userId : '' 
+        userRole: session ? session.role : 'anonymous', // 如果没有 session，也视为匿名
+        userId: session ? session.userId : '' // 确保 userId 也传递
     };
 }
 
@@ -35,20 +36,25 @@ function sanitizeAndMakeUniqueFilename(originalFilename, userId) {
 
 module.exports = {
     getNotesPage: (context) => {
+        // console.log("[getNotesPage] Session:", context.session); // 调试日志
         serveHtmlWithPlaceholders(context.res, path.join(PUBLIC_DIR, 'index.html'), {
             ...getNavData(context.session)
         });
     },
 
     getNoteFormPage: (context, noteIdToEdit) => {
+        // console.log("[getNoteFormPage] Session:", context.session); // 调试日志
+        // 只有已认证的非匿名用户可以访问此页面
         if (!context.session || context.session.role === 'anonymous') {
             return sendForbidden(context.res, "匿名用户不能访问此页面。请先登录。");
         }
-        serveHtmlWithPlaceholders(context.res, path.join(PUBLIC_DIR, 'note.html'), {
-            ...getNavData(context.session),
+        const placeholders = {
+            ...getNavData(context.session), // 使用辅助函数确保传递正确的用户信息
             noteId: noteIdToEdit || '',
             pageTitle: noteIdToEdit ? '编辑记事' : '新建记事'
-        });
+        };
+        // console.log("[getNoteFormPage] Placeholders for note.html:", placeholders); // 调试日志
+        serveHtmlWithPlaceholders(context.res, path.join(PUBLIC_DIR, 'note.html'), placeholders);
     },
 
     getNoteViewPage: (context) => {
@@ -60,7 +66,7 @@ module.exports = {
         if (!note) {
             return sendNotFound(context.res, "找不到指定的记事。");
         }
-
+        
         const sessionRole = context.session ? context.session.role : 'anonymous_fallback';
         const sessionUserId = context.session ? context.session.userId : null;
 
@@ -91,7 +97,6 @@ module.exports = {
         };
         serveHtmlWithPlaceholders(context.res, path.join(PUBLIC_DIR, 'view-note.html'), templateData);
     },
-
 
     getAllNotes: (context) => {
         const sessionRole = context.session ? context.session.role : 'anonymous_fallback';
@@ -139,8 +144,8 @@ module.exports = {
         }
         const { title, content } = context.body;
         const attachmentFile = context.files && context.files.attachment;
-        if (!title || title.trim() === '' || !content ) { // 允许 content 为空字符串，但不能是 undefined/null
-             if (content === undefined || content === null) { // 严格检查 content 是否缺失
+        if (!title || title.trim() === '' || content === undefined || content === null ) { 
+             if (content === undefined || content === null) { 
                 return sendBadRequest(context.res, "标题和内容不能为空。");
              }
         }
@@ -163,7 +168,6 @@ module.exports = {
                     size: attachmentFile.content.length
                 };
             } catch (e) { 
-                // console.error("保存附件失败:", e); // 可选保留
                 return sendError(context.res, "保存附件时发生错误。"); 
             }
         }
@@ -219,7 +223,6 @@ module.exports = {
                     size: attachmentFile.content.length
                 };
             } catch (e) { 
-                // console.error("更新时保存新附件失败:", e); // 可选保留
                 return sendError(context.res, "更新时保存新附件失败。"); 
             }
         }
