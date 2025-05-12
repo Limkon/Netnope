@@ -81,12 +81,19 @@
     </footer>
     <script src="/js/main.js"></script>
     <script>
-        const currentUsernameFromServer = "{{username}}";
-        const currentUserRoleFromServer = "{{userRole}}";
-        const currentUserIdFromServer = "{{userId}}";
+        // 从服务器端模板获取初始用户信息
+        const currentUsernameFromServer = "{{username}}"; 
+        const currentUserRoleFromServer = "{{userRole}}";   
+        const currentUserIdFromServer = "{{userId}}";     
         const noteIdForEdit = "{{noteId}}";
         const pageTitleFromServer = "{{pageTitle}}";
         let pageTitle = pageTitleFromServer;
+
+        // **** 新增调试日志 ****
+        console.log("[note.html DEBUG] currentUsernameFromServer:", currentUsernameFromServer);
+        console.log("[note.html DEBUG] currentUserRoleFromServer:", currentUserRoleFromServer);
+        console.log("[note.html DEBUG] currentUserIdFromServer:", currentUserIdFromServer);
+        // ***********************
 
         if (pageTitleFromServer.includes("编辑") || pageTitleFromServer.includes("編輯")) {
             pageTitle = "编辑记事";
@@ -95,8 +102,18 @@
         }
 
         document.addEventListener('DOMContentLoaded', () => {
-            document.getElementById('usernameDisplay').textContent = currentUsernameFromServer || '用户';
-            document.getElementById('pageTitleHeader').textContent = pageTitle;
+            // usernameDisplay 可能在 mainNav 内部或外部，setupNavigation 会处理 mainNav
+            // 如果 mainNav 不存在，确保独立的 usernameDisplay 也能更新
+            const usernameDisplaySpan = document.getElementById('usernameDisplay');
+            if (usernameDisplaySpan && !usernameDisplaySpan.closest('#mainNav')) {
+                 usernameDisplaySpan.textContent = (currentUsernameFromServer && currentUsernameFromServer !== "{{username}}") ? currentUsernameFromServer : '用户';
+            }
+
+
+            setupNavigation(currentUsernameFromServer, currentUserRoleFromServer, currentUserIdFromServer);
+            
+            const pageTitleHeader = document.getElementById('pageTitleHeader');
+            if(pageTitleHeader) pageTitleHeader.textContent = pageTitle;
             document.title = `${pageTitle} - 记事本`;
 
             initializeRichTextEditor();
