@@ -89,11 +89,9 @@
         const pageTitleFromServer = "{{pageTitle}}";
         let pageTitle = pageTitleFromServer;
 
-        // **** 新增调试日志 ****
-        console.log("[note.html DEBUG] currentUsernameFromServer:", currentUsernameFromServer);
-        console.log("[note.html DEBUG] currentUserRoleFromServer:", currentUserRoleFromServer);
-        console.log("[note.html DEBUG] currentUserIdFromServer:", currentUserIdFromServer);
-        // ***********************
+        // console.log("[note.html DEBUG] currentUsernameFromServer:", currentUsernameFromServer);
+        // console.log("[note.html DEBUG] currentUserRoleFromServer:", currentUserRoleFromServer);
+        // console.log("[note.html DEBUG] currentUserIdFromServer:", currentUserIdFromServer);
 
         if (pageTitleFromServer.includes("编辑") || pageTitleFromServer.includes("編輯")) {
             pageTitle = "编辑记事";
@@ -102,13 +100,12 @@
         }
 
         document.addEventListener('DOMContentLoaded', () => {
-            // usernameDisplay 可能在 mainNav 内部或外部，setupNavigation 会处理 mainNav
-            // 如果 mainNav 不存在，确保独立的 usernameDisplay 也能更新
+            // setupNavigation 会处理 mainNav 内部的 usernameDisplayInNav
+            // 对于 note.html，我们可能有一个独立的 usernameDisplay 在 nav 之外，所以也更新它
             const usernameDisplaySpan = document.getElementById('usernameDisplay');
-            if (usernameDisplaySpan && !usernameDisplaySpan.closest('#mainNav')) {
-                 usernameDisplaySpan.textContent = (currentUsernameFromServer && currentUsernameFromServer !== "{{username}}") ? currentUsernameFromServer : '用户';
+            if (usernameDisplaySpan) { // 这个 id 可能与 main.js 中 setupNavigation 期望的不同
+                usernameDisplaySpan.textContent = (currentUsernameFromServer && currentUsernameFromServer !== "{{username}}") ? currentUsernameFromServer : '用户';
             }
-
 
             setupNavigation(currentUsernameFromServer, currentUserRoleFromServer, currentUserIdFromServer);
             
