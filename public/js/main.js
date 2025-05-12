@@ -11,6 +11,7 @@ let savedRange = null; // 用于保存富文本编辑器的选区
 async function fetchData(url, options = {}) {
     try {
         const response = await fetch(url, options);
+        // 调整401处理：只有当不是匿名用户且不是GET请求时才强制跳转
         if (response.status === 401 && !(currentUserRoleGlobal === 'anonymous' && (options.method === 'GET' || !options.method))) {
             alert('您的会话已过期或未授权，请重新登录。');
             window.location.href = '/login';
@@ -26,6 +27,7 @@ async function fetchData(url, options = {}) {
             }
             console.error(`API 请求失败 (${response.status}):`, errorData);
             const errorMessage = (typeof errorData === 'object' && errorData !== null && errorData.message) ? errorData.message : (errorData || response.statusText);
+            // 对于403，也避免匿名用户被不必要地重定向
             if ((response.status === 401 || response.status === 403) && currentUserRoleGlobal !== 'anonymous') {
                  alert('操作未授权或会话已过期，请重新登录。');
             }
@@ -67,6 +69,7 @@ function escapeHtml(unsafe) {
 }
 
 function setupNavigation(username, role, userId) {
+    // 明确检查传入的值是否是模板占位符本身或表示未登录的默认值
     const isValidUser = username && username !== "{{username}}" && username !== "访客";
     const isValidRole = role && role !== "{{userRole}}" && role !== "anonymous";
     const isValidUserId = userId && userId !== "{{userId}}";
@@ -251,7 +254,6 @@ function initializeRichTextEditor() {
     function saveSelection() {
         if (window.getSelection && window.getSelection().rangeCount > 0) {
             const selection = window.getSelection();
-            // 确保选区在编辑器内部
             if (contentArea.contains(selection.anchorNode) && contentArea.contains(selection.focusNode)) {
                 return selection.getRangeAt(0).cloneRange();
             }
@@ -260,7 +262,7 @@ function initializeRichTextEditor() {
     }
 
     function restoreSelection(range) {
-        contentArea.focus(); // 总是先聚焦
+        contentArea.focus(); 
         if (range) {
             const selection = window.getSelection();
             selection.removeAllRanges();
@@ -270,16 +272,16 @@ function initializeRichTextEditor() {
     
     // 保存选区的时机
     contentArea.addEventListener('focus', () => { savedRange = saveSelection(); });
-    contentArea.addEventListener('blur', () => { savedRange = saveSelection(); });
+    contentArea.addEventListener('blur', () => { savedRange = saveSelection(); }); 
     contentArea.addEventListener('click', () => { savedRange = saveSelection(); });
     contentArea.addEventListener('keyup', () => { savedRange = saveSelection(); });
     contentArea.addEventListener('mouseup', () => { savedRange = saveSelection(); }); 
 
     toolbar.addEventListener('mousedown', (event) => { 
         if (event.target.tagName !== 'SELECT' && event.target.tagName !== 'INPUT') {
-            event.preventDefault(); // 防止编辑器失焦
+            event.preventDefault(); 
         }
-        savedRange = saveSelection(); // 在点击工具栏按钮前保存选区
+        savedRange = saveSelection(); 
     });
 
 
@@ -295,20 +297,19 @@ function initializeRichTextEditor() {
             const command = targetButton.dataset.command;
             
             // 在执行命令前，先让编辑器获得焦点，然后恢复之前（mousedown时）保存的选区
+            contentArea.focus(); 
             restoreSelection(savedRange); 
 
             if (command === 'createLink') {
                 const selection = window.getSelection();
-                // 必须先选中文本
                 if (!selection || selection.rangeCount === 0 || selection.isCollapsed) {
                     alert("请先选中文本，然后再创建链接。");
-                    contentArea.focus(); // 确保焦点返回编辑器
-                    savedRange = saveSelection(); // 更新保存的选区（可能是光标位置）
+                    contentArea.focus(); 
+                    savedRange = saveSelection(); 
                     return; 
                 }
 
                 let defaultUrl = 'https://';
-                // 尝试获取已选中链接的href作为默认值
                 let currentRange = selection.getRangeAt(0);
                 let parentElement = currentRange.commonAncestorContainer;
                 if (parentElement.nodeType !== Node.ELEMENT_NODE) {
@@ -318,26 +319,32 @@ function initializeRichTextEditor() {
                     defaultUrl = parentElement.getAttribute('href') || 'https://';
                 }
                 
-                // 在 prompt 之前，再次确保选区是最新的，因为用户可能在 mousedown 后又调整了选区
-                // `savedRange` 此时应该是在 mousedown 时保存的，是可靠的
-                const rangeForLink = savedRange ? savedRange.cloneRange() : null;
+                // 在 prompt 之前，再次确保选区是最新的
+                const rangeForLink = saveSelection(); 
 
-                const url = prompt('请输入链接网址:', defaultUrl);
+                // 使用 setTimeout 将 prompt 的调用推迟到当前事件流之外
+                // 这样可以避免 prompt 阻塞导致的选区丢失问题
+                setTimeout(() => {
+                    contentArea.focus(); // 重新聚焦
+                    restoreSelection(rangeForLink); // 恢复 prompt 之前的选区
+
+                    const url = prompt('请输入链接网址:', defaultUrl);
                 
-                // 在 prompt 后，焦点可能已丢失，需要重新聚焦并恢复 *prompt之前* 的选区
-                restoreSelection(rangeForLink); 
+                    if (url && url.trim() !== "" && url.trim().toLowerCase() !== 'https://') {
+                        // 在 prompt 返回后，再次恢复选区，因为焦点可能再次改变
+                        restoreSelection(rangeForLink); 
+                        document.execCommand('createLink', false, url.trim());
+                    } else if (url !== null) { 
+                        alert("您输入的链接无效或已取消。");
+                    }
+                    savedRange = saveSelection(); // 执行命令后更新选区
+                    contentArea.focus(); // 确保焦点最终在编辑器
+                }, 0); // 延迟0毫秒，足以将其放入事件队列的下一个tick
 
-                if (url && url.trim() !== "" && url.trim().toLowerCase() !== 'https://') {
-                    document.execCommand('createLink', false, url.trim());
-                } else if (url !== null) { // 用户点击了确定但输入无效或未改动默认的 "https://"
-                    alert("您输入的链接无效或已取消。");
-                }
-                // 如果用户取消 prompt (url is null)，则不执行任何操作
-            } else {
+            } else { // 其他命令
                 document.execCommand(command, false, null); 
+                savedRange = saveSelection(); 
             }
-            
-            savedRange = saveSelection(); // 执行命令后更新选区
         }
     });
 
