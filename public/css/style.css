@@ -1,11 +1,11 @@
-/* public/css/style.css - 移动端按钮优化 */
+/* public/css/style.css - 最终优化版 */
 body {
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
     line-height: 1.6;
     margin: 0;
     padding: 0;
-    background-color: #f0f2f5;
-    color: #1f1f1f;
+    background-color: #f0f2f5; /* 更明亮的背景色 */
+    color: #1f1f1f; /* 深色文字以保证对比度 */
     display: flex;
     flex-direction: column;
     min-height: 100vh;
@@ -23,18 +23,18 @@ body {
 }
 
 header {
-    background-color: #ffffff;
+    background-color: #ffffff; /* 浅色头部 */
     color: #1f1f1f;
     padding: 1.5rem 0;
     text-align: center;
-    border-bottom: 1px solid #dcdcdc;
+    border-bottom: 1px solid #dcdcdc; /* 细边框 */
 }
 
 header h1 {
     margin: 0;
     font-size: 2.2rem;
     font-weight: 500;
-    color: #1a73e8;
+    color: #1a73e8; /* 主题蓝色 */
 }
 
 header nav {
@@ -46,7 +46,7 @@ header nav {
     flex-wrap: wrap; /* 允许头部导航按钮换行 */
 }
 .welcome-user {
-    color: #5f6368;
+    color: #5f6368; /* 头部欢迎文字颜色 */
     font-size: 0.95rem;
     margin-bottom: 5px; /* 在换行时给一点底部间距 */
 }
@@ -54,25 +54,27 @@ header nav {
     color: #1a73e8;
 }
 
+/* --- 统一操作按钮样式 (除富文本、登出、删除外) --- */
 .button-action,
-input[type="submit"],
-.button-like,
-.button-header:not(.danger) {
+input[type="submit"], /* 登录页的提交按钮 */
+.button-like, /* <a> 标签模拟的按钮 */
+.button-header:not(.danger) /* 头部非危险按钮 */
+{
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    font-weight: 500;
+    font-weight: 500; 
     color: #ffffff;
     text-align: center;
     vertical-align: middle;
     cursor: pointer;
     user-select: none;
-    background-color: #1a73e8;
+    background-color: #1a73e8; /* 主题蓝色 */
     border: 1px solid #1a73e8;
     padding: 0.6rem 1.2rem;
     font-size: 0.95rem;
     line-height: 1.5;
-    border-radius: 0.35rem;
+    border-radius: 0.35rem; 
     transition: background-color 0.15s ease-in-out, border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
     text-decoration: none;
     min-height: 40px;
@@ -83,7 +85,7 @@ input[type="submit"],
 input[type="submit"]:hover,
 .button-like:hover,
 .button-header:not(.danger):hover {
-    background-color: #1765c7;
+    background-color: #1765c7; 
     border-color: #1765c7;
     box-shadow: 0 2px 4px rgba(0,0,0,0.08);
 }
@@ -92,9 +94,10 @@ input[type="submit"]:focus,
 .button-like:focus,
 .button-header:not(.danger):focus {
     outline: none;
-    box-shadow: 0 0 0 0.2rem rgba(26, 115, 232, 0.35);
+    box-shadow: 0 0 0 0.2rem rgba(26, 115, 232, 0.35); 
 }
 
+/* 危险操作按钮 (登出, 删除) */
 .button-danger, button.danger, .button-header.danger {
     display: inline-flex;
     align-items: center;
@@ -105,7 +108,7 @@ input[type="submit"]:focus,
     vertical-align: middle;
     cursor: pointer;
     user-select: none;
-    background-color: #d93025;
+    background-color: #d93025; /* 红色 */
     border: 1px solid #d93025;
     padding: 0.6rem 1.2rem;
     font-size: 0.95rem;
@@ -118,7 +121,7 @@ input[type="submit"]:focus,
     box-shadow: 0 1px 2px rgba(0,0,0,0.05);
 }
 .button-danger:hover, button.danger:hover, .button-header.danger:hover {
-    background-color: #c5221f;
+    background-color: #c5221f; 
     border-color: #c5221f;
     box-shadow: 0 2px 4px rgba(0,0,0,0.08);
 }
@@ -126,13 +129,13 @@ input[type="submit"]:focus,
     outline: none;
     box-shadow: 0 0 0 0.2rem rgba(217, 48, 37, 0.35);
 }
-.button-header.danger { /* 这个是桌面端的，移动端会覆盖 */
+.button-header.danger { 
     padding: 0.45rem 0.9rem;
 }
 
 
 h2 {
-    color: #1a73e8;
+    color: #1a73e8; 
     border-bottom: 1px solid #e0e0e0;
     padding-bottom: 15px;
     margin-top: 0;
@@ -148,7 +151,7 @@ h2 {
     display: block;
     margin-bottom: 0.6rem;
     font-weight: 500;
-    color: #3c4043;
+    color: #3c4043; 
 }
 .checkbox-label {
     display: inline-block !important;
@@ -167,7 +170,7 @@ form input[type="text"], form input[type="password"], form select, form textarea
     color: #3c4043;
     background-color: #ffffff;
     background-clip: padding-box;
-    border: 1px solid #dadce0;
+    border: 1px solid #dadce0; 
     border-radius: 0.3rem;
     box-sizing: border-box;
     transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
@@ -176,13 +179,13 @@ form input[type="text"], form input[type="password"], form select, form textarea
 .form-styled input[type="file"], form input[type="file"] {
     padding: 10px 0;
     min-height: auto;
-    border: none;
+    border: none; 
 }
 
 .form-styled input:focus, form input:focus,
 .form-styled select:focus, form select:focus,
 .form-styled textarea:focus, form textarea:focus {
-    border-color: #1a73e8;
+    border-color: #1a73e8; 
     outline: 0;
     box-shadow: 0 0 0 0.2rem rgba(26, 115, 232, 0.25);
 }
@@ -220,6 +223,14 @@ form input[type="text"], form input[type="password"], form select, form textarea
     font-weight: 500;
     color: #1a73e8;
 }
+.note-item h3 a.note-title-link { /* 确保标题链接样式 */
+    color: inherit; /* 继承 h3 的颜色 */
+    text-decoration: none;
+}
+.note-item h3 a.note-title-link:hover {
+    text-decoration: underline;
+}
+
 .note-item .note-owner {
     font-size: 0.85rem;
     color: #5f6368;
@@ -267,19 +278,28 @@ form input[type="text"], form input[type="password"], form select, form textarea
     text-decoration: underline;
 }
 
+/* 富文本编辑器包裹容器 */
+.rich-text-editor-wrapper {
+    display: flex;
+    flex-direction: column;
+    border: 1px solid #dadce0; 
+    border-radius: 0.3rem;   
+    margin-top: 5px; 
+}
+
 /* 富文本编辑器工具栏 */
 #richTextToolbar {
-    margin-bottom: 0;
     padding: 5px; 
     background-color: #f1f3f4; 
-    border: 1px solid #dadce0;
-    border-bottom: none;
-    border-top-left-radius: 0.3rem;
-    border-top-right-radius: 0.3rem;
+    border: none; 
+    border-bottom: 1px solid #dadce0; 
+    border-top-left-radius: 0; /* 由 wrapper 处理 */
+    border-top-right-radius: 0; /* 由 wrapper 处理 */
     display: flex; 
     flex-wrap: wrap; 
     align-items: center; 
     gap: 4px; 
+    flex-shrink: 0; 
 }
 
 #richTextToolbar > button,
@@ -308,6 +328,8 @@ form input[type="text"], form input[type="password"], form select, form textarea
 }
 
 #richTextToolbar > button {
+    /* padding-top: 1px;
+    padding-bottom: 1px; */
 }
 
 #richTextToolbar > select {
@@ -347,20 +369,20 @@ form input[type="text"], form input[type="password"], form select, form textarea
 
 
 #richContent {
-    border: 1px solid #dadce0;
+    border: none; 
+    border-radius: 0;
     padding: 15px;
-    min-height: 220px;
+    min-height: 150px; 
+    max-height: 350px; 
     background-color: #ffffff;
-    border-bottom-left-radius: 0.3rem;
-    border-bottom-right-radius: 0.3rem;
-    overflow-y: auto;
+    overflow-y: auto; 
     line-height: 1.7;
     color: #1f1f1f;
+    flex-grow: 1; 
 }
 #richContent:focus {
-    border-color: #1a73e8;
-    outline: 0;
-    box-shadow: 0 0 0 0.2rem rgba(26, 115, 232, 0.2) inset;
+    outline: 2px solid rgba(26, 115, 232, 0.4); 
+    outline-offset: -1px; 
 }
 
 .error-message, .success-message {
@@ -445,29 +467,28 @@ footer {
         font-size: 1.8rem;
     }
     header nav {
-        /* 移除 flex-direction: column; 以允许横向排列和换行 */
-        /* flex-direction: column;  <-- 移除这一行 */
-        flex-wrap: wrap; /* 确保换行 */
-        justify-content: center; /* 居中对齐换行的行 */
-        gap: 8px; /* 减小移动端导航按钮间距 */
+        /* 保持横向排列，允许换行 */
+        flex-direction: row; /* 确保是 row */
+        flex-wrap: wrap; 
+        justify-content: center; 
+        gap: 8px; 
     }
-    /* 移动端头部导航按钮调整 */
     header nav .button-action,
     header nav .button-danger {
-        padding: 0.4rem 0.7rem; /* 进一步减小头部按钮内边距 */
-        font-size: 0.85rem;   /* 进一步减小头部按钮字体 */
-        min-height: 32px;    /* 减小头部按钮最小高度 */
-        flex-grow: 0; /* 不允许拉伸 */
-        flex-shrink: 1; /* 允许收缩 */
+        padding: 0.4rem 0.7rem; 
+        font-size: 0.85rem;   
+        min-height: 32px;    
+        flex-grow: 0; 
+        flex-shrink: 1; 
     }
     header nav .welcome-user {
-        width: 100%; /* 欢迎语在移动端占满一行，避免挤压按钮 */
+        width: 100%; 
         text-align: center;
         margin-bottom: 8px;
+        order: -1; /* 让欢迎语优先显示在最上面，如果换行 */
     }
 
 
-    /* 移动端通用按钮调整 (排除头部导航按钮，因为它们有更具体的规则) */
     .button-action:not(.button-header),
     input[type="submit"]:not(.button-header),
     .button-like:not(.button-header),
@@ -530,9 +551,9 @@ footer {
         flex-grow: 1; 
     }
 
-
+    /* 移动端富文本工具栏 */
     #richTextToolbar {
-        justify-content: flex-start;
+        justify-content: flex-start; /* 保持左对齐 */
         gap: 3px; 
         padding: 4px;
     }
@@ -549,5 +570,9 @@ footer {
     }
     #richTextToolbar > input[type="color"] {
         width: 26px;
+    }
+    #richContent {
+        min-height: 100px;
+        max-height: 250px; 
     }
 }
