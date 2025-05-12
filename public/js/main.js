@@ -57,7 +57,6 @@ function displayMessage(message, type = 'info', elementId = 'globalMessageArea')
         container.innerHTML = message ? `<div class="${type}-message">${escapeHtml(message)}</div>` : '';
         container.style.display = message ? 'block' : 'none';
     } else {
-        // Fallback for pages that might not have a dedicated message area for all types of messages
         if (type === 'error' && message) alert(`错误: ${message}`);
         else if (type === 'success' && message) alert(`成功: ${message}`);
         else if (message) alert(message);
@@ -65,7 +64,7 @@ function displayMessage(message, type = 'info', elementId = 'globalMessageArea')
 }
 
 function escapeHtml(unsafe) {
-    if (typeof unsafe !== 'string') return String(unsafe); // Ensure it's a string
+    if (typeof unsafe !== 'string') return String(unsafe);
     return unsafe.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
 }
 
@@ -75,41 +74,58 @@ function setupNavigation(username, role, userId) {
     currentUserIdGlobal = userId || '';
 
     const navContainer = document.getElementById('mainNav');
-    if (!navContainer) { // Fallback for pages without a mainNav (e.g., login, register might have simpler headers)
-        const usernameDisplaySpan = document.getElementById('usernameDisplay');
-        if (usernameDisplaySpan) {
-            usernameDisplaySpan.textContent = escapeHtml(currentUsernameGlobal);
-        }
+    const usernameDisplaySpan = document.getElementById('usernameDisplay'); // 可能在没有 mainNav 的页面上
+
+    if (usernameDisplaySpan) { // 优先更新独立的 usernameDisplay (例如在 note.html 的 header)
+        usernameDisplaySpan.textContent = escapeHtml(currentUsernameGlobal);
+    }
+    
+    if (!navContainer) { // 如果页面没有 mainNav (例如登录页)，则不需要构建完整导航
+        // 确保所有页面（即使没有mainNav）的登出按钮都能工作
+        document.querySelectorAll('#logoutButton:not([data-listener-attached])').forEach(button => {
+            if (!button.closest('#mainNav')) { // 避免重复绑定 mainNav 内的按钮
+                button.addEventListener('click', handleLogout);
+                button.setAttribute('data-listener-attached', 'true');
+            }
+        });
         return;
     }
 
-    let navHtml = `<span class="welcome-user">欢迎, <strong id="usernameDisplay">${escapeHtml(currentUsernameGlobal)}</strong>!</span>`;
+    let navHtml = `<span class="welcome-user">欢迎, <strong id="usernameDisplayInNav">${escapeHtml(currentUsernameGlobal)}</strong>!</span>`;
     if (currentUserRoleGlobal === 'anonymous') {
         navHtml += `<a href="/login" class="button-action">登录</a>`;
         navHtml += `<a href="/register" class="button-action" style="background-color: #6c757d; border-color: #6c757d;">注册</a>`;
     } else {
-        // Conditional display of navigation links based on current page
-        if (window.location.pathname !== '/note/new' && !window.location.pathname.startsWith('/note/edit') && window.location.pathname !== '/note/view') {
+        // 只有在非主页时才显示“返回列表”
+        if (window.location.pathname !== '/' && window.location.pathname !== '/index.html') {
+             navHtml += `<a href="/" class="button-action">返回列表</a>`;
+        }
+        // 只有在非笔记编辑/新建/查看页面才显示“新建记事”
+        if (window.location.pathname !== '/note/new' && !window.location.pathname.startsWith('/note/edit') && !window.location.pathname.startsWith('/note/view')) {
              navHtml += `<a href="/note/new" class="button-action">新建记事</a>`;
         }
         if (window.location.pathname !== '/change-password') {
             navHtml += `<a href="/change-password" class="button-action">修改密码</a>`;
-        }
-        // "返回列表" should only show if not on the main list page
-        if (window.location.pathname !== '/' && window.location.pathname !== '/index.html') {
-             navHtml += `<a href="/" class="button-action">返回列表</a>`;
         }
         if (currentUserRoleGlobal === 'admin') {
             if (window.location.pathname !== '/admin/users') {
                 navHtml += `<a href="/admin/users" id="adminUsersLink" class="button-action">管理用户</a>`;
             }
         }
-        navHtml += `<button id="logoutButton" class="button-danger">登出</button>`;
+        navHtml += `<button id="logoutButtonInNav" class="button-danger">登出</button>`;
     }
     navContainer.innerHTML = navHtml;
-    const logoutButton = document.getElementById('logoutButton');
-    if (logoutButton) {
+    
+    // 更新可能在 navContainer 外部的 usernameDisplay
+    if (usernameDisplaySpan && !usernameDisplaySpan.closest('#mainNav')) {
+        usernameDisplaySpan.textContent = escapeHtml(currentUsernameGlobal);
+    }
+
+
+    const logoutButton = document.getElementById('logoutButtonInNav') || document.getElementById('logoutButton'); // 查找任一登出按钮
+    if (logoutButton && !logoutButton.hasAttribute('data-listener-attached')) {
         logoutButton.addEventListener('click', handleLogout);
+        logoutButton.setAttribute('data-listener-attached', 'true'); 
     }
 }
 
@@ -121,7 +137,7 @@ async function handleLogout() {
     } catch (error) {
         console.error('登出请求错误:', error);
         alert('登出时发生错误。');
-        window.location.href = '/login'; // Fallback redirect
+        window.location.href = '/login'; 
     }
 }
 
@@ -251,15 +267,24 @@ function initializeRichTextEditor() {
 
     function restoreSelection(range) {
         if (range) {
+            contentArea.focus(); 
             const selection = window.getSelection();
             selection.removeAllRanges();
             selection.addRange(range);
+        } else {
+            contentArea.focus(); 
         }
     }
     
+    contentArea.addEventListener('focus', () => { 
+        // When editor gains focus, we might not want to clear savedRange immediately,
+        // as a toolbar click might happen right after, which needs the range.
+        // savedRange = null; 
+    });
     contentArea.addEventListener('blur', () => { savedRange = saveSelection(); });
     contentArea.addEventListener('click', () => { savedRange = saveSelection(); });
     contentArea.addEventListener('keyup', () => { savedRange = saveSelection(); });
+
 
     const fontNameSelector = document.getElementById('fontNameSelector');
     const fontSizeSelector = document.getElementById('fontSizeSelector');
@@ -273,86 +298,84 @@ function initializeRichTextEditor() {
             event.preventDefault();
             const command = targetButton.dataset.command;
             
-            contentArea.focus(); 
-            restoreSelection(savedRange); 
+            restoreSelection(savedRange); // 恢复选区前先聚焦
 
             if (command === 'createLink') {
-                const currentSelection = window.getSelection();
-                let initialUrl = 'https://';
-                // 如果选区不是折叠的（即有文本被选中），尝试将其作为链接文本
-                // 并且如果选中的是已有的链接，尝试获取其href作为prompt的默认值
-                if (!currentSelection.isCollapsed && currentSelection.rangeCount > 0) {
-                    const range = currentSelection.getRangeAt(0);
-                    let parentElement = range.commonAncestorContainer;
-                    if (parentElement.nodeType !== Node.ELEMENT_NODE) {
-                        parentElement = parentElement.parentNode;
-                    }
-                    if (parentElement && parentElement.tagName === 'A') {
-                        initialUrl = parentElement.getAttribute('href') || 'https://';
-                    }
+                const selection = window.getSelection();
+                let currentSelectedText = "";
+                if (selection && selection.rangeCount > 0 && !selection.isCollapsed) {
+                    currentSelectedText = selection.toString();
                 }
 
-                let url = prompt('请输入链接网址:', initialUrl);
+                let url = prompt('请输入链接网址 (例如 https://www.example.com):', 'https://');
+                
                 if (url && url.trim() !== "" && url.trim().toLowerCase() !== 'https://') {
-                    // 确保在执行命令前选区是正确的
-                    if (currentSelection.isCollapsed && currentSelection.rangeCount > 0) {
-                        const linkText = prompt("没有选中文本。请输入链接要显示的文本:", "我的链接");
+                    contentArea.focus(); // 确保在 prompt 后编辑器有焦点
+                    restoreSelection(savedRange); // 再次恢复选区，因为 prompt 会导致失焦
+
+                    if (selection.isCollapsed) { // 如果没有选中文本
+                        const linkText = prompt("请输入链接要显示的文本:", currentSelectedText || url); // 默认用 URL 作为文本
                         if (linkText && linkText.trim() !== "") {
-                            // 恢复光标位置再插入文本
-                            restoreSelection(savedRange);
                             document.execCommand('insertText', false, linkText);
-                            // 插入文本后，选区会改变，需要重新获取并选中新文本
+                            // 选中刚插入的文本，以便应用链接
                             const newRange = document.createRange();
-                            const insertedNode = currentSelection.anchorNode.childNodes[currentSelection.anchorOffset - linkText.length]; // 尝试定位
-                            if (insertedNode && insertedNode.nodeType === Node.TEXT_NODE && insertedNode.nodeValue === linkText) {
-                                newRange.selectNode(insertedNode);
-                                currentSelection.removeAllRanges();
-                                currentSelection.addRange(newRange);
-                                savedRange = newRange.cloneRange(); // 更新保存的选区
-                            } else {
-                                // 如果定位失败，就简单地不自动选中了
-                            }
+                            const anchorNode = selection.anchorNode;
+                            const anchorOffset = selection.anchorOffset;
+                            // 尝试找到新插入的文本节点
+                            // 这部分比较复杂，因为 insertText 后选区行为不一
+                            // 最简单的方式是要求用户必须先选中文本
+                            // 为简化，如果之前没有选区，我们就不再尝试选中插入的文本
+                            // 而是直接在当前光标处创建链接，浏览器通常会用URL作为文本
+                            // 或者，我们可以在这里不执行 createLink，而是提示用户
+                            // alert("请先选中文本以创建链接，或直接输入链接文本。");
+                            // return; 
+                            // 为了让它工作，我们假设 insertText 后光标在文本后
+                            // 重新获取选区并尝试选中
+                             const tempSelection = window.getSelection();
+                             if (tempSelection.rangeCount > 0) {
+                                 savedRange = tempSelection.getRangeAt(0).cloneRange();
+                                 // 尝试选中新插入的文本，这很困难且不可靠
+                                 // 更好的方式是，如果 selection.isCollapsed，则不执行 createLink，或提示用户
+                             }
+                             // 如果没有选中文本，直接执行 createLink，浏览器可能会用 URL 作为链接文本
                         } else {
+                            savedRange = saveSelection(); 
                             return; 
                         }
                     }
-                    // 再次确保选区（如果用户之前有选区）
-                    restoreSelection(savedRange);
                     document.execCommand('createLink', false, url.trim());
                 } else if (url !== null) { 
-                    alert("您输入的链接无效。");
+                    alert("您输入的链接无效或已取消。");
                 }
             } else {
                 document.execCommand(command, false, null); 
             }
             
             savedRange = saveSelection(); 
-            contentArea.focus(); 
         }
     });
 
     if (fontNameSelector) {
         fontNameSelector.addEventListener('change', (event) => {
-            contentArea.focus(); restoreSelection(savedRange);
+            restoreSelection(savedRange);
             document.execCommand('fontName', false, event.target.value);
             savedRange = saveSelection();
         });
     }
     if (fontSizeSelector) {
         fontSizeSelector.addEventListener('change', (event) => {
-            contentArea.focus(); restoreSelection(savedRange);
+            restoreSelection(savedRange);
             document.execCommand('fontSize', false, event.target.value);
             savedRange = saveSelection();
         });
     }
     if (foreColorPicker) {
         foreColorPicker.addEventListener('input', (event) => { 
-            contentArea.focus(); 
+            restoreSelection(savedRange); 
             document.execCommand('foreColor', false, event.target.value);
         });
         foreColorPicker.addEventListener('change', (event) => { 
-            contentArea.focus(); 
-            restoreSelection(savedRange); // 颜色选择完成后恢复选区再应用
+            restoreSelection(savedRange); 
             document.execCommand('foreColor', false, event.target.value);
             savedRange = saveSelection(); 
         });
@@ -360,7 +383,6 @@ function initializeRichTextEditor() {
 
     if (insertLocalImageButton && imageUploadInput) {
         insertLocalImageButton.addEventListener('click', () => {
-            contentArea.focus(); 
             savedRange = saveSelection(); 
             imageUploadInput.click();
         });
@@ -369,7 +391,6 @@ function initializeRichTextEditor() {
             if (file && file.type.startsWith('image/')) {
                 const reader = new FileReader();
                 reader.onload = (e) => {
-                    contentArea.focus(); 
                     restoreSelection(savedRange); 
                     document.execCommand('insertImage', false, e.target.result);
                     savedRange = saveSelection(); 
@@ -732,23 +753,20 @@ function setupChangeOwnPasswordForm() {
 document.addEventListener('DOMContentLoaded', () => {
     const path = window.location.pathname;
     
+    // 这些变量应该由每个HTML页面的内联脚本通过服务器端模板注入来定义
+    // 例如: <script> const currentUsername = "{{username}}"; ... </script>
+    // 如果未定义，则使用默认值
     const usernameFromServer = (typeof currentUsername !== 'undefined' && currentUsername !== "{{username}}") ? currentUsername : '访客';
     const roleFromServer = (typeof currentUserRole !== 'undefined' && currentUserRole !== "{{userRole}}") ? currentUserRole : 'anonymous';
     const userIdFromServer = (typeof currentUserId !== 'undefined' && currentUserId !== "{{userId}}") ? currentUserId : ''; 
     const adminIdFromServer = (typeof currentAdminId !== 'undefined' && currentAdminId !== "{{adminUserId}}") ? currentAdminId : '';
 
-    currentAdminIdGlobal = adminIdFromServer;
-    currentUserIdGlobal = userIdFromServer; 
+    currentAdminIdGlobal = adminIdFromServer; // 用于 admin 页面
+    currentUserIdGlobal = userIdFromServer;   // 用于 loadNotes 判断编辑/删除权限
 
-    const mainNav = document.getElementById('mainNav');
-    if (mainNav) {
-        setupNavigation(usernameFromServer, roleFromServer, userIdFromServer);
-    } else { 
-        const usernameDisplaySpan = document.getElementById('usernameDisplay');
-        if (usernameDisplaySpan) {
-            usernameDisplaySpan.textContent = escapeHtml(usernameFromServer);
-        }
-    }
+    // 统一调用 setupNavigation 来构建或更新导航栏
+    setupNavigation(usernameFromServer, roleFromServer, userIdFromServer);
+
 
     if (path === '/' || path === '/index.html') {
         const urlParams = new URLSearchParams(window.location.search);
@@ -764,6 +782,27 @@ document.addEventListener('DOMContentLoaded', () => {
         } else if (clearSearchButton) {
             clearSearchButton.style.display = 'none';
         }
+        // 搜索表单的事件监听器应该在 index.html 的内联脚本中，因为它只在该页面存在
+        // 或者在这里添加，但需要检查 searchForm 是否存在
+        const searchForm = document.getElementById('searchForm');
+        if (searchForm && searchInput && clearSearchButton) {
+             searchForm.addEventListener('submit', (event) => {
+                event.preventDefault();
+                const searchTerm = searchInput.value.trim();
+                loadNotes(searchTerm); 
+                if (searchTerm) {
+                    clearSearchButton.style.display = 'inline-flex';
+                } else {
+                    clearSearchButton.style.display = 'none';
+                }
+            });
+            clearSearchButton.addEventListener('click', () => {
+                searchInput.value = '';
+                loadNotes(); 
+                clearSearchButton.style.display = 'none';
+            });
+        }
+
 
     } else if (path.startsWith('/note/')) {
         if (path.startsWith('/note/new') || path.startsWith('/note/edit')) {
@@ -775,8 +814,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 loadNoteForEditing(noteId);
             }
         }
+        // 对于 /note/view 页面，其内容主要由服务器端渲染，客户端JS主要负责导航栏
     } else if (path === '/admin/users') {
-        loadUsersForAdmin(currentAdminIdGlobal);
+        loadUsersForAdmin(currentAdminIdGlobal); // 确保 currentAdminIdGlobal 已被正确设置
         setupAdminUserForm();
     } else if (path === '/register') {
         setupRegistrationForm();
@@ -784,10 +824,12 @@ document.addEventListener('DOMContentLoaded', () => {
         setupChangeOwnPasswordForm();
     }
 
-    document.querySelectorAll('#logoutButton:not([data-listener-attached])').forEach(button => {
-        if (!button.closest('#mainNav')) { 
-            button.addEventListener('click', handleLogout);
-            button.setAttribute('data-listener-attached', 'true');
-        }
-    });
+    // 全局登出按钮 (如果不是由 setupNavigation 动态添加的)
+    // setupNavigation 已经处理了动态添加的登出按钮的事件监听
+    // document.querySelectorAll('#logoutButton:not([data-listener-attached])').forEach(button => {
+    //     if (!button.closest('#mainNav')) { 
+    //         button.addEventListener('click', handleLogout);
+    //         button.setAttribute('data-listener-attached', 'true');
+    //     }
+    // });
 });
