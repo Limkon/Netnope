@@ -9,11 +9,8 @@
 <body>
     <header>
         <h1>记事本</h1>
-        <nav>
-            <span class="welcome-user">用户: <strong id="usernameDisplay">{{username}}</strong></span>
-            <a href="/" class="button-action">返回列表</a>
-            <button id="logoutButton" class="button-danger">登出</button>
-        </nav>
+        <nav id="mainNav">
+            </nav>
     </header>
     <div class="container">
         <h2 id="pageTitleHeader">{{pageTitle}}</h2>
@@ -25,40 +22,42 @@
             </div>
             <div>
                 <label for="richContent">内容:</label>
-                <div id="richTextToolbar">
-                    <button type="button" data-command="bold" title="加粗"><b>B</b></button>
-                    <button type="button" data-command="italic" title="斜体"><i>I</i></button>
-                    <button type="button" data-command="underline" title="下划线"><u>U</u></button>
-                    <button type="button" data-command="insertUnorderedList" title="项目符号列表">UL</button>
-                    <button type="button" data-command="insertOrderedList" title="编号列表">OL</button>
-                    <button type="button" data-command="createLink" title="插入链接">链接</button>
-                    <button type="button" data-command="unlink" title="移除链接">移除链接</button>
-                    <select id="fontNameSelector" title="字体">
-                        <option value="Arial">Arial</option>
-                        <option value="Verdana">Verdana</option>
-                        <option value="Times New Roman">Times New Roman</option>
-                        <option value="Courier New">Courier New</option>
-                        <option value="Georgia">Georgia</option>
-                        <option value="Impact">Impact</option>
-                        <option value="SimSun">宋体</option>
-                        <option value="Microsoft YaHei">微软雅黑</option>
-                        <option value="KaiTi">楷体</option>
-                    </select>
-                    <select id="fontSizeSelector" title="字体大小">
-                        <option value="1">小</option>
-                        <option value="2">稍小</option>
-                        <option value="3" selected>正常</option>
-                        <option value="4">稍大</option>
-                        <option value="5">大</option>
-                        <option value="6">很大</option>
-                        <option value="7">特大</option>
-                    </select>
-                    <label for="foreColorPicker" class="sr-only">文字颜色</label>
-                    <input type="color" id="foreColorPicker" title="文字颜色" value="#000000">
-                    <button type="button" id="insertLocalImageButton" title="插入本地图片">图片</button>
-                    <input type="file" id="imageUploadInput" accept="image/*" style="display:none;">
+                <div class="rich-text-editor-wrapper">
+                    <div id="richTextToolbar">
+                        <button type="button" data-command="bold" title="加粗"><b>B</b></button>
+                        <button type="button" data-command="italic" title="斜体"><i>I</i></button>
+                        <button type="button" data-command="underline" title="下划线"><u>U</u></button>
+                        <button type="button" data-command="insertUnorderedList" title="项目符号列表">UL</button>
+                        <button type="button" data-command="insertOrderedList" title="编号列表">OL</button>
+                        <button type="button" data-command="createLink" title="插入链接">链接</button>
+                        <button type="button" data-command="unlink" title="移除链接">移除链接</button>
+                        <select id="fontNameSelector" title="字体">
+                            <option value="Arial">Arial</option>
+                            <option value="Verdana">Verdana</option>
+                            <option value="Times New Roman">Times New Roman</option>
+                            <option value="Courier New">Courier New</option>
+                            <option value="Georgia">Georgia</option>
+                            <option value="Impact">Impact</option>
+                            <option value="SimSun">宋体</option>
+                            <option value="Microsoft YaHei">微软雅黑</option>
+                            <option value="KaiTi">楷体</option>
+                        </select>
+                        <select id="fontSizeSelector" title="字体大小">
+                            <option value="1">小</option>
+                            <option value="2">稍小</option>
+                            <option value="3" selected>正常</option>
+                            <option value="4">稍大</option>
+                            <option value="5">大</option>
+                            <option value="6">很大</option>
+                            <option value="7">特大</option>
+                        </select>
+                        <label for="foreColorPicker" class="sr-only">文字颜色</label>
+                        <input type="color" id="foreColorPicker" title="文字颜色" value="#000000">
+                        <button type="button" id="insertLocalImageButton" title="插入本地图片">图片</button>
+                        <input type="file" id="imageUploadInput" accept="image/*" style="display:none;">
+                    </div>
+                    <div id="richContent" contenteditable="true"></div>
                 </div>
-                <div id="richContent" contenteditable="true"></div>
                 <textarea name="content" id="hiddenContent" style="display:none;"></textarea>
             </div>
             <div>
@@ -82,7 +81,9 @@
     </footer>
     <script src="/js/main.js"></script>
     <script>
-        const currentUsername = "{{username}}";
+        const currentUsernameFromServer = "{{username}}";
+        const currentUserRoleFromServer = "{{userRole}}";
+        const currentUserIdFromServer = "{{userId}}";
         const noteIdForEdit = "{{noteId}}";
         const pageTitleFromServer = "{{pageTitle}}";
         let pageTitle = pageTitleFromServer;
@@ -94,7 +95,7 @@
         }
 
         document.addEventListener('DOMContentLoaded', () => {
-            document.getElementById('usernameDisplay').textContent = currentUsername || '用户';
+            document.getElementById('usernameDisplay').textContent = currentUsernameFromServer || '用户';
             document.getElementById('pageTitleHeader').textContent = pageTitle;
             document.title = `${pageTitle} - 记事本`;
 
