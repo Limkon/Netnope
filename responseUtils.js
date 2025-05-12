@@ -38,15 +38,16 @@ module.exports = {
             res.writeHead(404, { 'Content-Type': 'application/json; charset=utf-8' });
             res.end(JSON.stringify({ message: message }));
         } else {
-            // console.error("[RESPONSE UTILS] sendNotFound: Headers already sent or stream not writable.");
+            console.error("[RESPONSE_UTILS] sendNotFound: Headers already sent or stream not writable.");
         }
     },
     sendError: (res, message = '500 - 服务器内部错误', statusCode = 500) => {
+        console.error(`[RESPONSE_UTILS] 服务器错误: ${message} (状态码: ${statusCode})`); // 保留此错误日志
         if (res.writable && !res.headersSent) {
             res.writeHead(statusCode, { 'Content-Type': 'application/json; charset=utf-8' });
             res.end(JSON.stringify({ message: message }));
         } else {
-            // console.error("[RESPONSE UTILS] sendError: Headers already sent or stream not writable.");
+            console.error("[RESPONSE_UTILS] sendError: Headers already sent or stream not writable.");
         }
     },
     sendBadRequest: (res, message = '400 - 错误的请求') => {
@@ -54,7 +55,7 @@ module.exports = {
             res.writeHead(400, { 'Content-Type': 'application/json; charset=utf-8' });
             res.end(JSON.stringify({ message: message }));
         } else {
-             // console.error("[RESPONSE UTILS] sendBadRequest: Headers already sent or stream not writable.");
+             console.error("[RESPONSE_UTILS] sendBadRequest: Headers already sent or stream not writable.");
         }
     },
     sendUnauthorized: (res, message = '401 - 未授权') => {
@@ -62,7 +63,7 @@ module.exports = {
             res.writeHead(401, { 'Content-Type': 'application/json; charset=utf-8' });
             res.end(JSON.stringify({ message: message }));
         } else {
-            // console.error("[RESPONSE UTILS] sendUnauthorized: Headers already sent or stream not writable.");
+            console.error("[RESPONSE_UTILS] sendUnauthorized: Headers already sent or stream not writable.");
         }
     },
     sendForbidden: (res, message = '403 - 禁止访问') => {
@@ -70,21 +71,24 @@ module.exports = {
             res.writeHead(403, { 'Content-Type': 'application/json; charset=utf-8' });
             res.end(JSON.stringify({ message: message }));
         } else {
-            // console.error("[RESPONSE UTILS] sendForbidden: Headers already sent or stream not writable.");
+            console.error("[RESPONSE_UTILS] sendForbidden: Headers already sent or stream not writable.");
         }
     },
     serveStaticFile: (res, filePath) => {
         const fullPath = path.resolve(filePath);
         const uploadsDir = require('./storage').UPLOADS_DIR; 
         if (!fullPath.startsWith(path.resolve(__dirname, 'public')) && !fullPath.startsWith(path.resolve(uploadsDir))) {
+            // console.warn(`[RESPONSE_UTILS] Attempt to access illegal path (static file): ${fullPath}`); // 可选保留
             return module.exports.sendForbidden(res, "禁止访问此文件路径。");
         }
 
         fs.readFile(fullPath, (err, content) => {
             if (err) {
                 if (err.code === 'ENOENT') {
+                    // console.warn(`[RESPONSE_UTILS] 静态文件未找到: ${fullPath}`); // 可选保留
                     return module.exports.sendNotFound(res, `文件 ${path.basename(fullPath)} 未找到`);
                 } else {
+                    // console.error(`[RESPONSE_UTILS] 读取静态文件 ${fullPath} 错误:`, err); // 可选保留
                     return module.exports.sendError(res, `读取文件 ${path.basename(fullPath)} 时发生服务器错误`);
                 }
             }
@@ -96,6 +100,7 @@ module.exports = {
     serveHtmlWithPlaceholders: (res, htmlFilePath, placeholders = {}, statusCode = 200) => {
         fs.readFile(htmlFilePath, 'utf8', (err, html) => {
             if (err) {
+                // console.error(`[serveHtml] 读取 HTML 文件 ${htmlFilePath} 错误:`, err); // 可选保留
                 return module.exports.sendError(res, `加载页面 ${path.basename(htmlFilePath)} 时发生错误`);
             }
             let renderedHtml = html;
@@ -110,7 +115,6 @@ module.exports = {
                 iterations++;
                 
                 const conditionalRegex = new RegExp(
-                    // 正则表达式尝试匹配最内层的 if (内容不包含其他 if)
                     '\\{\\{#if\\s*([a-zA-Z0-9_]+)\\s*\\}\\}((?:(?!\\{\\{\\#if)[\\s\\S])*?)\\{\\{\\/if\\s*\\}\\}', 
                     'g'
                 );
@@ -131,20 +135,17 @@ module.exports = {
             } while (changedInThisPass && iterations < MAX_ITERATIONS);
             
             if (iterations >= MAX_ITERATIONS && changedInThisPass) {
-                console.warn(`[serveHtml] 条件处理可能达到最大迭代次数 (${MAX_ITERATIONS})。 文件: ${htmlFilePath}`);
+                console.warn(`[serveHtml] 条件处理可能达到最大迭代次数 (${MAX_ITERATIONS})。 文件: ${htmlFilePath}`); // 保留此警告
             }
 
-            // 处理变量替换
             for (const key in placeholders) {
                 if (placeholders.hasOwnProperty(key)) { 
                     const valueToReplace = (placeholders[key] === null || placeholders[key] === undefined) ? '' : String(placeholders[key]);
                     
-                    // 优先处理 {{{key}}} (不转义 HTML)
                     const tripleBraceRegex = new RegExp(`\\{\\{\\{${key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\}\\}\\}`, 'g');
-                    if (tripleBraceRegex.test(renderedHtml)) { // 检查是否存在匹配项
+                    if (tripleBraceRegex.test(renderedHtml)) {
                         renderedHtml = renderedHtml.replace(tripleBraceRegex, valueToReplace);
                     } else {
-                        // 然后处理 {{key}}
                         const doubleBraceRegex = new RegExp(`\\{\\{${key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\}\\}`, 'g');
                         renderedHtml = renderedHtml.replace(doubleBraceRegex, valueToReplace);
                     }
