@@ -55,16 +55,15 @@ module.exports = {
         // console.log(`[DEBUG getNoteViewPage] 开始处理查看记事请求，查询参数:`, context.query);
         const noteId = context.query.id;
         if (!noteId) {
-            // console.error("[DEBUG getNoteViewPage] 错误: 缺少记事ID。");
             return sendBadRequest(context.res, "缺少记事ID。");
         }
-        // console.log(`[DEBUG getNoteViewPage] 尝试查找记事 ID: ${noteId}`);
         const note = storage.findNoteById(noteId);
         if (!note) {
-            // console.error(`[DEBUG getNoteViewPage] 错误: 找不到记事 ID: ${noteId}`);
             return sendNotFound(context.res, "找不到指定的记事。");
         }
-        // console.log(`[DEBUG getNoteViewPage] 找到记事:`, {title: note.title, id: note.id});
+        
+        // **** 新增日志：记录从 storage 获取的原始 note.content ****
+        console.log(`[DEBUG getNoteViewPage] 从 storage 获取的原始 note.content: "${note.content}"`);
 
         const sessionRole = context.session ? context.session.role : 'anonymous_fallback';
         const sessionUserId = context.session ? context.session.userId : null;
@@ -77,7 +76,6 @@ module.exports = {
         }
 
         if (!canView) {
-            // console.warn(`[DEBUG getNoteViewPage] 禁止访问: 用户 (ID: ${sessionUserId}, Role: ${sessionRole}) 尝试查看不属于自己的记事 (ID: ${noteId})`);
             return sendForbidden(context.res, "您无权查看此记事。");
         }
 
@@ -85,7 +83,7 @@ module.exports = {
         const templateData = {
             ...getNavData(context.session),
             noteTitle: note.title,
-            noteContent: note.content, 
+            noteContent: note.content, // 这里传递的是原始 content
             noteId: note.id,
             noteOwnerUsername: owner ? owner.username : '未知用户',
             noteCreatedAt: new Date(note.createdAt).toLocaleString('zh-CN'),
@@ -95,18 +93,9 @@ module.exports = {
             noteAttachmentSizeKB: note.attachment ? (note.attachment.size / 1024).toFixed(1) : null,
             canEdit: context.session && context.session.role !== 'anonymous' && (context.session.role === 'admin' || note.userId === context.session.userId)
         };
-        // console.log(`[DEBUG getNoteViewPage] 准备传递给模板的数据 (部分):`, {
-        //     noteTitle: templateData.noteTitle,
-        //     noteAttachmentPath: templateData.noteAttachmentPath,
-        //     noteAttachmentSizeKB: templateData.noteAttachmentSizeKB,
-        //     canEdit: templateData.canEdit,
-        //     username: templateData.username,
-        //     userRole: templateData.userRole
-        // });
-        // console.log(`[DEBUG getNoteViewPage] 调用 serveHtmlWithPlaceholders 渲染 view-note.html`);
+        // console.log(`[DEBUG getNoteViewPage] 准备传递给模板的数据 (部分):`, { /* ... */ });
         serveHtmlWithPlaceholders(context.res, path.join(PUBLIC_DIR, 'view-note.html'), templateData);
     },
-
 
     getAllNotes: (context) => {
         const sessionRole = context.session ? context.session.role : 'anonymous_fallback';
@@ -154,9 +143,10 @@ module.exports = {
         }
         const { title, content } = context.body;
         const attachmentFile = context.files && context.files.attachment;
-        if (!title || title.trim() === '' || !content || content.trim() === '') {
+        if (!title || title.trim() === '' || !content || content.trim() === '') { // 确保 content 也被检查
             return sendBadRequest(context.res, "标题和内容不能为空。");
         }
+        console.log(`[DEBUG createNote] 准备保存的内容: "${content}"`); // 记录保存前的内容
         const newNoteData = { userId: context.session.userId, title: title.trim(), content: content, attachment: null };
         if (attachmentFile && attachmentFile.content && attachmentFile.filename) {
             const userUploadDir = path.join(UPLOADS_DIR, context.session.userId);
@@ -197,9 +187,10 @@ module.exports = {
         if (context.session.role !== 'admin' && existingNote.userId !== context.session.userId) {
             return sendForbidden(context.res, "您无权修改此记事。");
         }
-        if (!title || title.trim() === '' || !content || content.trim() === '') {
+        if (!title || title.trim() === '' || !content || content.trim() === '') { // 确保 content 也被检查
             return sendBadRequest(context.res, "标题和内容不能为空。");
         }
+        console.log(`[DEBUG updateNote] 准备更新的内容: "${content}"`); // 记录更新前的内容
         const updatedNoteData = { id: noteId, userId: existingNote.userId, title: title.trim(), content: content, attachment: existingNote.attachment };
         if (removeAttachment === 'true' && existingNote.attachment) {
             const oldAttachmentPath = path.join(UPLOADS_DIR, existingNote.attachment.path);
