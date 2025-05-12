@@ -293,16 +293,16 @@ function initializeRichTextEditor() {
         if (targetButton) {
             const command = targetButton.dataset.command;
             
-            // 确保在执行命令前编辑器有焦点，并使用最近保存的选区
-            // `savedRange` 应该在 mousedown 时已更新为最新的选区
+            // 在执行命令前，先让编辑器获得焦点，然后恢复之前（mousedown时）保存的选区
+            contentArea.focus();
             restoreSelection(savedRange); 
 
             if (command === 'createLink') {
                 const selection = window.getSelection();
                 if (!selection || selection.rangeCount === 0 || selection.isCollapsed) {
                     alert("请先选中文本，然后再创建链接。");
-                    contentArea.focus(); // 确保焦点返回编辑器
-                    savedRange = saveSelection(); // 更新选区（可能是光标）
+                    contentArea.focus(); 
+                    savedRange = saveSelection(); // 更新保存的选区（可能是光标位置）
                     return; 
                 }
 
@@ -312,22 +312,21 @@ function initializeRichTextEditor() {
                 if (parentElement.nodeType !== Node.ELEMENT_NODE) {
                     parentElement = parentElement.parentNode;
                 }
-                // 确保 parentElement 存在且是 A 标签
                 if (parentElement && parentElement.tagName === 'A') {
                     defaultUrl = parentElement.getAttribute('href') || 'https://';
                 }
                 
-                // 在 prompt 之前，再次确保选区是最新的，因为用户可能在 mousedown 后又调整了选区
-                const rangeBeforePrompt = saveSelection(); 
-
+                // prompt 会导致编辑器失焦，所以选区需要在 prompt 之前保存，并在之后恢复
+                // savedRange 此处应该已经是 mousedown 时保存的正确选区
                 const url = prompt('请输入链接网址:', defaultUrl);
                 
-                // 在 prompt 后，焦点可能已丢失，需要重新聚焦并恢复 *prompt之前* 的选区
-                restoreSelection(rangeBeforePrompt); 
+                // 在 prompt 后，焦点可能已丢失，需要重新聚焦并恢复 *mousedown时* 的选区
+                contentArea.focus(); 
+                restoreSelection(savedRange); // 严格使用 mousedown 时保存的选区
 
                 if (url && url.trim() !== "" && url.trim().toLowerCase() !== 'https://') {
                     document.execCommand('createLink', false, url.trim());
-                } else if (url !== null) { // 用户点击了确定但输入无效或未改动默认的 "https://"
+                } else if (url !== null) { 
                     alert("您输入的链接无效或已取消。");
                 }
             } else {
