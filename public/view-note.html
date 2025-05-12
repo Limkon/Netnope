@@ -39,8 +39,7 @@
         <nav id="mainNav">
             </nav>
     </header>
-    <div class="container">
-        <h2 id="noteViewTitle">{{noteTitle}}</h2>
+    <div class="container"> <h2 id="noteViewTitle">{{noteTitle}}</h2>
         
         <div class="note-view-content" id="noteViewContent">
             {{{noteContent}}}
@@ -54,11 +53,8 @@
             </a>
             {{#if noteAttachmentSizeKB}}
             <span>({{noteAttachmentSizeKB}} KB)</span>
-            {{/if}}
-        </div>
-        {{/if}}
-
-        <div class="note-view-meta">
+            {{/if}} </div>
+        {{/if}} <div class="note-view-meta">
             <p>所有者: {{noteOwnerUsername}}</p>
             <p>创建时间: {{noteCreatedAt}}</p>
             <p>最后更新: {{noteUpdatedAt}}</p>
@@ -66,12 +62,11 @@
 
         <div class="form-actions" style="margin-top: 30px;">
             <a href="/" class="button-action">返回列表</a>
-            {{#if canEdit}}
+            {{#if canEdit}} 
             <a href="/note/edit?id={{noteId}}" class="button-action">编辑此记事</a>
-            {{/if}}
-        </div>
-    </div>
-    <footer>
+            {{/if}} </div>
+
+    </div> <footer>
         <p>&copy; 2025 记事本。</p>
     </footer>
     <script src="/js/main.js"></script>
