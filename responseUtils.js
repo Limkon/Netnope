@@ -110,7 +110,8 @@ module.exports = {
                 iterations++;
                 
                 const conditionalRegex = new RegExp(
-                    '\\{\\{#if\\s*([a-zA-Z0-9_]+)\\s*\\}\\}((?:\r\n|[\r\n]|.)*?)\\{\\{\\/if\\s*\\}\\}', 
+                    // 正则表达式尝试匹配最内层的 if (内容不包含其他 if)
+                    '\\{\\{#if\\s*([a-zA-Z0-9_]+)\\s*\\}\\}((?:(?!\\{\\{\\#if)[\\s\\S])*?)\\{\\{\\/if\\s*\\}\\}', 
                     'g'
                 );
                 
@@ -140,10 +141,10 @@ module.exports = {
                     
                     // 优先处理 {{{key}}} (不转义 HTML)
                     const tripleBraceRegex = new RegExp(`\\{\\{\\{${key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\}\\}\\}`, 'g');
-                    if (renderedHtml.match(tripleBraceRegex)) {
+                    if (tripleBraceRegex.test(renderedHtml)) { // 检查是否存在匹配项
                         renderedHtml = renderedHtml.replace(tripleBraceRegex, valueToReplace);
                     } else {
-                        // 然后处理 {{key}} (目前也是直接替换，将来可考虑转义)
+                        // 然后处理 {{key}}
                         const doubleBraceRegex = new RegExp(`\\{\\{${key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\}\\}`, 'g');
                         renderedHtml = renderedHtml.replace(doubleBraceRegex, valueToReplace);
                     }
