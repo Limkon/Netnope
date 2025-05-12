@@ -11,7 +11,6 @@ let savedRange = null; // 用于保存富文本编辑器的选区
 async function fetchData(url, options = {}) {
     try {
         const response = await fetch(url, options);
-        // 调整401处理：只有当不是匿名用户且不是GET请求时才强制跳转
         if (response.status === 401 && !(currentUserRoleGlobal === 'anonymous' && (options.method === 'GET' || !options.method))) {
             alert('您的会话已过期或未授权，请重新登录。');
             window.location.href = '/login';
@@ -27,7 +26,6 @@ async function fetchData(url, options = {}) {
             }
             console.error(`API 请求失败 (${response.status}):`, errorData);
             const errorMessage = (typeof errorData === 'object' && errorData !== null && errorData.message) ? errorData.message : (errorData || response.statusText);
-            // 对于403，也避免匿名用户被不必要地重定向
             if ((response.status === 401 || response.status === 403) && currentUserRoleGlobal !== 'anonymous') {
                  alert('操作未授权或会话已过期，请重新登录。');
             }
@@ -79,8 +77,9 @@ function setupNavigation(username, role, userId) {
     currentUserIdGlobal = isValidUserId ? userId : '';
 
     const navContainer = document.getElementById('mainNav');
-    const usernameDisplaySpan = document.getElementById('usernameDisplay'); 
+    const usernameDisplaySpan = document.getElementById('usernameDisplay'); // 独立的用户名称显示元素
 
+    // 更新独立的 usernameDisplay (例如在 note.html, admin.html 的 header 中)
     if (usernameDisplaySpan) { 
         usernameDisplaySpan.textContent = escapeHtml(currentUsernameGlobal);
     }
@@ -270,17 +269,19 @@ function initializeRichTextEditor() {
         }
     }
     
+    // 保存选区的时机
     contentArea.addEventListener('focus', () => { savedRange = saveSelection(); });
     contentArea.addEventListener('blur', () => { savedRange = saveSelection(); });
     contentArea.addEventListener('click', () => { savedRange = saveSelection(); });
     contentArea.addEventListener('keyup', () => { savedRange = saveSelection(); });
     contentArea.addEventListener('mouseup', () => { savedRange = saveSelection(); }); 
 
+    // 在工具栏按钮被点击 *之前* 保存选区 (使用 mousedown)
     toolbar.addEventListener('mousedown', (event) => { 
         if (event.target.tagName !== 'SELECT' && event.target.tagName !== 'INPUT') {
             event.preventDefault(); 
         }
-        savedRange = saveSelection();
+        savedRange = saveSelection(); // 总是保存最新的选区
     });
 
 
@@ -295,29 +296,36 @@ function initializeRichTextEditor() {
         if (targetButton) {
             const command = targetButton.dataset.command;
             
-            contentArea.focus(); // 确保编辑器有焦点
-            let rangeForCommand = saveSelection() || savedRange; // 获取最新或已保存的选区
-            restoreSelection(rangeForCommand); // 恢复选区
+            // 确保在执行命令前编辑器有焦点，并使用最近保存的选区
+            restoreSelection(savedRange); 
 
             if (command === 'createLink') {
                 const selection = window.getSelection();
+                // 必须先选中文本
                 if (!selection || selection.isCollapsed || selection.rangeCount === 0) {
                     alert("请先选中文本，然后再创建链接。");
+                    contentArea.focus(); // 确保焦点返回编辑器
                     return; 
                 }
 
                 let defaultUrl = 'https://';
+                // 尝试获取已选中链接的href作为默认值
                 let currentRange = selection.getRangeAt(0);
                 let parentElement = currentRange.commonAncestorContainer;
-                if (parentElement.nodeType !== Node.ELEMENT_NODE) parentElement = parentNode.parentNode;
-                if (parentElement && parentElement.tagName === 'A') defaultUrl = parentElement.getAttribute('href') || 'https://';
+                if (parentElement.nodeType !== Node.ELEMENT_NODE) {
+                    parentElement = parentNode.parentNode;
+                }
+                if (parentElement && parentElement.tagName === 'A') {
+                    defaultUrl = parentElement.getAttribute('href') || 'https://';
+                }
                 
-                const rangeBeforePrompt = saveSelection(); // 在 prompt 前再次保存精确的选区
+                // 在 prompt 之前，再次确保选区是最新的
+                const rangeBeforePrompt = saveSelection(); 
 
                 const url = prompt('请输入链接网址:', defaultUrl);
                 
-                contentArea.focus(); 
-                restoreSelection(rangeBeforePrompt); // 严格恢复 prompt 之前的选区
+                // 在 prompt 后，焦点可能已丢失，需要重新聚焦并恢复 *prompt之前* 的选区
+                restoreSelection(rangeBeforePrompt); 
 
                 if (url && url.trim() !== "" && url.trim().toLowerCase() !== 'https://') {
                     document.execCommand('createLink', false, url.trim());
