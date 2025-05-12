@@ -1,98 +1,19 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{noteTitle}} - 记事本</title>
-    <link rel="stylesheet" href="/css/style.css">
-    <style>
-        .note-view-content {
-            padding: 15px;
-            border: 1px solid #eee;
-            background-color: #fdfdfd;
-            border-radius: 5px;
-            margin-top: 10px;
-            word-wrap: break-word; /* 确保长单词或链接能换行 */
-            overflow-wrap: break-word; /* 更现代的换行属性 */
-        }
-        .note-view-content img { /* 确保嵌入的图片不会超出容器 */
-            max-width: 100%;
-            height: auto;
-            display: block; /* 避免图片下方有多余空间 */
-            margin: 10px 0; /* 给图片一些上下边距 */
-        }
-        .note-view-meta {
-            font-size: 0.85em;
-            color: #666;
-            margin-top: 15px;
-            padding-top: 10px;
-            border-top: 1px dashed #eee;
-        }
-        .note-view-attachment {
-            margin-top: 15px;
-        }
-    </style>
-</head>
+<html>
+<head><title>Test</title></head>
 <body>
-    <header>
-        <h1>记事本</h1>
-        <nav id="mainNav">
-            </nav>
-    </header>
-    <div class="container">
-        <h2 id="noteViewTitle">{{noteTitle}}</h2>
-        
-        <div class="note-view-content" id="noteViewContent">
-            {{{noteContent}}} </div>
-
-        {{#if noteAttachmentPath}}
-        <div class="note-view-attachment">
-            <strong>附件:</strong> 
-            <a href="/uploads/{{noteAttachmentPath}}" target="_blank" title="下载 {{noteAttachmentOriginalName}}">
-                {{noteAttachmentOriginalName}}
-            </a>
-            {{#if noteAttachmentSizeKB}} <span>({{noteAttachmentSizeKB}} KB)</span>
-            {{/if}}
-        </div>
+    <p>Start</p>
+    {{#if noteAttachmentPath}}
+        Inside noteAttachmentPath.
+        {{#if noteAttachmentSizeKB}}
+            Size: {{noteAttachmentSizeKB}}
         {{/if}}
-
-        <div class="note-view-meta">
-            <p>所有者: {{noteOwnerUsername}}</p>
-            <p>创建时间: {{noteCreatedAt}}</p>
-            <p>最后更新: {{noteUpdatedAt}}</p>
-        </div>
-
-        <div class="form-actions" style="margin-top: 30px;">
-            <a href="/" class="button-action">返回列表</a>
-            {{#if canEdit}} <a href="/note/edit?id={{noteId}}" class="button-action">编辑此记事</a>
-            {{/if}}
-        </div>
-    </div>
-    <footer>
-        <p>&copy; 2025 记事本。</p>
-    </footer>
-    <script src="/js/main.js"></script>
-    <script>
-        // 从服务器端模板获取初始用户信息 (如果已登录)
-        // 这些变量由后端在渲染此页面时通过 serveHtmlWithPlaceholders 注入
-        const currentUsernameFromServer = "{{username}}"; 
-        const currentUserRoleFromServer = "{{userRole}}";   
-        const currentUserIdFromServer = "{{userId}}";     
-
-        document.addEventListener('DOMContentLoaded', () => {
-            // setupNavigation 在 main.js 中定义，它会处理匿名和登录用户的情况
-            setupNavigation(currentUsernameFromServer, currentUserRoleFromServer, currentUserIdFromServer);
-            
-            // 页面标题已由服务器渲染，如果需要动态更新或确保一致性，可以在此进行
-            const noteTitleElement = document.getElementById('noteViewTitle');
-            if (noteTitleElement && noteTitleElement.textContent) { // 确保元素存在且有内容
-                 document.title = `${noteTitleElement.textContent.trim()} - 记事本`;
-            } else if ("{{noteTitle}}") { // Fallback if element not found but placeholder has value (不太可能发生)
-                 document.title = `{{noteTitle}} - 记事本`;
-            } else {
-                 document.title = `查看记事 - 记事本`; // 最终的备用标题
-            }
-        });
-    </script>
+        End of noteAttachmentPath.
+    {{/if}}
+    <p>Meta: {{noteOwnerUsername}}</p>
+    {{#if canEdit}}
+        Can Edit Block
+    {{/if}}
+    <p>End</p>
 </body>
 </html>
