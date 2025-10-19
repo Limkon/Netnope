@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{articleTitle}} - 咨询分享网站</title> <link rel="stylesheet" href="/css/style.css">
+    <style>
+        .note-view-content {
+            padding: 15px;
+            border: 1px solid #eee;
+            background-color: #fdfdfd;
+            border-radius: 5px;
+            margin-top: 10px;
+            word-wrap: break-word; 
+            overflow-wrap: break-word; 
+        }
+        .note-view-content img { 
+            max-width: 100%;
+            height: auto;
+            display: block; 
+            margin: 10px 0; 
+        }
+        .note-view-meta {
+            font-size: 0.85em;
+            color: #666;
+            margin-top: 15px;
+            padding-top: 10px;
+            border-top: 1px dashed #eee;
+        }
+        .note-view-attachment {
+            margin-top: 15px;
+        }
+        
+        /* 新增评论样式 */
+        .comments-section {
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #ccc;
+        }
+        #commentsList {
+            list-style-type: none;
+            padding: 0;
+            margin-bottom: 20px;
+        }
+        .comment-item {
+            border: 1px solid #e0e0e0;
+            background: #f9f9f9;
+            padding: 12px;
+            border-radius: 5px;
+            margin-bottom: 10px;
+        }
+        .comment-meta {
+            font-size: 0.9em;
+            color: #555;
+            margin-bottom: 5px;
+        }
+        .comment-meta strong {
+            color: #0056b3;
+        }
+        .comment-meta span {
+            font-size: 0.9em;
+            color: #777;
+            margin-left: 10px;
+        }
+        .comment-content {
+            word-wrap: break-word;
+            margin-bottom: 8px;
+        }
+        .comment-actions .button-small {
+            padding: 0.2rem 0.5rem;
+            font-size: 0.8rem;
+            min-height: 24px;
+            min-width: auto;
+        }
+        #commentForm textarea {
+            min-height: 80px;
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>咨询分享</h1> <nav id="mainNav">
+            </nav>
+    </header>
+    <div class="container"> 
+        <h2 id="articleViewTitle">{{articleTitle}}</h2>
+        
+        <div class="note-view-content" id="articleViewContent">
+            {{{articleContent}}}
+        </div>
+
+        {{#if articleAttachmentPath}}
+        <div class="note-view-attachment">
+            <strong>附件:</strong> 
+            <a href="/uploads/{{articleAttachmentPath}}" target="_blank" title="下载 {{articleAttachmentOriginalName}}">
+                {{articleAttachmentOriginalName}}
+            </a>
+            {{#if articleAttachmentSizeKB}}
+            <span>({{articleAttachmentSizeKB}} KB)</span>
+            {{/if}} 
+        </div>
+        {{/if}} 
+        
+        <div class="note-view-meta">
+            <p>作者: {{articleOwnerUsername}}</p>
+            <p>分类: {{articleCategory}}</p>
+            <p>创建时间: {{articleCreatedAt}}</p>
+            <p>最后更新: {{articleUpdatedAt}}</p>
+        </div>
+
+        <div class="form-actions" style="margin-top: 30px;">
+            <a href="/" class="button-action">返回列表</a>
+            {{#if canEdit}} 
+            <a href="/article/edit?id={{articleId}}" class="button-action">编辑此文章</a>
+            {{/if}} 
+        </div>
+
+        <div id="commentsContainer" class="comments-section">
+            <h3>评论区</h3>
+            <div id="commentMessage"></div>
+            
+            <ul id="commentsList">
+                <li>正在加载评论...</li>
+            </ul>
+
+            {{#if canComment}}
+            <form id="commentForm" class="form-styled">
+                <h4>发表评论</h4>
+                <div>
+                    <label for="commentContent" class="sr-only">您的评论:</label>
+                    <textarea id="commentContent" name="content" placeholder="请输入您的评论..." required></textarea>
+                </div>
+                <div class="form-actions" style="margin-top: 0;">
+                    <button type="submit" id="submitCommentButton" class="button-action">提交评论</button>
+                </div>
+            </form>
+            {{/if}}
+
+            {{#if userRole '==' 'anonymous'}}
+            <p style="margin-top: 15px;"><a href="/login">登录</a> 后才能发表评论。</p>
+            {{/if}}
+        </div>
+        </div> 
+    <footer>
+        <p>&copy; 2025 咨询分享网站。</p> </footer>
+    <script src="/js/main.js"></script>
+    <script>
+        const currentUsernameFromServer = "{{username}}"; 
+        const currentUserRoleFromServer = "{{userRole}}";   
+        const currentUserIdFromServer = "{{userId}}";
+        const currentArticleId = "{{articleId}}"; // 新增，用于加载评论
+
+        document.addEventListener('DOMContentLoaded', () => {
+            // setupNavigation, loadComments, setupCommentForm
+            // 已被移入 main.js 的 DOMContentLoaded 主处理程序中
+
+            const articleTitleElement = document.getElementById('articleViewTitle');
+            if (articleTitleElement && articleTitleElement.textContent) { 
+                 document.title = `${articleTitleElement.textContent.trim()} - 咨询分享网站`;
+            } else if ("{{articleTitle}}") { 
+                 document.title = `{{articleTitle}} - 咨询分享网站`;
+            } else {
+                 document.title = `查看文章 - 咨询分享网站`; 
+            }
+        });
+    </script>
+</body>
+</html>
