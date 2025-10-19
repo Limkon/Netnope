@@ -3,16 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>管理用户 - 记事本</title>
-    <link rel="stylesheet" href="/css/style.css">
+    <title>管理用户 - 咨询分享网站</title> <link rel="stylesheet" href="/css/style.css">
 </head>
 <body>
     <header>
-        <h1>记事本 - 管理员面板</h1>
-        <nav>
+        <h1>咨询分享 - 管理员面板</h1> <nav>
             <span class="welcome-user">管理员: <strong id="adminUsernameDisplay">{{adminUsername}}</strong></span>
-            <a href="/" class="button-action">返回记事列表</a>
-            <button id="logoutButton" class="button-danger">登出</button>
+            <a href="/" class="button-action">返回文章列表</a> <button id="logoutButton" class="button-danger">登出</button>
         </nav>
     </header>
     <div class="container">
@@ -27,12 +24,13 @@
             </div>
             <div>
                 <label for="newPassword">密码:</label>
-                <input type="password" id="newPassword" name="password">
+                <input type="password" id="newPassword" name="password" placeholder="会员可为空，咨询师/管理员不能为空">
             </div>
             <div>
                 <label for="newRole">角色:</label>
                 <select id="newRole" name="role">
-                    <option value="user" selected>普通用户 (user)</option>
+                    <option value="member" selected>会员 (member)</option>
+                    <option value="consultant">咨询师 (consultant)</option>
                     <option value="admin">管理员 (admin)</option>
                 </select>
             </div>
@@ -47,16 +45,16 @@
         </ul>
     </div>
     <footer>
-        <p>&copy; 2025 记事本。</p>
-    </footer>
+        <p>&copy; 2025 咨询分享网站。</p> </footer>
     <script src="/js/main.js"></script>
     <script>
         const currentAdminUsername = "{{adminUsername}}";
         const currentAdminId = "{{adminUserId}}";
         document.addEventListener('DOMContentLoaded', () => {
+            // setupNavigation (在 main.js 中处理), loadUsersForAdmin, setupAdminUserForm
+            // 已被移入 main.js 的 DOMContentLoaded 主处理程序中
+            
             document.getElementById('adminUsernameDisplay').textContent = currentAdminUsername || 'Admin';
-            loadUsersForAdmin(currentAdminId);
-            setupAdminUserForm();
         });
     </script>
 </body>
