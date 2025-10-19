@@ -65,6 +65,7 @@ module.exports = {
         if (context.session && context.session.role !== 'anonymous') { 
             return redirect(context.res, '/');
         }
+        // 注意：这里使用 register.html (已从 .bak 恢复)
         serveHtmlWithPlaceholders(context.res, path.join(PUBLIC_DIR, 'register.html'), {
             ...getGeneralNavData(context.session)
         });
@@ -80,10 +81,11 @@ module.exports = {
             context.res.writeHead(409, { 'Content-Type': 'application/json; charset=utf-8' });
             return context.res.end(JSON.stringify({ message: "此用户名已被注册。" }));
         }
+        // 新注册用户默认为 'member'
         const newUser = storage.saveUser({
             username: username.trim(),
             password: password, 
-            role: 'user' 
+            role: 'member' // 角色修改
         });
         if (newUser && newUser.id) {
             serveJson(context.res, { id: newUser.id, username: newUser.username, role: newUser.role }, 201);
@@ -116,14 +118,16 @@ module.exports = {
     },
 
     createUserByAdmin: (context) => {
-        const { username, password, role = 'user' } = context.body;
+        // 默认角色改为 'member'
+        const { username, password, role = 'member' } = context.body;
         if (!username || username.trim() === '') {
              context.res.writeHead(400, { 'Content-Type': 'application/json; charset=utf-8' });
              return context.res.end(JSON.stringify({ message: "用户名不能为空。" }));
         }
-        if (role === 'admin' && (!password || password.trim() === '')) {
+        // 管理员或咨询师的密码不能为空
+        if ((role === 'admin' || role === 'consultant') && (!password || password.trim() === '')) {
             context.res.writeHead(400, { 'Content-Type': 'application/json; charset=utf-8' });
-            return context.res.end(JSON.stringify({ message: "管理员的密码不能为空。" }));
+            return context.res.end(JSON.stringify({ message: "管理员或咨询师的密码不能为空。" }));
         }
         
         if (storage.findUserByUsername(username.trim())) {
@@ -165,6 +169,7 @@ module.exports = {
                 return context.res.end(JSON.stringify({ message: "不能删除最后一位管理员。系统至少需要一位管理员。" }));
             }
         }
+        // storage.deleteUser 现在会处理文章、附件和评论的清理
         if (storage.deleteUser(userIdToDelete)) {
             serveJson(context.res, { message: `用户 ${userToDelete.username} (ID: ${userIdToDelete}) 已成功删除。` });
         } else {
@@ -178,25 +183,18 @@ module.exports = {
         const userIdToUpdate = pathParts[4]; 
         const { newPassword } = context.body;
         
-        // console.log(`[Admin Reset Password] Attempting to reset password for user ID: ${userIdToUpdate}`);
-        // console.log(`[Admin Reset Password] Received new password (length): ${newPassword ? newPassword.length : 'undefined/null'}`);
-
         if (!userIdToUpdate) {
-            // console.error("[Admin Reset Password] Error: Missing user ID from path.");
             return sendBadRequest(context.res, JSON.stringify({ message: "路径中缺少用户 ID。" }));
         }
         const userToUpdate = storage.findUserById(userIdToUpdate);
         if (!userToUpdate) {
-            // console.error(`[Admin Reset Password] Error: User not found for ID: ${userIdToUpdate}`);
             context.res.writeHead(404, { 'Content-Type': 'application/json; charset=utf-8' });
             return context.res.end(JSON.stringify({ message: "找不到要更新密码的用户。" }));
         }
 
-        // console.log(`[Admin Reset Password] User found: ${userToUpdate.username}, Role: ${userToUpdate.role}`);
-
-        if (userToUpdate.role === 'admin' && (newPassword === undefined || newPassword === null || newPassword.trim() === '')) {
-            // console.warn(`[Admin Reset Password] Error: Admin user (${userToUpdate.username}) cannot have an empty password.`);
-            return sendBadRequest(context.res, JSON.stringify({ message: "管理员的新密码不能为空。" }));
+        // 管理员或咨询师的密码不能为空
+        if ((userToUpdate.role === 'admin' || userToUpdate.role === 'consultant') && (newPassword === undefined || newPassword === null || newPassword.trim() === '')) {
+            return sendBadRequest(context.res, JSON.stringify({ message: "管理员或咨询师的新密码不能为空。" }));
         }
         
         const userDataForUpdate = { 
@@ -207,14 +205,11 @@ module.exports = {
             password: newPassword 
         };
 
-        // console.log(`[Admin Reset Password] Calling storage.saveUser for user: ${userToUpdate.username}`);
         const updatedUser = storage.saveUser(userDataForUpdate);
         
         if (updatedUser && updatedUser.id) { 
-            // console.log(`[Admin Reset Password] Successfully updated password for user: ${userToUpdate.username}`);
             serveJson(context.res, { message: `用户 ${userToUpdate.username} 的密码已成功更新。` });
         } else {
-            // console.error(`[Admin Reset Password] Failed to update password for user: ${userToUpdate.username}. storage.saveUser returned:`, updatedUser);
             context.res.writeHead(500, { 'Content-Type': 'application/json; charset=utf-8' });
             context.res.end(JSON.stringify({ message: "更新密码失败。请查看服务器日志。" }));
         }
@@ -248,8 +243,9 @@ module.exports = {
             return context.res.end(JSON.stringify({ message: "当前密码不正确。" }));
         }
         
-        if (user.role === 'admin' && newPassword.trim() === '') {
-             return sendBadRequest(context.res, JSON.stringify({ message: "管理员的新密码不能为空。" }));
+        // 管理员或咨询师的新密码不能为空
+        if ((user.role === 'admin' || user.role === 'consultant') && newPassword.trim() === '') {
+             return sendBadRequest(context.res, JSON.stringify({ message: "管理员或咨询师的新密码不能为空。" }));
         }
 
         const updatedUser = storage.saveUser({ ...user, password: newPassword });
