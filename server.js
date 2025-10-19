@@ -18,13 +18,20 @@ function initializeDirectories() {
         fs.mkdirSync(UPLOADS_DIR, { recursive: true });
         console.log(`目录 ${UPLOADS_DIR} 已创建。`);
     }
+    // 确保 users.json 存在
     if (!fs.existsSync(path.join(DATA_DIR, 'users.json'))) {
         fs.writeFileSync(path.join(DATA_DIR, 'users.json'), '[]', 'utf8');
         console.log(`文件 ${path.join(DATA_DIR, 'users.json')} 已创建。`);
     }
-    if (!fs.existsSync(path.join(DATA_DIR, 'notes.json'))) {
-        fs.writeFileSync(path.join(DATA_DIR, 'notes.json'), '[]', 'utf8');
-        console.log(`文件 ${path.join(DATA_DIR, 'notes.json')} 已创建。`);
+    // 确保 articles.json (原 notes.json) 存在
+    if (!fs.existsSync(path.join(DATA_DIR, 'articles.json'))) {
+        fs.writeFileSync(path.join(DATA_DIR, 'articles.json'), '[]', 'utf8');
+        console.log(`文件 ${path.join(DATA_DIR, 'articles.json')} 已创建。`);
+    }
+    // 确保 comments.json 存在
+    if (!fs.existsSync(path.join(DATA_DIR, 'comments.json'))) {
+        fs.writeFileSync(path.join(DATA_DIR, 'comments.json'), '[]', 'utf8');
+        console.log(`文件 ${path.join(DATA_DIR, 'comments.json')} 已创建。`);
     }
 }
 
@@ -56,7 +63,6 @@ const server = http.createServer((req, res) => {
 
 server.listen(PORT, () => {
     initializeDirectories();
-    // 移除了 storage.initializeAnonymousUser(); 
     // "anyone" 用户现在由管理员通过用户管理界面手动创建/删除。
     initializeAdminUser(); 
     console.log(`服务器正在监听 http://localhost:${PORT}/`);
