@@ -3,22 +3,36 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{pageTitle}} - 记事本</title>
+    <title>{{pageTitle}} - 咨询分享网站</title>
     <link rel="stylesheet" href="/css/style.css">
 </head>
 <body>
     <header>
-        <h1>记事本</h1>
+        <h1>咨询分享</h1>
         <nav id="mainNav">
             </nav>
     </header>
     <div class="container">
         <h2 id="pageTitleHeader">{{pageTitle}}</h2>
-        <form id="noteForm">
-            <input type="hidden" id="noteId" name="noteId" value="{{noteId}}">
+        <form id="articleForm">
+            <input type="hidden" id="articleId" name="articleId" value="{{articleId}}">
             <div>
                 <label for="title">标题:</label>
                 <input type="text" id="title" name="title" required>
+            </div>
+            
+            <div style="display: flex; gap: 20px;">
+                <div style="flex-grow: 1;">
+                    <label for="category">分类:</label>
+                    <input type="text" id="category" name="category" placeholder="例如: 技术, 金融, 健康">
+                </div>
+                <div style="flex-grow: 1;">
+                    <label for="status">状态:</label>
+                    <select id="status" name="status">
+                        <option value="draft" selected>草稿 (Draft)</option>
+                        <option value="published">发布 (Published)</option>
+                    </select>
+                </div>
             </div>
             <div>
                 <label for="richContent">内容:</label>
@@ -70,55 +84,38 @@
                 </div>
             </div>
             <div class="form-actions">
-                <button type="submit" id="saveNoteButton" class="button-action">保存记事</button>
+                <button type="submit" id="saveArticleButton" class="button-action">保存文章</button>
                 <a href="/" class="button-action button-cancel">取消</a>
             </div>
         </form>
         <div id="formMessage" style="margin-top:15px;"></div>
     </div>
     <footer>
-        <p>&copy; 2025 记事本。</p>
+        <p>&copy; 2025 咨询分享网站。</p>
     </footer>
     <script src="/js/main.js"></script>
     <script>
-        // 从服务器端模板获取初始用户信息
+        // 从服务器端模板获取初始用户信息 (供 main.js 使用)
         const currentUsernameFromServer = "{{username}}"; 
         const currentUserRoleFromServer = "{{userRole}}";   
         const currentUserIdFromServer = "{{userId}}";     
-        const noteIdForEdit = "{{noteId}}";
+        const articleIdForEdit = "{{articleId}}";
         const pageTitleFromServer = "{{pageTitle}}";
         let pageTitle = pageTitleFromServer;
 
-        // console.log("[note.html DEBUG] currentUsernameFromServer:", currentUsernameFromServer);
-        // console.log("[note.html DEBUG] currentUserRoleFromServer:", currentUserRoleFromServer);
-        // console.log("[note.html DEBUG] currentUserIdFromServer:", currentUserIdFromServer);
-
-        if (pageTitleFromServer.includes("编辑") || pageTitleFromServer.includes("編輯")) {
-            pageTitle = "编辑记事";
-        } else if (pageTitleFromServer.includes("新增") || pageTitleFromServer.includes("新建")) {
-            pageTitle = "新建记事";
+        if (pageTitleFromServer.includes("编辑")) {
+            pageTitle = "编辑文章";
+        } else if (pageTitleFromServer.includes("新增") || pageTitleFromServer.includes("新建") || pageTitleFromServer.includes("发表")) {
+            pageTitle = "发表新文章";
         }
 
         document.addEventListener('DOMContentLoaded', () => {
-            // setupNavigation 会处理 mainNav 内部的 usernameDisplayInNav
-            // 对于 note.html，我们可能有一个独立的 usernameDisplay 在 nav 之外，所以也更新它
-            const usernameDisplaySpan = document.getElementById('usernameDisplay');
-            if (usernameDisplaySpan) { // 这个 id 可能与 main.js 中 setupNavigation 期望的不同
-                usernameDisplaySpan.textContent = (currentUsernameFromServer && currentUsernameFromServer !== "{{username}}") ? currentUsernameFromServer : '用户';
-            }
-
-            setupNavigation(currentUsernameFromServer, currentUserRoleFromServer, currentUserIdFromServer);
+            // main.js 中的 DOMContentLoaded 会自动处理:
+            // setupNavigation, initializeRichTextEditor, setupArticleForm, loadArticleForEditing
             
             const pageTitleHeader = document.getElementById('pageTitleHeader');
             if(pageTitleHeader) pageTitleHeader.textContent = pageTitle;
-            document.title = `${pageTitle} - 记事本`;
-
-            initializeRichTextEditor();
-            setupNoteForm();
-
-            if (noteIdForEdit) {
-                loadNoteForEditing(noteIdForEdit);
-            }
+            document.title = `${pageTitle} - 咨询分享网站`;
         });
     </script>
 </body>
