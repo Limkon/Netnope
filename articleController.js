@@ -37,6 +37,7 @@ function sanitizeAndMakeUniqueFilename(originalFilename, userId) {
 module.exports = {
     // 首页（文章列表页）
     getArticlesPage: (context) => {
+        // (无修改，因为分页和分类数据将通过 /api/articles 获取)
         serveHtmlWithPlaceholders(context.res, path.join(PUBLIC_DIR, 'index.html'), {
             ...getNavData(context.session)
         });
@@ -44,6 +45,7 @@ module.exports = {
 
     // 获取文章表单页面（新建或编辑）
     getArticleFormPage: (context, articleIdToEdit) => {
+        // (无修改)
         // 只有 'consultant' 或 'admin' 可以访问此页面
         if (!context.session || (context.session.role !== 'consultant' && context.session.role !== 'admin')) {
             return sendForbidden(context.res, "您没有权限创建或编辑文章。请联系管理员升级为咨询师。");
@@ -70,6 +72,7 @@ module.exports = {
 
     // 获取文章详情页
     getArticleViewPage: (context) => {
+        // (无修改)
         const articleId = context.query.id;
         if (!articleId) {
             return sendBadRequest(context.res, "缺少文章ID。");
@@ -120,12 +123,20 @@ module.exports = {
         serveHtmlWithPlaceholders(context.res, path.join(PUBLIC_DIR, 'view-article.html'), templateData);
     },
 
-    // API: 获取所有文章
+    // API: 获取所有文章 (*** 重大修改 ***)
     getAllArticles: (context) => {
         const sessionRole = context.session ? context.session.role : 'anonymous';
         const sessionUserId = context.session ? context.session.userId : null;
-        const searchTerm = context.query.search ? context.query.search.toLowerCase() : null;
         
+        // (新增) 获取查询参数
+        const searchTerm = context.query.search ? context.query.search.toLowerCase() : null;
+        const categoryFilter = context.query.category ? context.query.category : null;
+        const requestedPage = parseInt(context.query.page, 10) || 1;
+        
+        // (新增) 获取设置
+        const settings = storage.getSettings();
+        const articlesPerPage = settings.articlesPerPage || 10;
+
         let articles = storage.getArticles();
 
         // 1. 根据角色过滤
@@ -142,7 +153,15 @@ module.exports = {
             articles = articles.filter(article => article.status === 'published');
         }
 
-        // 2. 根据搜索词过滤
+        // (新增) 提取所有可用分类 (在搜索前，基于角色可见的文章)
+        const allCategories = [...new Set(articles.map(a => a.category || '未分类'))].sort();
+
+        // 2. (新增) 根据分类过滤
+        if (categoryFilter && categoryFilter !== 'all') {
+            articles = articles.filter(article => (article.category || '未分类') === categoryFilter);
+        }
+
+        // 3. 根据搜索词过滤
         if (searchTerm) {
             articles = articles.filter(article => {
                 const titleMatch = article.title.toLowerCase().includes(searchTerm);
@@ -152,18 +171,38 @@ module.exports = {
                 return titleMatch || contentMatch || categoryMatch;
             });
         }
-
-        // 3. 附加作者信息并排序
-        articles = articles.map(article => {
-            const owner = storage.findUserById(article.userId);
-            return { ...article, ownerUsername: owner ? owner.username : '未知用户' };
-        }).sort((a,b) => new Date(b.updatedAt) - new Date(a.updatedAt));
         
-        serveJson(context.res, articles);
+        // 4. (新增) 分页计算
+        const totalArticles = articles.length;
+        const totalPages = Math.ceil(totalArticles / articlesPerPage);
+        const startIndex = (requestedPage - 1) * articlesPerPage;
+        const endIndex = startIndex + articlesPerPage;
+        
+        let paginatedArticles = articles.slice(startIndex, endIndex);
+
+        // 5. 附加作者信息并排序 (排序应该在分页 *之前* 进行)
+        // (修正) 排序应在过滤后、分页前
+        paginatedArticles = articles
+            .sort((a,b) => new Date(b.updatedAt) - new Date(a.updatedAt)) // 先排序
+            .slice(startIndex, endIndex) // 再分页
+            .map(article => { // 最后附加作者信息
+                const owner = storage.findUserById(article.userId);
+                return { ...article, ownerUsername: owner ? owner.username : '未知用户' };
+            });
+
+        // (修改) 返回包含分页和分类信息的数据结构
+        serveJson(context.res, {
+            articles: paginatedArticles,
+            totalPages: totalPages,
+            currentPage: requestedPage,
+            totalArticles: totalArticles,
+            categories: allCategories // 发送所有可用分类
+        });
     },
 
     // API: 获取单篇文章 (用于编辑加载)
     getArticleById: (context) => {
+        // (无修改)
         const articleId = context.pathname.split('/').pop();
         const article = storage.findArticleById(articleId);
         if (!article) return sendNotFound(context.res, "找不到指定的文章。");
@@ -180,6 +219,7 @@ module.exports = {
 
     // API: 创建文章
     createArticle: (context) => {
+        // (无修改)
         // 权限检查：必须是 consultant 或 admin
         if (!context.session || (context.session.role !== 'consultant' && context.session.role !== 'admin')) {
             return sendForbidden(context.res, "您没有权限发表文章。");
@@ -233,6 +273,7 @@ module.exports = {
 
     // API: 更新文章
     updateArticle: (context) => {
+        // (无修改)
         const articleId = context.pathname.split('/').pop();
         const { title, content, category, status, removeAttachment } = context.body; // 新增字段
         const attachmentFile = context.files && context.files.attachment;
@@ -305,6 +346,7 @@ module.exports = {
 
     // API: 删除文章
     deleteArticleById: (context) => {
+        // (无修改)
         const articleId = context.pathname.split('/').pop();
         const articleToDelete = storage.findArticleById(articleId);
         if (!articleToDelete) return sendNotFound(context.res, "找不到要删除的文章。");
