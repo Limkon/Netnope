@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>管理用户 - 网络福利资源分享网站</title> <link rel="stylesheet" href="/css/style.css">
+    <title>管理面板 - 网络福利资源分享网站</title> <link rel="stylesheet" href="/css/style.css">
 </head>
 <body>
     <header>
@@ -13,9 +13,20 @@
         </nav>
     </header>
     <div class="container">
-        <h2>用户管理</h2>
-
+        
         <div id="adminMessages"></div>
+
+        <h2>站点设置</h2>
+        <form id="siteSettingsForm" class="form-styled" style="margin-bottom: 30px;">
+            <div>
+                <label for="articlesPerPage">每页文章数:</label>
+                <input type="number" id="articlesPerPage" name="articlesPerPage" value="{{articlesPerPage}}" min="1" max="100" required>
+            </div>
+            <div class="form-actions">
+                <button type="submit" id="saveSettingsButton" class="button-action">保存设置</button>
+            </div>
+        </form>
+        <h2>用户管理</h2>
         <h3>新建用户</h3>
         <form id="addUserForm" class="form-styled">
             <div>
@@ -50,11 +61,20 @@
     <script>
         const currentAdminUsername = "{{adminUsername}}";
         const currentAdminId = "{{adminUserId}}";
+        const initialArticlesPerPage = "{{articlesPerPage}}"; // (新增)
+
         document.addEventListener('DOMContentLoaded', () => {
             // setupNavigation (在 main.js 中处理), loadUsersForAdmin, setupAdminUserForm
+            // (新增) setupSiteSettingsForm
             // 已被移入 main.js 的 DOMContentLoaded 主处理程序中
             
             document.getElementById('adminUsernameDisplay').textContent = currentAdminUsername || 'Admin';
+            
+            // (新增) 填充初始值
+            const articlesPerPageInput = document.getElementById('articlesPerPage');
+            if (articlesPerPageInput) {
+                articlesPerPageInput.value = initialArticlesPerPage || 10;
+            }
         });
     </script>
 </body>
