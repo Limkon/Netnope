@@ -466,6 +466,19 @@ form input[type="text"], form input[type="password"], form select, form textarea
     min-width: 70px;
 }
 
+/* --- (新增) 修复登录框太大 --- */
+/* 新增：用于登录、注册等页面的窄容器 */
+.form-container {
+    max-width: 500px; /* 限制最大宽度 */
+    margin-left: auto; /* 自动居中 */
+    margin-right: auto; /* 自动居中 */
+}
+/* 确保窄容器内的 h2 标题样式一致 */
+.form-container h2 {
+    text-align: left; /* 保持与 admin.html 一致 */
+}
+/* --- 结束新增 --- */
+
 
 footer {
     text-align: center;
@@ -484,6 +497,12 @@ footer {
         padding: 15px; 
         margin: 15px auto;
     }
+    
+    /* (修复) 确保 form-container 在移动端时不会有奇怪的边距 */
+    .form-container {
+        max-width: 100%; /* 移动端占满 */
+    }
+
     header h1 {
         font-size: 1.8rem;
     }
