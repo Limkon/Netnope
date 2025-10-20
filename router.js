@@ -101,7 +101,7 @@ module.exports = {
             }
         }
 
-        const context = { req, res, pathname, method, query, headers, body, files, rawBuffer, session: null };
+        const context = { req, res, pathname, method, query, files, body, rawBuffer, session: null };
         context.session = authenticate(req);
 
         // --- 静态文件路由 (CSS, JS, Uploads) ---
@@ -149,6 +149,7 @@ module.exports = {
         // 匿名用户 (session.role === 'anonymous') 的路由
         if (context.session && context.session.role === 'anonymous') {
             if ((pathname === '/' || pathname === '/index.html') && method === 'GET') return articleController.getArticlesPage(context); // 重命名
+            // (修改) /api/articles 现在处理分页和过滤
             if (pathname === '/api/articles' && method === 'GET') return articleController.getAllArticles(context); // 重命名
             if (pathname.startsWith('/api/articles/') && pathname.endsWith('/comments') && method === 'GET') return commentController.getCommentsForArticle(context); // 新增
             
@@ -217,6 +218,10 @@ module.exports = {
                 return userController.updateUserPasswordByAdmin(context);
             }
             if (pathname.startsWith('/api/admin/users/') && method === 'DELETE') return userController.deleteUserByAdmin(context);
+            
+            // (新增) 设置 API 路由
+            if (pathname === '/api/admin/settings' && method === 'GET') return userController.getSiteSettings(context);
+            if (pathname === '/api/admin/settings' && method === 'POST') return userController.updateSiteSettings(context);
         } else {
             if (pathname.startsWith('/admin') || pathname.startsWith('/api/admin')) {
                 return sendForbidden(res, "您没有权限访问此管理员功能。");
