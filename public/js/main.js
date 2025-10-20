@@ -482,17 +482,18 @@ async function loadArticleForEditing(articleId) { // 重命名
 async function loadComments(articleId) {
     const commentsContainer = document.getElementById('commentsContainer');
     if (!commentsContainer) return;
-    commentsContainer.innerHTML = '<p>正在加载评论...</p>';
+    // commentsContainer.innerHTML = '<p>正在加载评论...</p>'; // 由 <ul> 中的 <li> 处理
     
     const commentsData = await fetchData(`/api/articles/${articleId}/comments`);
+    const commentsList = document.getElementById('commentsList');
+    if (!commentsList) return;
+
     if (!commentsData) {
-        commentsContainer.innerHTML = '<p class="error-message">无法加载评论。</p>';
+        commentsList.innerHTML = '<li class="error-message">无法加载评论。</li>';
         return;
     }
     
     const comments = Array.isArray(commentsData) ? commentsData : [];
-    const commentsList = document.getElementById('commentsList');
-    if (!commentsList) return;
     
     if (comments.length === 0) {
         commentsList.innerHTML = '<li>暂无评论。</li>';
@@ -511,11 +512,13 @@ async function loadComments(articleId) {
 
             li.innerHTML = `
                 <div class="comment-meta">
-                    <strong>${escapeHtml(comment.username)}</strong>
-                    <span>(${new Date(comment.createdAt).toLocaleString('zh-CN')})</span>
+                    <div>
+                        <strong>${escapeHtml(comment.username)}</strong>
+                        <span>(${new Date(comment.createdAt).toLocaleString('zh-CN')})</span>
+                    </div>
+                    <div class="comment-actions">${deleteButton}</div>
                 </div>
                 <div class="comment-content">${escapeHtml(comment.content)}</div>
-                <div class="comment-actions">${deleteButton}</div>
             `;
             commentsList.appendChild(li);
         });
@@ -563,7 +566,501 @@ async function setupCommentForm(articleId) {
                 li.id = `comment-${result.id}`;
                 li.innerHTML = `
                     <div class="comment-meta">
-                        <strong>${escapeHtml(result.username)}</strong>
-                        <span>(${new Date(result.createdAt).toLocaleString('zh-CN')})</span>
+                        <div>
+                            <strong>${escapeHtml(result.username)}</strong>
+                            <span>(${new Date(result.createdAt).toLocaleString('zh-CN')})</span>
+                        </div>
+                        <div class="comment-actions">
+                            <button class="button-danger button-small" onclick="deleteComment('${result.id}')">删除</button>
+                        </div>
                     </div>
-                    <div class
+                    <div class="comment-content">${escapeHtml(result.content)}</div>
+                `;
+                commentsList.appendChild(li);
+            }
+        } else if (result && result.message) {
+            displayMessage(result.message, 'error', 'commentMessage');
+        }
+
+        commentButton.disabled = false;
+        commentButton.textContent = '提交评论';
+    });
+}
+
+async function deleteComment(commentId) {
+    if (!confirm('您确定要删除这条评论吗？')) return;
+    
+    const result = await fetchData(`/api/comments/${commentId}`, { method: 'DELETE' });
+    if (result && result.message) {
+        displayMessage(result.message, 'success', 'commentMessage');
+        const commentElement = document.getElementById(`comment-${commentId}`);
+        if (commentElement) {
+            commentElement.remove();
+        }
+        // 检查列表是否为空
+        const commentsList = document.getElementById('commentsList');
+        if (commentsList && commentsList.children.length === 0) { // 修复：检查子元素数量
+            commentsList.innerHTML = '<li>暂无评论。</li>';
+        }
+    }
+}
+
+
+// --- Admin 相关 (loadUsersForAdmin, showPasswordResetForm, handleUpdatePasswordByAdmin, setupAdminUserForm, deleteUserByAdmin) ---
+
+async function loadUsersForAdmin(currentAdminId) { 
+    const userListUl = document.getElementById('userList');
+    if (!userListUl) return;
+    userListUl.innerHTML = '<li>正在加载用户列表...</li>';
+    const usersData = await fetchData('/api/admin/users');
+     if (!usersData) {
+        if(!userListUl.querySelector('.error-message')) userListUl.innerHTML = '<li class="error-message">无法加载用户列表。</li>';
+        return;
+    }
+    const users = Array.isArray(usersData) ? usersData : [];
+    if (users.length === 0) {
+        userListUl.innerHTML = '<li>当前没有其他用户。</li>';
+        return;
+    }
+    userListUl.innerHTML = '';
+    users.forEach(user => {
+        const li = document.createElement('li');
+        li.className = 'user-item';
+        li.id = `user-admin-${user.id}`;
+        const userInfoSpan = document.createElement('span');
+        // 翻译角色
+        let roleDisplay = escapeHtml(user.role);
+        if (user.role === 'admin') roleDisplay = '管理员 (admin)';
+        else if (user.role === 'consultant') roleDisplay = '咨询师 (consultant)';
+        else if (user.role === 'member') roleDisplay = '会员 (member)';
+        else if (user.role === 'anonymous') roleDisplay = '匿名 (anyone)';
+
+        userInfoSpan.innerHTML = `<strong>${escapeHtml(user.username)}</strong> (ID: ${user.id}, 角色: ${roleDisplay})`;
+        li.appendChild(userInfoSpan);
+        const actionsDiv = document.createElement('div');
+        actionsDiv.className = 'user-item-actions';
+        actionsDiv.style.display = 'flex';
+        actionsDiv.style.gap = '10px';
+        
+        // 不能操作自己
+        if (user.id !== currentAdminId) { 
+            // 不能删除 'anyone' 用户 (只能通过重设密码为空来模拟“禁用”)
+            // 允许重设密码
+            const resetPassButton = document.createElement('button');
+            resetPassButton.className = 'button-action';
+            resetPassButton.textContent = '重设密码';
+            resetPassButton.style.padding = '0.3rem 0.6rem';
+            resetPassButton.style.fontSize = '0.85rem';
+            resetPassButton.onclick = () => showPasswordResetForm(user.id, user.username, li, user.role); // 传入角色
+            actionsDiv.appendChild(resetPassButton);
+
+            // 'anyone' 用户不能被删除
+            if (user.username !== 'anyone') {
+                const deleteButton = document.createElement('button');
+                deleteButton.className = 'button-danger';
+                deleteButton.textContent = '删除';
+                deleteButton.onclick = () => deleteUserByAdmin(user.id, user.username);
+                actionsDiv.appendChild(deleteButton);
+            }
+        } else {
+            const selfSpan = document.createElement('span');
+            selfSpan.style.fontSize = '0.8em';
+            selfSpan.style.color = '#5f6368';
+            selfSpan.textContent = '(当前登录)';
+            actionsDiv.appendChild(selfSpan);
+        }
+        li.appendChild(actionsDiv);
+        userListUl.appendChild(li);
+    });
+}
+
+let isUpdatingPasswordByAdmin = false; 
+function showPasswordResetForm(userId, username, listItemElement, userRole) { // 接收角色
+    const existingForms = document.querySelectorAll('.password-edit-form-container');
+    existingForms.forEach(form => form.remove());
+    const formContainer = document.createElement('div');
+    formContainer.className = 'password-edit-form-container';
+    // ... (样式设置保持不变)
+    formContainer.style.marginTop = '10px';
+    formContainer.style.padding = '15px';
+    formContainer.style.border = '1px solid #ccc';
+    formContainer.style.borderRadius = '4px';
+    formContainer.style.backgroundColor = '#f9f9f9';
+    
+    const form = document.createElement('form');
+    form.id = `passwordEditForm-${userId}`;
+    
+    const saveButton = document.createElement('button');
+    saveButton.type = 'submit';
+    saveButton.className = 'button-action';
+    saveButton.textContent = '保存新密码';
+    saveButton.style.marginRight = '10px';
+
+    form.onsubmit = (event) => handleUpdatePasswordByAdmin(event, userId, username, saveButton); 
+
+    const currentUserP = document.createElement('p');
+    currentUserP.innerHTML = `正在为用户 <strong>${escapeHtml(username)}</strong> (角色: ${userRole}) 重设密码。`;
+    currentUserP.style.marginBottom = '10px';
+    const passwordLabel = document.createElement('label');
+    passwordLabel.htmlFor = `newPass-${userId}`;
+    passwordLabel.textContent = `新密码:`;
+    passwordLabel.style.display = 'block';
+    passwordLabel.style.marginBottom = '5px';
+    const passwordInput = document.createElement('input');
+    passwordInput.type = 'password';
+    passwordInput.id = `newPass-${userId}`;
+    passwordInput.name = 'newPassword';
+    
+    // 根据角色设置 placeholder
+    if (userRole === 'admin' || userRole === 'consultant') {
+        passwordInput.placeholder = "管理员/咨询师密码不能为空";
+    } else if (userRole === 'anonymous') {
+        passwordInput.placeholder = "匿名用户无需密码";
+        passwordInput.disabled = true;
+    } else {
+        passwordInput.placeholder = "会员密码 (可为空)";
+    }
+    
+    passwordInput.style.marginBottom = '10px';
+    passwordInput.style.width = 'calc(100% - 16px)';
+    
+    const cancelButton = document.createElement('button');
+    cancelButton.type = 'button';
+    cancelButton.className = 'button-action button-cancel';
+    cancelButton.textContent = '取消';
+    cancelButton.onclick = () => formContainer.remove();
+    form.appendChild(currentUserP);
+    
+    // 匿名用户不能修改密码
+    if (userRole !== 'anonymous') {
+        form.appendChild(passwordLabel);
+        form.appendChild(passwordInput);
+        const actionsDiv = document.createElement('div');
+        actionsDiv.className = 'form-actions';
+        actionsDiv.appendChild(saveButton);
+        actionsDiv.appendChild(cancelButton);
+        form.appendChild(actionsDiv);
+    } else {
+        passwordInput.value = ''; // 确保为空
+        const actionsDiv = document.createElement('div');
+        actionsDiv.className = 'form-actions';
+        actionsDiv.appendChild(cancelButton);
+        form.appendChild(actionsDiv);
+    }
+
+    formContainer.appendChild(form);
+    listItemElement.appendChild(formContainer);
+    if (userRole !== 'anonymous') {
+        passwordInput.focus();
+    }
+}
+
+async function handleUpdatePasswordByAdmin(event, userId, username, saveButtonElement) {
+    event.preventDefault();
+    if (isUpdatingPasswordByAdmin) return;
+
+    isUpdatingPasswordByAdmin = true;
+    if(saveButtonElement) {
+        saveButtonElement.disabled = true;
+        saveButtonElement.textContent = '保存中...';
+    }
+
+    const form = event.target;
+    const newPasswordInput = form.newPassword;
+    const newPassword = newPasswordInput.value;
+    const messageContainerId = 'adminMessages';
+    displayMessage('正在更新密码...', 'info', messageContainerId);
+    
+    const result = await fetchData(`/api/admin/users/${userId}/password`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ newPassword: newPassword })
+    });
+    
+    if (result && result.message && (result.message.includes("成功") || !result.message.toLowerCase().includes("错误"))) {
+        displayMessage(result.message, 'success', messageContainerId);
+        const formContainer = form.closest('.password-edit-form-container');
+        if (formContainer) formContainer.remove();
+    } else if (result && result.message) {
+        displayMessage(result.message, 'error', messageContainerId);
+    }
+
+    isUpdatingPasswordByAdmin = false;
+    if(saveButtonElement) {
+        saveButtonElement.disabled = false;
+        saveButtonElement.textContent = '保存新密码';
+    }
+}
+
+let isAdminAddingUser = false; 
+function setupAdminUserForm() {
+    const addUserForm = document.getElementById('addUserForm');
+    const addUserButton = addUserForm ? addUserForm.querySelector('button[type="submit"]') : null;
+
+    if (addUserForm && addUserButton) {
+        addUserForm.addEventListener('submit', async (event) => {
+            event.preventDefault();
+            if (isAdminAddingUser) return; 
+
+            isAdminAddingUser = true;
+            addUserButton.disabled = true;
+            addUserButton.textContent = '正在添加...';
+
+            const formData = new FormData(addUserForm);
+            const data = Object.fromEntries(formData.entries());
+            
+            if (!data.username || data.username.trim() === '') {
+                displayMessage('用户名不能为空。', 'error', 'adminMessages');
+                isAdminAddingUser = false;
+                addUserButton.disabled = false;
+                addUserButton.textContent = '新建用户';
+                return;
+            }
+            // 咨询师或管理员的密码不能为空
+            if ((data.role === 'admin' || data.role === 'consultant') && (!data.password || data.password.trim() === '')) {
+                displayMessage('管理员或咨询师的密码不能为空。', 'error', 'adminMessages');
+                isAdminAddingUser = false;
+                addUserButton.disabled = false;
+                addUserButton.textContent = '新建用户';
+                return;
+            }
+            // 'anyone' 用户（用于匿名访问）
+            if (data.username.trim() === 'anyone') {
+                data.role = 'anonymous'; // 强制角色
+                data.password = ''; // 强制无密码
+            }
+
+            displayMessage('', 'info', 'adminMessages'); 
+            const result = await fetchData('/api/admin/users', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+            if (result && result.id) {
+                displayMessage(`用户 "${escapeHtml(result.username)}" (角色: ${result.role}) 已成功创建。`, 'success', 'adminMessages');
+                addUserForm.reset();
+                loadUsersForAdmin(currentAdminIdGlobal);
+            } else if (result && result.message) {
+                 displayMessage(result.message, 'error', 'adminMessages');
+            }
+            
+            isAdminAddingUser = false;
+            addUserButton.disabled = false;
+            addUserButton.textContent = '新建用户';
+        });
+    }
+}
+
+async function deleteUserByAdmin(userId, username) {
+    if (username === 'anyone') {
+        alert("不能删除 'anyone' 用户。");
+        return;
+    }
+    if (!confirm(`您确定要删除用户 "${username}" (ID: ${userId}) 吗？此操作将同时删除该用户的所有文章、附件和评论，且无法复原。`)) return;
+    displayMessage('', 'info', 'adminMessages');
+    const result = await fetchData(`/api/admin/users/${userId}`, { method: 'DELETE' });
+    if (result && result.message && (result.message.includes("成功") || !result.message.toLowerCase().includes("错误") && !result.message.toLowerCase().includes("失败"))) {
+        displayMessage(result.message, 'success', 'adminMessages');
+        loadUsersForAdmin(currentAdminIdGlobal);
+    } else if (result && result.message) {
+         displayMessage(result.message, 'error', 'adminMessages');
+    }
+}
+
+// --- 注册 (Registration) ---
+
+let isRegistering = false;
+function setupRegistrationForm() {
+    const registerForm = document.getElementById('registerForm');
+    const registerButton = document.getElementById('registerButton');
+    if (registerForm && registerButton) {
+        registerForm.addEventListener('submit', async (event) => {
+            event.preventDefault();
+            if (isRegistering) return;
+            const usernameInput = document.getElementById('regUsername');
+            const passwordInput = document.getElementById('regPassword');
+            const confirmPasswordInput = document.getElementById('regConfirmPassword');
+            const messageContainerId = 'registerMessage';
+            const username = usernameInput.value.trim();
+            const password = passwordInput.value;
+            const confirmPassword = confirmPasswordInput.value;
+            displayMessage('', 'info', messageContainerId);
+            if (!username) {
+                displayMessage('用户名不能为空。', 'error', messageContainerId); return;
+            }
+            // 注册时密码不能为空 (默认为 member)
+            if (!password) {
+                 displayMessage('密码不能为空。', 'error', messageContainerId); return;
+            }
+            if (password !== confirmPassword) {
+                displayMessage('两次输入的密码不相符。', 'error', messageContainerId); return;
+            }
+            isRegistering = true;
+            registerButton.disabled = true; registerButton.textContent = '注册中...';
+            const result = await fetchData('/api/users/register', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username, password })
+            });
+            if (result && result.id) {
+                displayMessage('注册成功！您现在可以前往登录页面登录。', 'success', messageContainerId);
+                registerForm.reset();
+                setTimeout(() => { window.location.href = '/login?registered=true'; }, 2000);
+            } else if (result && result.message) {
+                 displayMessage(result.message, 'error', messageContainerId);
+            }
+            isRegistering = false;
+            registerButton.disabled = false; registerButton.textContent = '注册';
+        });
+    }
+}
+
+// --- 修改密码 (Change Password) ---
+
+let isChangingOwnPassword = false;
+function setupChangeOwnPasswordForm() {
+    const form = document.getElementById('changeOwnPasswordForm');
+    const submitButton = document.getElementById('submitChangePassword');
+    const messageContainerId = 'changePasswordMessage';
+
+    if (form && submitButton) {
+        form.addEventListener('submit', async (event) => {
+            event.preventDefault();
+            if (isChangingOwnPassword) return;
+            const currentPassword = document.getElementById('currentPassword').value;
+            const newPassword = document.getElementById('newPasswordUser').value;
+            const confirmNewPassword = document.getElementById('confirmNewPasswordUser').value;
+            displayMessage('', 'info', messageContainerId);
+            if (newPassword !== confirmNewPassword) {
+                displayMessage('新密码和确认密码不匹配。', 'error', messageContainerId);
+                return;
+            }
+            // 检查当前角色 (使用已在 setupNavigation 中设置的全局变量)
+            if ((currentUserRoleGlobal === 'admin' || currentUserRoleGlobal === 'consultant') && newPassword.trim() === '') {
+                displayMessage('管理员或咨询师的新密码不能为空。', 'error', messageContainerId);
+                return;
+            }
+
+            isChangingOwnPassword = true;
+            submitButton.disabled = true;
+            submitButton.textContent = '正在提交...';
+            const result = await fetchData('/api/users/me/password', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ currentPassword, newPassword, confirmNewPassword })
+            });
+            if (result && result.message && result.message.includes("成功")) {
+                displayMessage(result.message + ' 您需要重新登录。', 'success', messageContainerId);
+                form.reset();
+                setTimeout(() => {
+                     handleLogout();
+                }, 2500);
+            } else if (result && result.message) {
+                displayMessage(result.message, 'error', messageContainerId);
+            }
+            isChangingOwnPassword = false;
+            submitButton.disabled = false;
+            submitButton.textContent = '确认修改';
+        });
+    }
+}
+
+// --- DOMContentLoaded (页面加载) ---
+
+document.addEventListener('DOMContentLoaded', () => {
+    const path = window.location.pathname;
+    
+    // --- (修复) ---
+    // 正确读取由服务器在内联 <script> 标签中定义的 *全局* 变量
+    // (例如 index.html, article.html, view-article.html 等页面底部定义的变量)
+    const usernameFromServer = (typeof currentUsernameFromServer !== 'undefined' && currentUsernameFromServer !== "{{username}}") 
+        ? currentUsernameFromServer 
+        : (typeof currentUsername !== 'undefined' && currentUsername !== "{{username}}") // 兼容 change-password.html
+        ? currentUsername
+        : '访客';
+        
+    const roleFromServer = (typeof currentUserRoleFromServer !== 'undefined' && currentUserRoleFromServer !== "{{userRole}}") 
+        ? currentUserRoleFromServer 
+        : 'anonymous';
+        
+    const userIdFromServer = (typeof currentUserIdFromServer !== 'undefined' && currentUserIdFromServer !== "{{userId}}") 
+        ? currentUserIdFromServer 
+        : ''; 
+        
+    const adminIdFromServer = (typeof currentAdminId !== 'undefined' && currentAdminId !== "{{adminUserId}}") 
+        ? currentAdminId 
+        : '';
+        
+    const articleIdFromServer = (typeof currentArticleId !== 'undefined' && currentArticleId !== "{{articleId}}") 
+        ? currentArticleId 
+        : '';
+    // --- (修复结束) ---
+
+    // 设置 main.js 内部的全局变量（供其他函数使用）
+    currentAdminIdGlobal = adminIdFromServer; 
+    currentUserIdGlobal = userIdFromServer;   
+    
+    // 1. 设置全局导航
+    setupNavigation(usernameFromServer, roleFromServer, userIdFromServer);
+
+    // 2. 根据不同页面路径执行特定的加载函数
+    if (path === '/' || path === '/index.html') {
+        const urlParams = new URLSearchParams(window.location.search);
+        const initialSearchTerm = urlParams.get('search') || '';
+        const searchInput = document.getElementById('searchInput');
+        if (searchInput && initialSearchTerm) {
+            searchInput.value = initialSearchTerm;
+        }
+        
+        // 此调用现在可以正常执行
+        loadArticles(initialSearchTerm); 
+        
+        const clearSearchButton = document.getElementById('clearSearchButton');
+        if (initialSearchTerm && clearSearchButton) {
+            clearSearchButton.style.display = 'inline-flex';
+        } else if (clearSearchButton) {
+            clearSearchButton.style.display = 'none';
+        }
+        const searchForm = document.getElementById('searchForm');
+        if (searchForm && searchInput && clearSearchButton) {
+             searchForm.addEventListener('submit', (event) => {
+                event.preventDefault();
+                const searchTerm = searchInput.value.trim();
+                loadArticles(searchTerm); 
+                if (searchTerm) {
+                    clearSearchButton.style.display = 'inline-flex';
+                } else {
+                    clearSearchButton.style.display = 'none';
+                }
+            });
+            clearSearchButton.addEventListener('click', () => {
+                searchInput.value = '';
+                loadArticles(); 
+                clearSearchButton.style.display = 'none';
+            });
+        }
+    } else if (path.startsWith('/article/')) { 
+        if (path.startsWith('/article/new') || path.startsWith('/article/edit')) { 
+            initializeRichTextEditor();
+            setupArticleForm(); 
+            const urlParams = new URLSearchParams(window.location.search);
+            const articleId = urlParams.get('id');
+            if (articleId && path.startsWith('/article/edit')) { 
+                loadArticleForEditing(articleId); 
+            }
+        } else if (path.startsWith('/article/view') && articleIdFromServer) { 
+            loadComments(articleIdFromServer); 
+            setupCommentForm(articleIdFromServer); 
+        }
+    } else if (path === '/admin/users') {
+        // (admin.html 页面底部的内联脚本会定义 currentAdminId)
+        loadUsersForAdmin(currentAdminIdGlobal); 
+        setupAdminUserForm();
+    } else if (path === '/register') {
+        setupRegistrationForm();
+    } else if (path === '/change-password') {
+        // (change-password.html 页面底部的内联脚本会定义 currentUsername)
+        setupChangeOwnPasswordForm();
+    }
+    // login.html 不需要 main.js 执行任何操作
+});
