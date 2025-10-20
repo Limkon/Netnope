@@ -24,6 +24,7 @@ function getGeneralNavData(session) {
 }
 
 module.exports = {
+    // ... (getLoginPage, loginUser, logoutUser, getRegisterPage, registerUser 保持不变) ...
     getLoginPage: (context) => {
         if (context.session && context.session.role !== 'anonymous') {
             return redirect(context.res, '/');
@@ -94,21 +95,25 @@ module.exports = {
             context.res.end(JSON.stringify({ message: "注册过程中发生错误，请稍后再试。" }));
         }
     },
-    
+
     getAdminUsersPage: (context) => {
         if (!context.session || context.session.role !== 'admin') {
             return sendForbidden(context.res, "您没有权限访问此页面。");
         }
+        // (新增) 获取设置信息
+        const settings = storage.getSettings();
         serveHtmlWithPlaceholders(context.res, path.join(PUBLIC_DIR, 'admin.html'), {
             adminUsername: context.session.username, 
             adminUserId: context.session.userId,   
             username: context.session.username,    
             userRole: context.session.role,
-            userId: context.session.userId         
+            userId: context.session.userId,
+            articlesPerPage: settings.articlesPerPage // 传入设置
         });
     },
 
     listAllUsers: (context) => {
+        // (无修改)
         const users = storage.getUsers().map(u => ({
             id: u.id,
             username: u.username,
@@ -118,6 +123,7 @@ module.exports = {
     },
 
     createUserByAdmin: (context) => {
+        // (无修改)
         // 默认角色改为 'member'
         const { username, password, role = 'member' } = context.body;
         if (!username || username.trim() === '') {
@@ -145,6 +151,7 @@ module.exports = {
     },
 
     deleteUserByAdmin: (context) => {
+        // (无修改)
         const pathParts = context.pathname.split('/'); 
         const userIdToDelete = pathParts[4]; 
         
@@ -179,6 +186,7 @@ module.exports = {
     },
 
     updateUserPasswordByAdmin: (context) => {
+        // (无修改)
         const pathParts = context.pathname.split('/'); 
         const userIdToUpdate = pathParts[4]; 
         const { newPassword } = context.body;
@@ -216,6 +224,7 @@ module.exports = {
     },
 
     getChangePasswordPage: (context) => {
+        // (无修改)
         if (!context.session || context.session.role === 'anonymous') { 
              return redirect(context.res, '/login');
         }
@@ -225,6 +234,7 @@ module.exports = {
     },
 
     changeOwnPassword: (context) => {
+        // (无修改)
         const { currentPassword, newPassword, confirmNewPassword } = context.body;
         const userId = context.session.userId;
 
@@ -255,5 +265,29 @@ module.exports = {
             context.res.writeHead(500, { 'Content-Type': 'application/json; charset=utf-8' });
             context.res.end(JSON.stringify({ message: "修改密码失败，请稍后再试。" }));
         }
+    },
+
+    // --- (新增) 站点设置 API ---
+    getSiteSettings: (context) => {
+        // 确保只有管理员可以访问
+        if (!context.session || context.session.role !== 'admin') {
+            return sendForbidden(context.res, "您没有权限访问设置。");
+        }
+        const settings = storage.getSettings();
+        serveJson(context.res, settings);
+    },
+
+    updateSiteSettings: (context) => {
+        // 确保只有管理员可以访问
+        if (!context.session || context.session.role !== 'admin') {
+            return sendForbidden(context.res, "您没有权限修改设置。");
+        }
+        const { articlesPerPage } = context.body;
+        if (articlesPerPage === undefined) {
+            return sendBadRequest(context.res, "缺少 'articlesPerPage' 参数。");
+        }
+        
+        const newSettings = storage.saveSettings({ articlesPerPage });
+        serveJson(context.res, { message: "设置已成功更新。", settings: newSettings });
     }
 };
