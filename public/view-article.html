@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{articleTitle}} - 咨询分享网站</title>
+    <title>{{articleTitle}} - 网络福利资源分享网站</title>
     <link rel="stylesheet" href="/css/style.css">
     <style>
         .note-view-content {
@@ -93,7 +93,7 @@
 </head>
 <body>
     <header>
-        <h1>咨询分享</h1>
+        <h1>网络福利资源分享网站</h1>
         <nav id="mainNav">
             </nav>
     </header>
@@ -157,7 +157,7 @@
             </div>
         </div> 
     <footer>
-        <p>&copy; 2025 咨询分享网站。</p>
+        <p>&copy; 2025 网络福利资源分享网站。</p>
     </footer>
     <script src="/js/main.js"></script>
     <script>
@@ -173,11 +173,11 @@
 
             const articleTitleElement = document.getElementById('articleViewTitle');
             if (articleTitleElement && articleTitleElement.textContent) { 
-                 document.title = `${articleTitleElement.textContent.trim()} - 咨询分享网站`;
+                 document.title = `${articleTitleElement.textContent.trim()} - 网络福利资源分享网站`;
             } else if ("{{articleTitle}}") { 
-                 document.title = `{{articleTitle}} - 咨询分享网站`;
+                 document.title = `{{articleTitle}} - 网络福利资源分享网站`;
             } else {
-                 document.title = `查看文章 - 咨询分享网站`; 
+                 document.title = `查看文章 - 网络福利资源分享网站`; 
             }
         });
     </script>

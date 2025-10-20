@@ -1,7 +1,7 @@
 {
   "name": "consulting-sharing-app",
   "version": "1.2.0",
-  "description": "一个完全使用Node.js原生模块构建的咨询分享网站，无任何第三方依赖。",
+  "description": "一个完全使用Node.js原生模块构建的网络福利资源分享网站，无任何第三方依赖。",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",

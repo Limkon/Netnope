@@ -1,11 +1,11 @@
 - 支持[alwaysdata](https://www.alwaysdata.com/en/)空间一键安装，SSH登陆后执行以下命令，安装完成后在alwaysdata空间设置中找到Command*添加node server.js
      ```bash
-     bash <(curl -fsSL https://raw.githubusercontent.com/Limkon/网络福利资源分享/master/setup.sh)
+     bash <(curl -fsSL https://raw.githubusercontent.com/Limkon/Netnope/master/setup.sh)
      ```
 
-# 咨询分享网站 (Node.js 原生实现)
+# 网络福利资源分享网站 (Node.js 原生实现)
 
-这是一个完全使用 Node.js 内置模块构建的简单咨询分享Web应用程序，旨在演示如何在不依赖任何第三方NPM包的情况下，从头开始实现一个包含用户认证、数据存储、富文本编辑、文件上传、搜索和评论功能的Web应用。
+这是一个完全使用 Node.js 内置模块构建的简单网络福利资源分享网站Web应用程序，旨在演示如何在不依赖任何第三方NPM包的情况下，从头开始实现一个包含用户认证、数据存储、富文本编辑、文件上传、搜索和评论功能的Web应用。
 
 ## 主要功能
 
