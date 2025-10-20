@@ -7,12 +7,18 @@ const DATA_DIR = path.join(__dirname, 'data');
 const USERS_FILE = path.join(DATA_DIR, 'users.json');
 const ARTICLES_FILE = path.join(DATA_DIR, 'articles.json'); // 重命名
 const COMMENTS_FILE = path.join(DATA_DIR, 'comments.json'); // 新增
+const SETTINGS_FILE = path.join(DATA_DIR, 'settings.json'); // 新增：站点设置
 const UPLOADS_DIR = path.join(__dirname, 'uploads');
 
 const HASH_ITERATIONS = 100000;
 const HASH_KEYLEN = 64;
 const HASH_DIGEST = 'sha512';
 const SALT_LEN = 16;
+
+// 默认设置
+const DEFAULT_SETTINGS = {
+    articlesPerPage: 10
+};
 
 function generateSalt() {
     return crypto.randomBytes(SALT_LEN).toString('hex');
@@ -26,17 +32,31 @@ function hashPassword(password, salt) {
 function readJsonFile(filePath, defaultValue = []) { // 增加默认值
     try {
         if (!fs.existsSync(filePath)) {
+            // 为特定文件创建默认内容
             if (filePath === USERS_FILE || filePath === ARTICLES_FILE || filePath === COMMENTS_FILE) {
                 fs.writeFileSync(filePath, '[]', 'utf8');
                 return [];
             }
-            return defaultValue; // 修复：返回 defaultValue
+            if (filePath === SETTINGS_FILE) { // 新增
+                fs.writeFileSync(filePath, JSON.stringify(DEFAULT_SETTINGS, null, 2), 'utf8');
+                return DEFAULT_SETTINGS;
+            }
+            return defaultValue; 
         }
         const fileContent = fs.readFileSync(filePath, 'utf8');
+        // 修复：确保空文件返回默认值
+        if (fileContent.trim() === '') {
+             if (filePath === SETTINGS_FILE) {
+                 fs.writeFileSync(filePath, JSON.stringify(DEFAULT_SETTINGS, null, 2), 'utf8');
+                 return DEFAULT_SETTINGS;
+             }
+             return defaultValue;
+        }
         return JSON.parse(fileContent);
     } catch (e) {
         console.error(`读取 JSON 文件 ${filePath} 失败:`, e);
-        return defaultValue; // 修复：返回 defaultValue
+        if (filePath === SETTINGS_FILE) return DEFAULT_SETTINGS; // 修复
+        return defaultValue; 
     }
 }
 
@@ -74,6 +94,30 @@ module.exports = {
     UPLOADS_DIR,
     hashPassword,
     generateSalt,
+
+    // --- (新增) 设置函数 ---
+    getSettings: () => {
+        const settings = readJsonFile(SETTINGS_FILE, DEFAULT_SETTINGS);
+        // 确保默认值存在
+        return { ...DEFAULT_SETTINGS, ...settings };
+    },
+    saveSettings: (settings) => {
+        const currentSettings = readJsonFile(SETTINGS_FILE, DEFAULT_SETTINGS);
+        const newSettings = { ...currentSettings, ...settings };
+        // 确保 articlesPerPage 是一个有效的数字
+        if (newSettings.articlesPerPage !== undefined) {
+             const parsedValue = parseInt(newSettings.articlesPerPage, 10);
+             if (isNaN(parsedValue) || parsedValue < 1) {
+                 newSettings.articlesPerPage = DEFAULT_SETTINGS.articlesPerPage; // 重置为默认值
+             } else {
+                 newSettings.articlesPerPage = parsedValue;
+             }
+        }
+        writeJsonFile(SETTINGS_FILE, newSettings);
+        return newSettings;
+    },
+    // --- (新增结束) ---
+
 
     getUsers: () => readJsonFile(USERS_FILE),
     saveUser: (userData) => {
