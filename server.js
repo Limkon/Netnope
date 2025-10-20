@@ -33,6 +33,11 @@ function initializeDirectories() {
         fs.writeFileSync(path.join(DATA_DIR, 'comments.json'), '[]', 'utf8');
         console.log(`文件 ${path.join(DATA_DIR, 'comments.json')} 已创建。`);
     }
+    // (新增) 确保 settings.json 存在
+    if (!fs.existsSync(path.join(DATA_DIR, 'settings.json'))) {
+        storage.getSettings(); // 这将调用 readJsonFile 并创建默认文件
+        console.log(`文件 ${path.join(DATA_DIR, 'settings.json')} 已创建。`);
+    }
 }
 
 function initializeAdminUser() {
