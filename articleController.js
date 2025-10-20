@@ -98,7 +98,7 @@ module.exports = {
             articleTitle: article.title,
             articleContent: article.content, // 注意：富文本XSS风险
             articleId: article.id,
-            articleCategory: article.category || '未分类', // 新增
+            articleCategory: article.category || '未分类', 
             articleOwnerUsername: owner ? owner.username : '未知用户',
             articleCreatedAt: new Date(article.createdAt).toLocaleString('zh-CN'),
             articleUpdatedAt: new Date(article.updatedAt).toLocaleString('zh-CN'),
@@ -109,7 +109,12 @@ module.exports = {
             canEdit: context.session && context.session.role !== 'anonymous' && 
                      (context.session.role === 'admin' || (context.session.role === 'consultant' && article.userId === sessionUserId)),
             // 评论权限：登录用户 (member 或 consultant)
-            canComment: context.session && (context.session.role === 'member' || context.session.role === 'consultant')
+            canComment: context.session && (context.session.role === 'member' || context.session.role === 'consultant'),
+            
+            // --- (修复) ---
+            // 添加一个简单的布尔值，用于替换模板中 '==' 的复杂比较
+            isAnonymous: (sessionRole === 'anonymous')
+            // --- (修复结束) ---
         };
         // 页面重命名为 view-article.html
         serveHtmlWithPlaceholders(context.res, path.join(PUBLIC_DIR, 'view-article.html'), templateData);
@@ -129,8 +134,11 @@ module.exports = {
             const myArticles = articles.filter(article => article.userId === sessionUserId);
             const otherPublishedArticles = articles.filter(article => article.userId !== sessionUserId && article.status === 'published');
             articles = [...myArticles, ...otherPublishedArticles];
+        } else if (sessionRole === 'admin') {
+            // (更新) 管理员应该能看到所有文章，包括草稿
+             articles = articles;
         } else {
-            // Admin, Member, Anonymous：只能看 'published' 的文章
+            // Member, Anonymous：只能看 'published' 的文章
             articles = articles.filter(article => article.status === 'published');
         }
 
