@@ -6,6 +6,10 @@ let currentUserRoleGlobal = 'anonymous';
 let currentAdminIdGlobal = ''; 
 let currentUserIdGlobal = ''; 
 let savedRange = null; // 用于保存富文本编辑器的选区
+// (新增) 用于首页文章列表的状态
+let currentArticleListPage = 1;
+let currentArticleListSearch = '';
+let currentArticleListCategory = 'all';
 
 // --- 通用函数 ---
 async function fetchData(url, options = {}) {
@@ -70,6 +74,7 @@ function escapeHtml(unsafe) {
 }
 
 function setupNavigation(username, role, userId) {
+    // (无修改)
     const isValidUser = username && username !== "{{username}}" && username !== "访客";
     const isValidRole = role && role !== "{{userRole}}" && role !== "anonymous";
     const isValidUserId = userId && userId !== "{{userId}}";
@@ -140,6 +145,7 @@ function setupNavigation(username, role, userId) {
 }
 
 async function handleLogout() {
+    // (无修改)
     if (!confirm("您确定要登出吗？")) return;
     try {
         await fetchData('/logout', { method: 'POST' });
@@ -151,39 +157,164 @@ async function handleLogout() {
     }
 }
 
-// --- 文章 (Article) 相关 ---
+// --- 文章 (Article) 相关 (*** 重大修改 ***) ---
 
-async function loadArticles(searchTerm = '') { // 重命名
-    const articlesContainer = document.getElementById('articlesContainer'); // 重命名
+// (新增) 渲染分类过滤器
+function renderCategoryFilter(categories, selectedCategory) {
+    const categorySelect = document.getElementById('categoryFilterSelect');
+    if (!categorySelect) return;
+    
+    // 保存当前值（如果存在）
+    // const currentVal = selectedCategory || categorySelect.value || 'all';
+    
+    categorySelect.innerHTML = '<option value="all">所有分类</option>'; // 重置
+    
+    categories.forEach(category => {
+        const option = document.createElement('option');
+        option.value = category;
+        option.textContent = escapeHtml(category);
+        if (category === selectedCategory) {
+            option.selected = true;
+        }
+        categorySelect.appendChild(option);
+    });
+    // categorySelect.value = currentVal;
+}
+
+// (新增) 渲染分页控件
+function renderPagination(totalPages, currentPage, searchTerm, category) {
+    const paginationContainer = document.getElementById('paginationContainer');
+    if (!paginationContainer) return;
+    
+    paginationContainer.innerHTML = '';
+    if (totalPages <= 1) return;
+
+    const ul = document.createElement('ul');
+    ul.className = 'pagination';
+
+    const createPageItem = (pageText, pageNumber, isDisabled = false, isActive = false) => {
+        const li = document.createElement('li');
+        li.className = 'pagination-item';
+        if (isDisabled) li.classList.add('disabled');
+        if (isActive) li.classList.add('active');
+        
+        const a = document.createElement('a');
+        a.className = 'pagination-link';
+        a.textContent = pageText;
+        
+        if (!isDisabled && !isActive && pageNumber) {
+            a.href = '#'; // 使其可点击
+            a.dataset.page = pageNumber;
+            a.addEventListener('click', (e) => {
+                e.preventDefault();
+                currentArticleListPage = pageNumber; // 更新全局状态
+                loadArticles(searchTerm, pageNumber, category);
+            });
+        } else if (isDisabled || isActive) {
+            a.href = '#';
+            a.onclick = (e) => e.preventDefault(); // 阻止默认行为
+        }
+        
+        li.appendChild(a);
+        return li;
+    };
+
+    // 上一页
+    ul.appendChild(createPageItem('«', currentPage - 1, currentPage === 1));
+
+    // 页码
+    // (简化逻辑：最多显示 7 个页码按钮)
+    let startPage = Math.max(1, currentPage - 3);
+    let endPage = Math.min(totalPages, currentPage + 3);
+    
+    if (currentPage - 3 < 1) {
+        endPage = Math.min(totalPages, 1 + 6);
+    }
+    if (currentPage + 3 > totalPages) {
+        startPage = Math.max(1, totalPages - 6);
+    }
+
+    if (startPage > 1) {
+        ul.appendChild(createPageItem('1', 1));
+        if (startPage > 2) {
+             ul.appendChild(createPageItem('...', null, true));
+        }
+    }
+
+    for (let i = startPage; i <= endPage; i++) {
+        ul.appendChild(createPageItem(i, i, false, i === currentPage));
+    }
+
+    if (endPage < totalPages) {
+         if (endPage < totalPages - 1) {
+             ul.appendChild(createPageItem('...', null, true));
+        }
+        ul.appendChild(createPageItem(totalPages, totalPages));
+    }
+
+    // 下一页
+    ul.appendChild(createPageItem('»', currentPage + 1, currentPage === totalPages));
+
+    paginationContainer.appendChild(ul);
+}
+
+
+// (修改) loadArticles 函数
+async function loadArticles(searchTerm = '', page = 1, category = 'all') { 
+    const articlesContainer = document.getElementById('articlesContainer'); 
     const globalMessageArea = document.getElementById('globalMessageArea');
     const clearSearchButton = document.getElementById('clearSearchButton');
+    const categorySelect = document.getElementById('categoryFilterSelect');
+
+    // (新增) 更新全局状态
+    currentArticleListPage = page;
+    currentArticleListSearch = searchTerm;
+    currentArticleListCategory = category;
 
     if (globalMessageArea) displayMessage('', 'info', 'globalMessageArea');
     if (!articlesContainer) return;
-    articlesContainer.innerHTML = '<p>正在加载文章...</p>'; // 修改
+    articlesContainer.innerHTML = '<p>正在加载文章...</p>'; 
 
-    let apiUrl = '/api/articles'; // 修改
-    if (searchTerm) {
-        apiUrl += `?search=${encodeURIComponent(searchTerm)}`;
-    }
+    // (修改) 构建 API URL
+    const params = new URLSearchParams();
+    if (searchTerm) params.set('search', searchTerm);
+    if (page > 1) params.set('page', page);
+    if (category && category !== 'all') params.set('category', category);
+    
+    let apiUrl = `/api/articles?${params.toString()}`; 
 
-    const articlesData = await fetchData(apiUrl);
-    if (!articlesData) {
+    const data = await fetchData(apiUrl);
+    
+    // (修改) 清空分页
+    const paginationContainer = document.getElementById('paginationContainer');
+    if(paginationContainer) paginationContainer.innerHTML = '';
+
+    if (!data || !data.articles) {
         articlesContainer.innerHTML = `<p class="error-message">无法加载文章。${searchTerm ? '请尝试其他关键字或清除搜索。' : '请检查网络连接或稍后再试。'}</p>`;
         if (searchTerm && clearSearchButton) clearSearchButton.style.display = 'inline-flex';
         return;
     }
     
-    const articles = Array.isArray(articlesData) ? articlesData : [];
+    // (新增) 渲染分类过滤器 (在渲染文章之前)
+    if (data.categories) {
+        renderCategoryFilter(data.categories, category);
+    }
+    
+    const articles = Array.isArray(data.articles) ? data.articles : [];
     if (articles.length === 0) {
-        let noArticlesMessage = `<p>${searchTerm ? `没有找到与“${escapeHtml(searchTerm)}”相关的文章。` : '当前没有文章。'}`;
+        let noArticlesMessage = `<p>没有找到文章。`;
+        if (searchTerm) noArticlesMessage = `<p>没有找到与“${escapeHtml(searchTerm)}”相关的文章。`;
+        if (category && category !== 'all') noArticlesMessage += ` (在分类 "${escapeHtml(category)}" 下)`;
+        
         // 只有 consultant 角色会看到创建提示
-        if (currentUserRoleGlobal === 'consultant' && !searchTerm) { 
+        if (currentUserRoleGlobal === 'consultant' && !searchTerm && (!category || category === 'all')) { 
             noArticlesMessage += ' <a href="/article/new" class="button-action">发表您的第一篇文章！</a>'; // 修改
         }
         noArticlesMessage += '</p>';
         articlesContainer.innerHTML = noArticlesMessage;
-        if (searchTerm && clearSearchButton) { 
+        
+        // (修改) 控制清除按钮的显示
+        if ((searchTerm || (category && category !== 'all')) && clearSearchButton) {
             clearSearchButton.style.display = 'inline-flex';
         } else if (clearSearchButton) {
             clearSearchButton.style.display = 'none';
@@ -198,9 +329,9 @@ async function loadArticles(searchTerm = '') { // 重命名
         li.className = 'note-item'; // CSS class 保持不变
         li.id = `article-${article.id}`;
         
-        // 咨询师、会员、匿名者看列表时，都显示作者
+        // (无修改) 咨询师、会员、匿名者看列表时，都显示作者
         let ownerInfo = (article.ownerUsername) ? `<span class="note-owner">(作者: ${escapeHtml(article.ownerUsername)})</span>` : '';
-        // 如果是咨询师看自己的文章列表，区分状态
+        // (无修改) 如果是咨询师看自己的文章列表，区分状态
         if (currentUserRoleGlobal === 'consultant' && article.userId === currentUserIdGlobal && article.status === 'draft') {
             ownerInfo += ` <span class="article-status-draft">(草稿)</span>`;
         }
@@ -212,9 +343,14 @@ async function loadArticles(searchTerm = '') { // 重命名
         let contentPreviewHtml = escapeHtml(textContentForPreview.substring(0, 150) + (textContentForPreview.length > 150 ? '...' : ''));
 
         if (searchTerm) {
-            const regex = new RegExp(`(${escapeHtml(searchTerm).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
-            titleHtml = titleHtml.replace(regex, '<mark>$1</mark>');
-            contentPreviewHtml = contentPreviewHtml.replace(regex, '<mark>$1</mark>');
+            try {
+                const regex = new RegExp(`(${escapeHtml(searchTerm).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+                titleHtml = titleHtml.replace(regex, '<mark>$1</mark>');
+                contentPreviewHtml = contentPreviewHtml.replace(regex, '<mark>$1</mark>');
+            } catch (e) {
+                console.warn("搜索词高亮失败:", e);
+                // 失败则不进行高亮
+            }
         }
         
         let attachmentHtml = '';
@@ -223,7 +359,7 @@ async function loadArticles(searchTerm = '') { // 重命名
             attachmentHtml = `<div class="note-attachment">附件: <a href="${attachmentUrl}" target="_blank" title="下载 ${escapeHtml(article.attachment.originalName)}">${escapeHtml(article.attachment.originalName)}</a></div>`;
         }
         
-        // 权限：Admin 或 (Consultant 且是作者) 才能操作
+        // (无修改) 权限：Admin 或 (Consultant 且是作者) 才能操作
         let actionsHtml = '';
         if (currentUserRoleGlobal === 'admin' || (currentUserRoleGlobal === 'consultant' && article.userId === currentUserIdGlobal)) { 
             actionsHtml = `
@@ -253,24 +389,29 @@ async function loadArticles(searchTerm = '') { // 重命名
     });
     articlesContainer.innerHTML = '';
     articlesContainer.appendChild(ul);
-    if (searchTerm && clearSearchButton) {
+    
+    // (新增) 渲染分页
+    renderPagination(data.totalPages, data.currentPage, searchTerm, category);
+    
+    // (修改) 控制清除按钮的显示
+    if ((searchTerm || (category && category !== 'all')) && clearSearchButton) {
         clearSearchButton.style.display = 'inline-flex';
     } else if (clearSearchButton) {
         clearSearchButton.style.display = 'none';
     }
 }
 
+
 async function deleteArticle(articleId, articleTitle) { // 重命名
     if (!confirm(`您确定要删除文章 "${articleTitle}" 吗？此操作将删除文章、附件和所有评论，无法复原。`)) return;
     const result = await fetchData(`/api/articles/${articleId}`, { method: 'DELETE' }); // 修改
     if (result && result.message) {
         displayMessage(result.message, 'success', 'globalMessageArea');
-        const searchInput = document.getElementById('searchInput');
-        loadArticles(searchInput ? searchInput.value.trim() : ''); // 修改
+        // (修改) 删除后重新加载当前页
+        loadArticles(currentArticleListSearch, currentArticleListPage, currentArticleListCategory); // 修改
     } else if (result) {
         displayMessage('文章已删除，但服务器未返回确认消息。正在刷新列表...', 'info', 'globalMessageArea');
-        const searchInput = document.getElementById('searchInput');
-        loadArticles(searchInput ? searchInput.value.trim() : ''); // 修改
+        loadArticles(currentArticleListSearch, currentArticleListPage, currentArticleListCategory); // 修改
     }
 }
 
@@ -405,7 +546,8 @@ function initializeRichTextEditor() {
 }
 
 
-function setupArticleForm() { // 重命名
+function setupArticleForm() { 
+    // (无修改)
     const articleForm = document.getElementById('articleForm'); // 修改 ID
     const richContent = document.getElementById('richContent');
     const hiddenContent = document.getElementById('hiddenContent');
@@ -450,7 +592,8 @@ function setupArticleForm() { // 重命名
     }
 }
 
-async function loadArticleForEditing(articleId) { // 重命名
+async function loadArticleForEditing(articleId) { 
+    // (无修改)
     const article = await fetchData(`/api/articles/${articleId}`); // 修改
     const saveButton = document.getElementById('saveArticleButton'); // 修改 ID
     
@@ -477,9 +620,9 @@ async function loadArticleForEditing(articleId) { // 重命名
     }
 }
 
-// --- 评论 (Comment) 相关 (新增) ---
-
+// --- 评论 (Comment) 相关 (无修改) ---
 async function loadComments(articleId) {
+    // (无修改)
     const commentsContainer = document.getElementById('commentsContainer');
     if (!commentsContainer) return;
     // commentsContainer.innerHTML = '<p>正在加载评论...</p>'; // 由 <ul> 中的 <li> 处理
@@ -526,6 +669,7 @@ async function loadComments(articleId) {
 }
 
 async function setupCommentForm(articleId) {
+    // (无修改)
     const commentForm = document.getElementById('commentForm');
     const commentButton = document.getElementById('submitCommentButton');
     if (!commentForm || !commentButton) return;
@@ -588,6 +732,7 @@ async function setupCommentForm(articleId) {
 }
 
 async function deleteComment(commentId) {
+    // (无修改)
     if (!confirm('您确定要删除这条评论吗？')) return;
     
     const result = await fetchData(`/api/comments/${commentId}`, { method: 'DELETE' });
@@ -609,6 +754,7 @@ async function deleteComment(commentId) {
 // --- Admin 相关 (loadUsersForAdmin, showPasswordResetForm, handleUpdatePasswordByAdmin, setupAdminUserForm, deleteUserByAdmin) ---
 
 async function loadUsersForAdmin(currentAdminId) { 
+    // (无修改)
     const userListUl = document.getElementById('userList');
     if (!userListUl) return;
     userListUl.innerHTML = '<li>正在加载用户列表...</li>';
@@ -675,7 +821,8 @@ async function loadUsersForAdmin(currentAdminId) {
 }
 
 let isUpdatingPasswordByAdmin = false; 
-function showPasswordResetForm(userId, username, listItemElement, userRole) { // 接收角色
+function showPasswordResetForm(userId, username, listItemElement, userRole) { 
+    // (无修改)
     const existingForms = document.querySelectorAll('.password-edit-form-container');
     existingForms.forEach(form => form.remove());
     const formContainer = document.createElement('div');
@@ -756,6 +903,7 @@ function showPasswordResetForm(userId, username, listItemElement, userRole) { //
 }
 
 async function handleUpdatePasswordByAdmin(event, userId, username, saveButtonElement) {
+    // (无修改)
     event.preventDefault();
     if (isUpdatingPasswordByAdmin) return;
 
@@ -794,6 +942,7 @@ async function handleUpdatePasswordByAdmin(event, userId, username, saveButtonEl
 
 let isAdminAddingUser = false; 
 function setupAdminUserForm() {
+    // (无修改)
     const addUserForm = document.getElementById('addUserForm');
     const addUserButton = addUserForm ? addUserForm.querySelector('button[type="submit"]') : null;
 
@@ -851,7 +1000,49 @@ function setupAdminUserForm() {
     }
 }
 
+// (新增) 设置站点设置表单
+let isSavingSettings = false;
+function setupSiteSettingsForm() {
+    const settingsForm = document.getElementById('siteSettingsForm');
+    const saveButton = document.getElementById('saveSettingsButton');
+    
+    if (settingsForm && saveButton) {
+        settingsForm.addEventListener('submit', async (event) => {
+            event.preventDefault();
+            if (isSavingSettings) return;
+
+            isSavingSettings = true;
+            saveButton.disabled = true;
+            saveButton.textContent = '保存中...';
+            
+            const articlesPerPageInput = document.getElementById('articlesPerPage');
+            const articlesPerPage = articlesPerPageInput.value;
+
+            displayMessage('', 'info', 'adminMessages'); 
+            
+            const result = await fetchData('/api/admin/settings', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ articlesPerPage: articlesPerPage })
+            });
+
+            if (result && result.message) {
+                 displayMessage(result.message, 'success', 'adminMessages');
+                 if(result.settings && result.settings.articlesPerPage) {
+                     articlesPerPageInput.value = result.settings.articlesPerPage;
+                 }
+            }
+            
+            isSavingSettings = false;
+            saveButton.disabled = false;
+            saveButton.textContent = '保存设置';
+        });
+    }
+}
+
+
 async function deleteUserByAdmin(userId, username) {
+    // (无修改)
     if (username === 'anyone') {
         alert("不能删除 'anyone' 用户。");
         return;
@@ -871,6 +1062,7 @@ async function deleteUserByAdmin(userId, username) {
 
 let isRegistering = false;
 function setupRegistrationForm() {
+    // (无修改)
     const registerForm = document.getElementById('registerForm');
     const registerButton = document.getElementById('registerButton');
     if (registerForm && registerButton) {
@@ -919,6 +1111,7 @@ function setupRegistrationForm() {
 
 let isChangingOwnPassword = false;
 function setupChangeOwnPasswordForm() {
+    // (无修改)
     const form = document.getElementById('changeOwnPasswordForm');
     const submitButton = document.getElementById('submitChangePassword');
     const messageContainerId = 'changePasswordMessage';
@@ -965,12 +1158,12 @@ function setupChangeOwnPasswordForm() {
     }
 }
 
-// --- DOMContentLoaded (页面加载) ---
+// --- DOMContentLoaded (页面加载) (*** 重大修改 ***) ---
 
 document.addEventListener('DOMContentLoaded', () => {
     const path = window.location.pathname;
     
-    // --- (修复) ---
+    // --- (无修改) ---
     // 正确读取由服务器在内联 <script> 标签中定义的 *全局* 变量
     // (例如 index.html, article.html, view-article.html 等页面底部定义的变量)
     const usernameFromServer = (typeof currentUsernameFromServer !== 'undefined' && currentUsernameFromServer !== "{{username}}") 
@@ -994,7 +1187,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const articleIdFromServer = (typeof currentArticleId !== 'undefined' && currentArticleId !== "{{articleId}}") 
         ? currentArticleId 
         : '';
-    // --- (修复结束) ---
+    // --- (无修改结束) ---
 
     // 设置 main.js 内部的全局变量（供其他函数使用）
     currentAdminIdGlobal = adminIdFromServer; 
@@ -1005,41 +1198,57 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // 2. 根据不同页面路径执行特定的加载函数
     if (path === '/' || path === '/index.html') {
+        // (*** 修改：处理分页和过滤 ***)
         const urlParams = new URLSearchParams(window.location.search);
-        const initialSearchTerm = urlParams.get('search') || '';
+        // (修改) 初始化全局状态
+        currentArticleListSearch = urlParams.get('search') || '';
+        currentArticleListPage = parseInt(urlParams.get('page'), 10) || 1;
+        currentArticleListCategory = urlParams.get('category') || 'all';
+
         const searchInput = document.getElementById('searchInput');
-        if (searchInput && initialSearchTerm) {
-            searchInput.value = initialSearchTerm;
+        const categorySelect = document.getElementById('categoryFilterSelect');
+
+        if (searchInput && currentArticleListSearch) {
+            searchInput.value = currentArticleListSearch;
+        }
+        if (categorySelect && currentArticleListCategory) {
+            // (注意: 此时分类下拉框还是空的，我们会在 loadArticles 第一次返回时填充它并设置正确的值)
+            // categorySelect.value = currentArticleListCategory; 
         }
         
-        // 此调用现在可以正常执行
-        loadArticles(initialSearchTerm); 
+        // (修改) 首次加载
+        loadArticles(currentArticleListSearch, currentArticleListPage, currentArticleListCategory); 
         
         const clearSearchButton = document.getElementById('clearSearchButton');
-        if (initialSearchTerm && clearSearchButton) {
-            clearSearchButton.style.display = 'inline-flex';
-        } else if (clearSearchButton) {
-            clearSearchButton.style.display = 'none';
-        }
         const searchForm = document.getElementById('searchForm');
-        if (searchForm && searchInput && clearSearchButton) {
+
+        if (searchForm && searchInput && categorySelect && clearSearchButton) {
+             // 搜索表单提交
              searchForm.addEventListener('submit', (event) => {
                 event.preventDefault();
                 const searchTerm = searchInput.value.trim();
-                loadArticles(searchTerm); 
-                if (searchTerm) {
-                    clearSearchButton.style.display = 'inline-flex';
-                } else {
-                    clearSearchButton.style.display = 'none';
-                }
+                const category = categorySelect.value;
+                // (修改) 搜索时重置为第1页
+                loadArticles(searchTerm, 1, category); 
             });
+            
+            // (新增) 分类选择器变更
+            categorySelect.addEventListener('change', () => {
+                const searchTerm = searchInput.value.trim();
+                const category = categorySelect.value;
+                // (修改) 切换分类时重置为第1页
+                loadArticles(searchTerm, 1, category);
+            });
+
+            // 清除按钮
             clearSearchButton.addEventListener('click', () => {
                 searchInput.value = '';
-                loadArticles(); 
-                clearSearchButton.style.display = 'none';
+                categorySelect.value = 'all'; // (新增) 重置分类
+                loadArticles('', 1, 'all'); // (修改) 加载第一页
             });
         }
     } else if (path.startsWith('/article/')) { 
+        // (无修改)
         if (path.startsWith('/article/new') || path.startsWith('/article/edit')) { 
             initializeRichTextEditor();
             setupArticleForm(); 
@@ -1053,12 +1262,16 @@ document.addEventListener('DOMContentLoaded', () => {
             setupCommentForm(articleIdFromServer); 
         }
     } else if (path === '/admin/users') {
+        // (修改)
         // (admin.html 页面底部的内联脚本会定义 currentAdminId)
         loadUsersForAdmin(currentAdminIdGlobal); 
         setupAdminUserForm();
+        setupSiteSettingsForm(); // (新增)
     } else if (path === '/register') {
+        // (无修改)
         setupRegistrationForm();
     } else if (path === '/change-password') {
+        // (无修改)
         // (change-password.html 页面底部的内联脚本会定义 currentUsername)
         setupChangeOwnPasswordForm();
     }
