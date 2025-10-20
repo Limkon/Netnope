@@ -3,44 +3,45 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>注册 - 网络福利资源分享网站</title>
-    <link rel="stylesheet" href="/css/style.css">
+    <title>首页 - 网络福利资源分享网站</title> <link rel="stylesheet" href="/css/style.css">
 </head>
 <body>
     <header>
-        <h1>网络福利资源分享网站</h1>
+        <h1>网络福利资源分享网站</h1> <nav id="mainNav">
+            </nav>
     </header>
     <div class="container">
-        <div class="form-container">
-            <h2>注册新账户 (默认为会员)</h2>
-            <div id="registerMessage"></div> 
-            <form id="registerForm">
-                <div>
-                    <label for="regUsername">用户名:</label>
-                    <input type="text" id="regUsername" name="username" required>
-                </div>
-                <div>
-                    <label for="regPassword">密码:</label>
-                    <input type="password" id="regPassword" name="password" required>
-                </div>
-                <div>
-                    <label for="regConfirmPassword">确认密码:</label>
-                    <input type="password" id="regConfirmPassword" name="confirmPassword" required>
-                </div>
-                <div class="form-actions">
-                    <button type="submit" id="registerButton" class="button-action">注册</button>
-                    <a href="/login" class="button-action" style="background-color: #6c757d; border-color: #6c757d;">返回登录</a>
-                </div>
-            </form>
-        </div>
-        </div>
+        <div class="toolbar-actions" style="margin-bottom: 20px; display: flex; flex-wrap: wrap; gap: 10px; align-items: center;">
+            <form id="searchForm" style="display: flex; gap: 10px; flex-grow: 1; min-width: 200px;">
+                <input type="search" id="searchInput" name="search" placeholder="输入关键字搜索文章..." style="flex-grow: 1; padding: 0.5rem; border: 1px solid #ccc; border-radius: 0.25rem; min-height:38px; box-sizing:border-box;">
+                <button type="submit" class="button-action" style="min-width: 70px;">搜索</button> </form>
+            <div class="category-filter" style="flex-grow: 1; min-width: 150px;">
+                 <select id="categoryFilterSelect" name="category" style="width: 100%; padding: 0.5rem; border: 1px solid #ccc; border-radius: 0.25rem; min-height:38px; box-sizing:border-box;">
+                    <option value="all">所有分类</option>
+                    </select>
+            </div>
+            <button id="clearSearchButton" class="button-action button-cancel" style="min-width: 90px; background-color: #6c757d; border-color: #6c757d; display: none;">清除</button> </div>
+
+        <h2>文章列表</h2> <div id="globalMessageArea" style="margin-bottom: 15px;"></div>
+        <div id="articlesContainer">
+            <p>正在加载文章...</p> </div>
+        
+        <div id="paginationContainer" style="margin-top: 25px; text-align: center;">
+            </div>
+
+    </div>
     <footer>
-        <p>&copy; 2025 网络福利资源分享网站。</p>
-    </footer>
+        <p>&copy; 2025 网络福利资源分享网站。</p> </footer>
     <script src="/js/main.js"></script>
     <script>
+        // 这些变量由服务器模板注入
+        const currentUsernameFromServer = "{{username}}";
+        const currentUserRoleFromServer = "{{userRole}}";
+        const currentUserIdFromServer = "{{userId}}";
+
         document.addEventListener('DOMContentLoaded', () => {
-            // setupRegistrationForm() 已被移入 main.js
+            // 注意：首页的 setupNavigation 和 loadArticles(loadNotes)
+            // 已被移入 main.js 的 DOMContentLoaded 主处理程序中
         });
     </script>
 </body>
