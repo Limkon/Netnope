@@ -329,6 +329,11 @@ async function loadArticles(searchTerm = '', page = 1, category = 'all') {
         li.className = 'note-item'; // CSS class 保持不变
         li.id = `article-${article.id}`;
         
+        // (新增) 如果置顶，添加 .pinned class
+        if (article.isPinned) {
+            li.classList.add('pinned');
+        }
+
         // (无修改) 咨询师、会员、匿名者看列表时，都显示作者
         let ownerInfo = (article.ownerUsername) ? `<span class="note-owner">(作者: ${escapeHtml(article.ownerUsername)})</span>` : '';
         // (无修改) 如果是咨询师看自己的文章列表，区分状态
@@ -359,22 +364,32 @@ async function loadArticles(searchTerm = '', page = 1, category = 'all') {
             attachmentHtml = `<div class="note-attachment">附件: <a href="${attachmentUrl}" target="_blank" title="下载 ${escapeHtml(article.attachment.originalName)}">${escapeHtml(article.attachment.originalName)}</a></div>`;
         }
         
-        // (无修改) 权限：Admin 或 (Consultant 且是作者) 才能操作
+        // (修改) 权限：Admin 或 (Consultant 且是作者) 才能操作
         let actionsHtml = '';
         if (currentUserRoleGlobal === 'admin' || (currentUserRoleGlobal === 'consultant' && article.userId === currentUserIdGlobal)) { 
             actionsHtml = `
                 <div class="note-actions">
                     <a href="/article/edit?id=${article.id}" class="button-action">编辑</a>
                     <button class="button-danger" onclick="deleteArticle('${article.id}', '${escapeHtml(article.title)}')">删除</button>
+                    ${currentUserRoleGlobal === 'admin' 
+                        ? `<button 
+                                class="button-action" 
+                                style="background-color: ${article.isPinned ? '#ffc107' : '#6c757d'}; border-color: ${article.isPinned ? '#ffc107' : '#6c757d'}; color: ${article.isPinned ? '#333' : '#fff'};"
+                                onclick="togglePinStatus('${article.id}', ${article.isPinned})">
+                                ${article.isPinned ? '取消置顶' : '置顶'}
+                           </button>` 
+                        : ''}
                 </div>`;
         }
         
         const titleLink = `<a href="/article/view?id=${article.id}" class="note-title-link">${titleHtml}</a>`;
         const categoryHtml = article.category ? `<span class="article-category">分类: ${escapeHtml(article.category)}</span>` : '';
+        // (新增) 置顶徽章
+        const pinHtml = article.isPinned ? ' <span class="article-pinned-badge">[置顶]</span>' : '';
 
         li.innerHTML = `
             <div>
-                <h3>${titleLink} ${ownerInfo}</h3>
+                <h3>${titleLink} ${ownerInfo} ${pinHtml}</h3>
                 <div class="note-meta">
                     ${categoryHtml}
                     最后更新: ${new Date(article.updatedAt).toLocaleString('zh-CN')}
@@ -398,6 +413,27 @@ async function loadArticles(searchTerm = '', page = 1, category = 'all') {
         clearSearchButton.style.display = 'inline-flex';
     } else if (clearSearchButton) {
         clearSearchButton.style.display = 'none';
+    }
+}
+
+// (新增) 切换置顶状态的函数
+async function togglePinStatus(articleId, isCurrentlyPinned) {
+    const actionText = isCurrentlyPinned ? '取消置顶' : '置顶';
+    if (!confirm(`您确定要 ${actionText} 这篇文章吗？`)) return;
+
+    displayMessage('正在更新置顶状态...', 'info', 'globalMessageArea');
+    
+    // (新增) 调用新的 API 端点
+    const result = await fetchData(`/api/admin/articles/${articleId}/pin`, { 
+        method: 'PUT'
+    });
+
+    if (result && result.message) {
+        displayMessage(result.message, 'success', 'globalMessageArea');
+        // (修改) 成功后重新加载当前列表
+        loadArticles(currentArticleListSearch, currentArticleListPage, currentArticleListCategory);
+    } else {
+        // fetchData 内部已经处理了错误消息
     }
 }
 
@@ -567,6 +603,15 @@ function setupArticleForm() {
             if (!formData.has('content') || formData.get('content') === '') {
                  formData.set('content', richContent.innerHTML); 
             }
+
+            // (新增) FormData 不会包含未勾选的复选框，所以我们手动检查
+            // (修改) 仅当 isAdminUser 为 true 时才检查
+            if (typeof isAdminUser !== 'undefined' && isAdminUser) {
+                const isPinnedCheckbox = document.getElementById('isPinned');
+                if (isPinnedCheckbox && !isPinnedCheckbox.checked) {
+                    formData.set('isPinned', 'false'); // 明确发送 false
+                }
+            }
             
             const articleId = document.getElementById('articleId').value;
             const url = articleId ? `/api/articles/${articleId}` : '/api/articles'; // 修改
@@ -603,6 +648,12 @@ async function loadArticleForEditing(articleId) {
         document.getElementById('category').value = article.category || ''; // 新增
         document.getElementById('status').value = article.status || 'draft'; // 新增
         
+        // (新增) 填充置顶复选框
+        const isPinnedCheckbox = document.getElementById('isPinned');
+        if (isPinnedCheckbox) {
+            isPinnedCheckbox.checked = article.isPinned || false;
+        }
+
         const currentAttachmentDiv = document.getElementById('currentAttachment');
         const removeAttachmentContainer = document.getElementById('removeAttachmentContainer');
         if (article.attachment && article.attachment.path) {
