@@ -32,6 +32,19 @@
             margin-top: 15px;
         }
         
+        /* (新增) 置顶标签样式 */
+        .article-pinned-badge {
+            display: inline-block;
+            background-color: #ffc107; /* 警告黄 */
+            color: #333;
+            padding: 3px 8px;
+            font-size: 0.9em;
+            font-weight: bold;
+            border-radius: 4px;
+            margin-left: 10px;
+            vertical-align: middle;
+        }
+
         /* 新增评论样式 (已内联, 保证生效) */
         .comments-section {
             margin-top: 30px;
@@ -98,7 +111,12 @@
             </nav>
     </header>
     <div class="container"> 
-        <h2 id="articleViewTitle">{{articleTitle}}</h2>
+        <h2 id="articleViewTitle">
+            {{articleTitle}}
+            {{#if isPinned}}
+            <span class="article-pinned-badge">[置顶]</span>
+            {{/if}}
+        </h2>
         
         <div class="note-view-content" id="articleViewContent">
             {{{articleContent}}}
@@ -173,7 +191,12 @@
 
             const articleTitleElement = document.getElementById('articleViewTitle');
             if (articleTitleElement && articleTitleElement.textContent) { 
-                 document.title = `${articleTitleElement.textContent.trim()} - 网络福利资源分享网站`;
+                 // (修改) 去除徽章文本
+                 let titleText = articleTitleElement.textContent || "{{articleTitle}}";
+                 if (titleText.includes('[置顶]')) {
+                     titleText = titleText.replace(/\[置顶\]/g, '').trim();
+                 }
+                 document.title = `${titleText} - 网络福利资源分享网站`;
             } else if ("{{articleTitle}}") { 
                  document.title = `{{articleTitle}} - 网络福利资源分享网站`;
             } else {
