@@ -230,17 +230,30 @@ module.exports = {
             article.id = `article_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
             article.createdAt = new Date().toISOString();
             article.updatedAt = new Date().toISOString();
+            // (新增) 确保新文章有 isPinned 属性
+            if (article.isPinned === undefined) {
+                article.isPinned = false;
+            }
             articles.push(article);
         } else {
             const index = articles.findIndex(n => n.id === article.id);
             if (index > -1) {
-                articles[index] = { ...articles[index], ...article, updatedAt: new Date().toISOString() };
+                // (新增) 确保更新时 isPinned 属性被保留或设置
+                const existingArticle = articles[index];
+                articles[index] = { 
+                    ...existingArticle, 
+                    ...article, 
+                    updatedAt: new Date().toISOString(),
+                    // 确保 isPinned 属性在更新时被正确处理
+                    isPinned: (article.isPinned === undefined) ? (existingArticle.isPinned || false) : article.isPinned
+                };
             } else {
                 return null;
             }
         }
         writeJsonFile(ARTICLES_FILE, articles);
-        return article;
+        // (修改) 返回更新后的文章对象
+        return articles.find(a => a.id === article.id) || article;
     },
     findArticleById: (id) => readJsonFile(ARTICLES_FILE).find(n => n.id === id),
     deleteArticle: (articleId) => {
