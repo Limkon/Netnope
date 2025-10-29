@@ -184,6 +184,15 @@ form input[type="text"], form input[type="password"], form select, form textarea
     border: none; 
 }
 
+/* (新增) 修复复选框样式 */
+.form-styled input[type="checkbox"], form input[type="checkbox"] {
+    display: inline-block;
+    width: auto;
+    min-height: auto;
+    vertical-align: middle;
+}
+
+
 .form-styled input:focus, form input:focus,
 .form-styled select:focus, form select:focus,
 .form-styled textarea:focus, form textarea:focus,
@@ -215,11 +224,21 @@ form input[type="text"], form input[type="password"], form select, form textarea
     display: flex;
     flex-direction: column;
     gap: 12px;
-    transition: box-shadow 0.2s ease-in-out;
+    transition: box-shadow 0.2s ease-in-out, background-color 0.2s ease-in-out, border-color 0.2s ease-in-out;
 }
 .note-item:hover {
     box-shadow: 0 5px 15px rgba(0,0,0,0.07);
 }
+/* (新增) 置顶文章样式 */
+.note-item.pinned {
+    background-color: #fffbef; /* 浅黄色背景 */
+    border-color: #ffeeba; /* 稍深的黄色边框 */
+}
+.note-item.pinned:hover {
+    box-shadow: 0 5px 15px rgba(255, 235, 186, 0.6);
+}
+
+
 .note-item h3 {
     margin-top: 0;
     margin-bottom: 8px;
@@ -286,6 +305,18 @@ form input[type="text"], form input[type="password"], form select, form textarea
     border-radius: 3px;
     font-weight: 500;
     font-size: 0.9em;
+}
+
+/* (新增) 文章列表中的置顶徽章 */
+.article-pinned-badge {
+    display: inline-block;
+    background-color: #ffc107;
+    color: #333;
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-weight: bold;
+    font-size: 0.9em;
+    vertical-align: middle;
 }
 
 
