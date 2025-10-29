@@ -21,18 +21,24 @@
                 <input type="text" id="title" name="title" required>
             </div>
             
-            <div style="display: flex; gap: 20px;">
-                <div style="flex-grow: 1;">
+            <div style="display: flex; gap: 20px; flex-wrap: wrap;">
+                <div style="flex-grow: 1; min-width: 200px;">
                     <label for="category">分类:</label>
                     <input type="text" id="category" name="category" placeholder="例如: 技术, 金融, 健康">
                 </div>
-               <div style="flex-grow: 1;">
+               <div style="flex-grow: 1; min-width: 150px;">
                     <label for="status">状态:</label>
                     <select id="status" name="status">
                         <option value="draft">草稿 (Draft)</option>
                         <option value="published" selected>发布 (Published)</option>
                     </select>
                 </div>
+                {{#if isAdmin}}
+                <div style="flex-grow: 0; min-width: 150px; align-self: center; padding-top: 20px;">
+                    <input type="checkbox" id="isPinned" name="isPinned" value="true" style="width: auto; display: inline-block; min-height: auto;">
+                    <label for="isPinned" class="checkbox-label">置顶这篇文章</label>
+                </div>
+                {{/if}}
             </div>
             <div>
                 <label for="richContent">内容:</label>
@@ -101,6 +107,9 @@
         const currentUserIdFromServer = "{{userId}}";     
         const articleIdForEdit = "{{articleId}}";
         const pageTitleFromServer = "{{pageTitle}}";
+        // (新增)
+        const isAdminUser = ("{{isAdmin}}" === "true"); 
+
         let pageTitle = pageTitleFromServer;
 
         if (pageTitleFromServer.includes("编辑")) {
