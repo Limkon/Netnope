@@ -64,7 +64,9 @@ module.exports = {
         const placeholders = {
             ...getNavData(context.session),
             articleId: articleIdToEdit || '',
-            pageTitle: articleIdToEdit ? '编辑文章' : '发表新文章'
+            pageTitle: articleIdToEdit ? '编辑文章' : '发表新文章',
+            // (新增) 传递 isAdmin 标志
+            isAdmin: context.session.role === 'admin'
         };
         // 页面重命名为 article.html
         serveHtmlWithPlaceholders(context.res, path.join(PUBLIC_DIR, 'article.html'), placeholders);
@@ -108,6 +110,8 @@ module.exports = {
             articleAttachmentPath: article.attachment ? article.attachment.path : null,
             articleAttachmentOriginalName: article.attachment ? article.attachment.originalName : null,
             articleAttachmentSizeKB: article.attachment ? (article.attachment.size / 1024).toFixed(1) : null,
+            // (新增) 传递置顶状态
+            isPinned: article.isPinned || false,
             // 编辑权限：admin 或 (consultant 且是作者)
             canEdit: context.session && context.session.role !== 'anonymous' && 
                      (context.session.role === 'admin' || (context.session.role === 'consultant' && article.userId === sessionUserId)),
@@ -183,7 +187,13 @@ module.exports = {
         // 5. 附加作者信息并排序 (排序应该在分页 *之前* 进行)
         // (修正) 排序应在过滤后、分页前
         paginatedArticles = articles
-            .sort((a,b) => new Date(b.updatedAt) - new Date(a.updatedAt)) // 先排序
+            .sort((a,b) => {
+                // (新增) 置顶排序
+                if (a.isPinned && !b.isPinned) return -1;
+                if (!a.isPinned && b.isPinned) return 1;
+                // (原有) 更新时间排序
+                return new Date(b.updatedAt) - new Date(a.updatedAt);
+            })
             .slice(startIndex, endIndex) // 再分页
             .map(article => { // 最后附加作者信息
                 const owner = storage.findUserById(article.userId);
@@ -225,7 +235,8 @@ module.exports = {
             return sendForbidden(context.res, "您没有权限发表文章。");
         }
         
-        const { title, content, category, status = 'draft' } = context.body; // 新增字段
+        // (新增) 增加 isPinned
+        const { title, content, category, status = 'draft', isPinned } = context.body; // 新增字段
         const attachmentFile = context.files && context.files.attachment;
         
         if (!title || title.trim() === '' || content === undefined || content === null ) { 
@@ -241,7 +252,9 @@ module.exports = {
             content: content, 
             category: category || '未分类', // 新增
             status: status, // 新增
-            attachment: null 
+            attachment: null,
+            // (新增) 只有 admin 才能设置 isPinned
+            isPinned: (context.session.role === 'admin' && isPinned === 'true') ? true : false
         };
 
         if (attachmentFile && attachmentFile.content && attachmentFile.filename) {
@@ -275,7 +288,8 @@ module.exports = {
     updateArticle: (context) => {
         // (无修改)
         const articleId = context.pathname.split('/').pop();
-        const { title, content, category, status, removeAttachment } = context.body; // 新增字段
+        // (新增) 增加 isPinned
+        const { title, content, category, status, removeAttachment, isPinned } = context.body; // 新增字段
         const attachmentFile = context.files && context.files.attachment;
         
         const existingArticle = storage.findArticleById(articleId);
@@ -300,7 +314,11 @@ module.exports = {
             content: content, 
             category: category || existingArticle.category, // 更新
             status: status || existingArticle.status, // 更新
-            attachment: existingArticle.attachment 
+            attachment: existingArticle.attachment,
+            // (新增) 只有 admin 才能更新 isPinned
+            isPinned: (context.session.role === 'admin') 
+                      ? (isPinned === 'true') 
+                      : (existingArticle.isPinned || false)
         };
 
         if (removeAttachment === 'true' && existingArticle.attachment) {
@@ -343,6 +361,44 @@ module.exports = {
         if (savedArticle) serveJson(context.res, savedArticle);
         else sendError(context.res, "更新文章失败。");
     },
+
+    // (新增) API: 切换文章置顶状态 (仅限 Admin)
+    toggleArticlePinStatus: (context) => {
+        // 权限检查：必须是 admin
+        if (!context.session || context.session.role !== 'admin') {
+            return sendForbidden(context.res, "您没有权限执行此操作。");
+        }
+
+        const pathParts = context.pathname.split('/'); 
+        const articleId = pathParts[4]; // /api/admin/articles/{articleId}/pin
+
+        if (!articleId) {
+            return sendBadRequest(context.res, "缺少文章 ID。");
+        }
+
+        const existingArticle = storage.findArticleById(articleId);
+        if (!existingArticle) {
+            return sendNotFound(context.res, "找不到要置顶/取消置顶的文章。");
+        }
+
+        const updatedArticleData = {
+            id: existingArticle.id,
+            // 切换置顶状态
+            isPinned: !existingArticle.isPinned 
+        };
+
+        const savedArticle = storage.saveArticle(updatedArticleData);
+        
+        if (savedArticle) {
+            serveJson(context.res, { 
+                message: `文章 "${savedArticle.title}" 已成功${savedArticle.isPinned ? '置顶' : '取消置顶'}。`,
+                article: savedArticle 
+            });
+        } else {
+            sendError(context.res, "更新文章置顶状态失败。");
+        }
+    },
+
 
     // API: 删除文章
     deleteArticleById: (context) => {
