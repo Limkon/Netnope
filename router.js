@@ -222,6 +222,11 @@ module.exports = {
             // (新增) 设置 API 路由
             if (pathname === '/api/admin/settings' && method === 'GET') return userController.getSiteSettings(context);
             if (pathname === '/api/admin/settings' && method === 'POST') return userController.updateSiteSettings(context);
+
+            // (新增) 置顶 API 路由
+            if (pathname.startsWith('/api/admin/articles/') && pathname.endsWith('/pin') && method === 'PUT') {
+                return articleController.toggleArticlePinStatus(context);
+            }
         } else {
             if (pathname.startsWith('/admin') || pathname.startsWith('/api/admin')) {
                 return sendForbidden(res, "您没有权限访问此管理员功能。");
