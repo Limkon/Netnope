@@ -108,9 +108,9 @@ function setupNavigation(username, role, userId) {
     let navHtml = `<span class="welcome-user">欢迎, <strong id="usernameDisplayInNav">${escapeHtml(currentUsernameGlobal)}</strong>!</span>`;
     
     if (currentUserRoleGlobal === 'anonymous') {
-        // 匿名用户：显示登录和注册
-        navHtml += `<a href="/login" class="button-action">登录</a>`;
-        navHtml += `<a href="/register" class="button-action" style="background-color: #6c757d; border-color: #6c757d;">注册</a>`;
+        // 匿名用户：显示登录和注册 (*** 修改：现在只显示欢迎语 ***)
+        // navHtml += `<a href="/login" class="button-action">登录</a>`;
+        // navHtml += `<a href="/register" class="button-action" style="background-color: #6c757d; border-color: #6c757d;">注册</a>`;
     } else {
         // 登录用户：只显示 "返回列表" (如果不在列表页)
         if (window.location.pathname !== '/' && window.location.pathname !== '/index.html') {
@@ -1229,24 +1229,30 @@ document.addEventListener('DOMContentLoaded', () => {
     // 1. 设置全局导航 (*** 已被修改为简化版 ***)
     setupNavigation(usernameFromServer, roleFromServer, userIdFromServer);
     
-    // (*** 新增：动态添加页脚管理链接 ***)
-    if (currentUserRoleGlobal !== 'anonymous') {
-        const footer = document.querySelector('footer');
-        // (修改) 使用 ID 选择器
-        const copyright = document.getElementById('copyrightFooter'); 
+    // (*** 修改：动态添加页脚管理链接，对所有用户可见 ***)
+    const footer = document.querySelector('footer');
+    // (修改) 使用 ID 选择器
+    const copyright = document.getElementById('copyrightFooter'); 
+    
+    if (footer && copyright) {
+        // 决定链接的目标和文本
+        const isUserLoggedIn = (currentUserRoleGlobal !== 'anonymous');
+        const linkUrl = isUserLoggedIn ? '/management' : '/login';
         
-        if (footer && copyright) {
-            const managementLink = document.createElement('p');
-            managementLink.style.marginBottom = '10px';
-            managementLink.style.marginTop = '0';
-            managementLink.innerHTML = `<a href="/management" style="color: #5f6368; text-decoration: underline;">后台管理</a>`;
-            
-            // 插入到版权信息之前
-            footer.insertBefore(managementLink, copyright);
-            
-            // (新增) 确保版权信息没有上外边距
-            copyright.style.marginTop = '0';
-        }
+        // 保持文本一致为“后台管理”，点击后根据登录状态跳转
+        const linkText = '后台管理'; 
+
+        const managementLink = document.createElement('p');
+        managementLink.style.marginBottom = '10px';
+        managementLink.style.marginTop = '0';
+        // (修改) 确保链接使用正确的变量
+        managementLink.innerHTML = `<a href="${linkUrl}" style="color: #5f6368; text-decoration: underline;">${escapeHtml(linkText)}</a>`;
+        
+        // 插入到版权信息之前
+        footer.insertBefore(managementLink, copyright);
+        
+        // (新增) 确保版权信息没有上外边距
+        copyright.style.marginTop = '0';
     }
 
 
