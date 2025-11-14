@@ -89,7 +89,7 @@ module.exports = {
         }
     },
     
-    // ( ... getManagementPage, getAdminUsersPage, listAllUsers, createUserByAdmin, deleteUserByAdmin, updateUserPasswordByAdmin, getChangePasswordPage, changeOwnPassword 无修改 ... )
+    // ( ... getManagementPage, getAdminUsersPage 无修改 ... )
     getManagementPage: (context) => {
         if (!context.session || context.session.role === 'anonymous') {
             return redirect(context.res, '/login');
@@ -115,6 +115,43 @@ module.exports = {
             articlesPerPage: settings.articlesPerPage 
         });
     },
+
+    // ( *** 新增 *** ) 详细统计页面 (Admin Only)
+    getAdminStatsPage: (context) => {
+        // 路由已在 router.js 中保护，这里是双重保险
+        if (!context.session || context.session.role !== 'admin') {
+            return sendForbidden(context.res, "您没有权限访问此页面。");
+        }
+        // 传递导航所需的基本数据
+        serveHtmlWithPlaceholders(context.res, path.join(PUBLIC_DIR, 'admin-stats.html'), {
+            ...getGeneralNavData(context.session) 
+        });
+    },
+    
+    // ( *** 新增 *** ) 详细统计 API (Admin Only)
+    getAdminStatsApi: async (context) => {
+        // 路由已在 router.js 中保护
+        if (!context.session || context.session.role !== 'admin') {
+            return sendForbidden(context.res, "您没有权限访问此数据。");
+        }
+        try {
+            // (注意：如果日志文件非常大，这里可能需要几秒钟)
+            const stats = await storage.getDetailedTrafficStats();
+            
+            // 同时发送内存中的缓存，以便前端比较
+            const cachedStats = storage.getTrafficStats();
+            
+            serveJson(context.res, {
+                cachedTotalViews: cachedStats.totalViews,
+                ...stats 
+            });
+        } catch (e) {
+            console.error("获取详细统计 API 失败:", e);
+            sendError(context.res, "获取详细统计数据时发生错误。");
+        }
+    },
+
+    // ( ... listAllUsers, createUserByAdmin, deleteUserByAdmin, updateUserPasswordByAdmin, getChangePasswordPage, changeOwnPassword 无修改 ... )
     listAllUsers: (context) => {
         const users = storage.getUsers().map(u => ({
             id: u.id,
@@ -261,9 +298,8 @@ module.exports = {
         serveJson(context.res, { message: "设置已成功更新。", settings: newSettings });
     },
 
-    // --- (新增) 公共统计 API ---
+    // --- 公共统计 API (无修改) ---
     getPublicSiteStats: (context) => {
-        // 调用 storage 中的快速获取器
         const stats = storage.getTrafficStats();
         serveJson(context.res, stats);
     }
