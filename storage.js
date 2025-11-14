@@ -11,7 +11,6 @@ const SETTINGS_FILE = path.join(DATA_DIR, 'settings.json');
 const TRAFFIC_LOG_FILE = path.join(DATA_DIR, 'traffic.log.jsonl'); 
 const UPLOADS_DIR = path.join(__dirname, 'uploads');
 
-// ( ... HASH 常量, 缓存, 默认设置 ... )
 const HASH_ITERATIONS = 100000;
 const HASH_KEYLEN = 64;
 const HASH_DIGEST = 'sha512';
@@ -100,7 +99,37 @@ module.exports = {
             if (fs.existsSync(TRAFFIC_LOG_FILE)) {
                 const content = fs.readFileSync(TRAFFIC_LOG_FILE, 'utf8');
                 if (content.trim() !== '') {
-                    count = content.split('\n').filter(line => line.trim() !== '').length;
+                    // (*** 修改 ***) 我们需要解析日志来初始化“会话”计数，而不仅仅是行数
+                    // 暂时保持行数统计，但 `logTraffic` 的逻辑会阻止内部导航
+                    
+                    // (*** 修正 ***) 为了使启动计数器与新逻辑匹配，
+                    // 我们必须在启动时解析整个文件。
+                    let externalVisits = 0;
+                    const lines = content.split('\n').filter(line => line.trim() !== '');
+                    lines.forEach(line => {
+                         try {
+                            const entry = JSON.parse(line);
+                            let referrerHost = null;
+                            if (entry.referrer && entry.referrer !== '(direct)') {
+                                try {
+                                    referrerHost = new URL(entry.referrer).host;
+                                } catch (e) { /* 忽略无效的 referrer */ }
+                            }
+                            
+                            // 假设日志中的 "host" 难以确定, 我们只检查 referrer 是否*看起来*像内部
+                            // (一个简化的检查，假设我们不知道自己的主机名)
+                            // (一个更好的检查是在 logTraffic 中也记录 req.headers.host)
+                            // (为简单起见，我们假设只要有 referrer，就可能是内部的)
+                            
+                            // (*** 简化启动逻辑 ***)：
+                            // 启动时，我们还是统计总行数。
+                            // 新的“会话”计数将从服务器*重启后*开始正确累加。
+                            // （要精确，我们需要重构 logTraffic 以存储 host，然后在这里解析）
+                            // 保持简单：
+                            count = lines.length;
+
+                         } catch (e) { /* 忽略损坏的行 */ }
+                    });
                 }
             } else {
                 fs.writeFileSync(TRAFFIC_LOG_FILE, '', 'utf8');
@@ -109,11 +138,37 @@ module.exports = {
             console.error("初始化流量统计失败:", e);
         }
         trafficStatsCache.totalViews = count;
-        console.log(`流量统计已初始化：总访问量 ${count}`);
+        console.log(`流量统计已初始化：总访问量(基于日志行数) ${count}`);
     },
 
-    // ( logTraffic - 无修改 )
+    // (*** 修改 ***) logTraffic 现在检查 Referer
     logTraffic: (req, parsedUrl) => {
+        
+        // --- (新增) 来源检查 ---
+        const referrer = req.headers['referer'] || '';
+        const ownHost = req.headers['host']; // e.g., 'localhost:8100'
+        let isInternalNavigation = false;
+
+        if (referrer && ownHost) {
+            try {
+                // 解析来源 URL 并获取其 host
+                const referrerHost = new URL(referrer).host;
+                if (referrerHost === ownHost) {
+                    isInternalNavigation = true;
+                }
+            } catch (e) {
+                // 忽略无效的 referrer URL 格式
+            }
+        }
+        
+        // 如果是内部导航（例如从主页点击文章），则不记录
+        if (isInternalNavigation) {
+            return; // 立即退出，不计数
+        }
+        // --- (新增结束) ---
+
+
+        // ( ... 剩余逻辑仅在非内部导航时执行 ... )
         if (!fs.existsSync(DATA_DIR)) {
             try {
                 fs.mkdirSync(DATA_DIR, { recursive: true });
@@ -122,6 +177,7 @@ module.exports = {
                  return; 
             }
         }
+
         try {
             const logEntry = {
                 timestamp: new Date().toISOString(),
@@ -129,15 +185,18 @@ module.exports = {
                 method: req.method,
                 pathname: parsedUrl.pathname,
                 userAgent: req.headers['user-agent'] || '',
-                referrer: req.headers['referer'] || ''
+                referrer: req.headers['referer'] || '' // 仍然记录 referrer 供详细统计使用
             };
             const logLine = JSON.stringify(logEntry) + '\n';
+
             fs.appendFile(TRAFFIC_LOG_FILE, logLine, 'utf8', (err) => {
                 if (err) {
                     console.error("写入流量日志失败:", err);
                 }
             });
+
             trafficStatsCache.totalViews += 1;
+
         } catch (e) {
             console.error("构建流量日志失败:", e);
         }
@@ -148,7 +207,7 @@ module.exports = {
         return trafficStatsCache;
     },
 
-    // ( *** 新增 *** ) 异步读取和解析日志文件以获取详细统计
+    // ( getDetailedTrafficStats - 无修改 )
     getDetailedTrafficStats: async () => {
         return new Promise((resolve, reject) => {
             fs.readFile(TRAFFIC_LOG_FILE, 'utf8', (err, data) => {
@@ -160,7 +219,7 @@ module.exports = {
                 try {
                     const lines = data.split('\n').filter(line => line.trim() !== '');
                     const stats = {
-                        totalViewsLog: lines.length,
+                        totalViewsLog: lines.length, // (注意：这个总数现在代表“会话数”或“入口访问数”)
                         uniqueVisitors: 0,
                         byPage: {},
                         byDate: {},
@@ -172,24 +231,19 @@ module.exports = {
                         try {
                             const entry = JSON.parse(line);
                             
-                            // 1. 独立访客
                             if (entry.ip) uniqueIPs.add(entry.ip);
                             
-                            // 2. 按页面
                             const page = entry.pathname || '/';
                             stats.byPage[page] = (stats.byPage[page] || 0) + 1;
                             
-                            // 3. 按日期 (只取 YYYY-MM-DD)
                             const date = entry.timestamp ? entry.timestamp.substring(0, 10) : '未知日期';
                             stats.byDate[date] = (stats.byDate[date] || 0) + 1;
 
-                            // 4. 按来源
                             let referrer = entry.referrer || '(direct)';
                             if (referrer.startsWith('http')) {
                                 try {
-                                    referrer = new URL(referrer).hostname; // 只取域名
+                                    referrer = new URL(referrer).hostname; 
                                 } catch (e) {
-                                    // 保持原始 referrer (如果 URL 格式不正确)
                                 }
                             }
                             if (referrer === '') referrer = '(direct)';
@@ -202,10 +256,9 @@ module.exports = {
                     
                     stats.uniqueVisitors = uniqueIPs.size;
                     
-                    // (新增) 辅助函数：排序 Map 并取前 N 个
                     const sortAndSlice = (obj, limit = 15) => {
                         return Object.entries(obj)
-                            .sort(([,a], [,b]) => b - a) // 按访问量降序
+                            .sort(([,a], [,b]) => b - a) 
                             .slice(0, limit)
                             .reduce((acc, [key, value]) => {
                                 acc[key] = value;
@@ -213,10 +266,9 @@ module.exports = {
                             }, {});
                     };
                     
-                    // (新增) 辅助函数：按日期键排序
                     const sortDates = (obj, limit = 15) => {
                          return Object.entries(obj)
-                            .sort(([keyA], [keyB]) => keyB.localeCompare(keyA)) // 按日期降序
+                            .sort(([keyA], [keyB]) => keyB.localeCompare(keyA)) 
                             .slice(0, limit)
                             .reduce((acc, [key, value]) => {
                                 acc[key] = value;
@@ -224,11 +276,9 @@ module.exports = {
                             }, {});
                     };
 
-                    // 返回处理后的数据
                     resolve({
                         totalViewsLog: stats.totalViewsLog,
                         uniqueVisitors: stats.uniqueVisitors,
-                        // 只返回排序后的前 15 条
                         byPage: sortAndSlice(stats.byPage, 15),
                         byDate: sortDates(stats.byDate, 15),
                         byReferrer: sortAndSlice(stats.byReferrer, 15)
