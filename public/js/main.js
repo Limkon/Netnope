@@ -74,7 +74,7 @@ function escapeHtml(unsafe) {
 }
 
 function setupNavigation(username, role, userId) {
-    // (无修改)
+    // (*** 重大修改：简化导航栏 ***)
     const isValidUser = username && username !== "{{username}}" && username !== "访客";
     const isValidRole = role && role !== "{{userRole}}" && role !== "anonymous";
     const isValidUserId = userId && userId !== "{{userId}}";
@@ -87,62 +87,44 @@ function setupNavigation(username, role, userId) {
     const usernameDisplaySpan = document.getElementById('usernameDisplay'); 
 
     if (usernameDisplaySpan) {
+        // 适用于 admin.html 和 change-password.html 顶部的独立显示
         usernameDisplaySpan.textContent = escapeHtml(currentUsernameGlobal);
     }
     
+    // (修改) 登出按钮现在在 management.html, admin.html, change-password.html 中
+    // 我们需要一个通用的选择器来处理它们 (不在 mainNav 内部的)
+    document.querySelectorAll('#logoutButton:not([data-listener-attached])').forEach(button => {
+        if (!button.closest('#mainNav')) { 
+            button.addEventListener('click', handleLogout);
+            button.setAttribute('data-listener-attached', 'true');
+        }
+    });
+
     if (!navContainer) { 
-        document.querySelectorAll('#logoutButton:not([data-listener-attached])').forEach(button => {
-            if (!button.closest('#mainNav')) { 
-                button.addEventListener('click', handleLogout);
-                button.setAttribute('data-listener-attached', 'true');
-            }
-        });
+        // 如果页面没有 mainNav (例如 login.html), 则退出
         return;
     }
 
     let navHtml = `<span class="welcome-user">欢迎, <strong id="usernameDisplayInNav">${escapeHtml(currentUsernameGlobal)}</strong>!</span>`;
+    
     if (currentUserRoleGlobal === 'anonymous') {
+        // 匿名用户：显示登录和注册
         navHtml += `<a href="/login" class="button-action">登录</a>`;
         navHtml += `<a href="/register" class="button-action" style="background-color: #6c757d; border-color: #6c757d;">注册</a>`;
     } else {
-        // 返回列表
+        // 登录用户：只显示 "返回列表" (如果不在列表页)
         if (window.location.pathname !== '/' && window.location.pathname !== '/index.html') {
-             navHtml += `<a href="/" class="button-action">返回列表</a>`;
+             navHtml += `<a href="/" class="button-action">返回文章列表</a>`;
         }
-        
-        // 发表文章 (仅限 consultant)
-        if (currentUserRoleGlobal === 'consultant') {
-            if (window.location.pathname !== '/article/new' && !window.location.pathname.startsWith('/article/edit')) {
-                 navHtml += `<a href="/article/new" class="button-action">发表文章</a>`; // 修改
-            }
-        }
-
-        // 修改密码 (所有登录用户)
-        if (window.location.pathname !== '/change-password') {
-            navHtml += `<a href="/change-password" class="button-action">修改密码</a>`;
-        }
-
-        // 管理用户 (仅限 admin)
-        if (currentUserRoleGlobal === 'admin') {
-            // Admin 也可以发表文章
-            if (window.location.pathname !== '/article/new' && !window.location.pathname.startsWith('/article/edit')) {
-                 navHtml += `<a href="/article/new" class="button-action">发表文章</a>`; // 新增
-            }
-            if (window.location.pathname !== '/admin/users') {
-                navHtml += `<a href="/admin/users" id="adminUsersLink" class="button-action">管理用户</a>`;
-            }
-        }
-        
-        navHtml += `<button id="logoutButtonInNav" class="button-danger">登出</button>`;
+        // (已移除) 发表文章、修改密码、管理用户、登出按钮
+        // 这些现在都在 /management 页面
     }
+    
     navContainer.innerHTML = navHtml;
     
-    const logoutButtonInNav = document.getElementById('logoutButtonInNav');
-    if (logoutButtonInNav && !logoutButtonInNav.hasAttribute('data-listener-attached')) {
-        logoutButtonInNav.addEventListener('click', handleLogout);
-        logoutButtonInNav.setAttribute('data-listener-attached', 'true'); 
-    }
+    // (已移除) mainNav 内部的登出按钮逻辑
 }
+
 
 async function handleLogout() {
     // (无修改)
@@ -306,9 +288,9 @@ async function loadArticles(searchTerm = '', page = 1, category = 'all') {
         if (searchTerm) noArticlesMessage = `<p>没有找到与“${escapeHtml(searchTerm)}”相关的文章。`;
         if (category && category !== 'all') noArticlesMessage += ` (在分类 "${escapeHtml(category)}" 下)`;
         
-        // 只有 consultant 角色会看到创建提示
+        // (修改) 提示创建文章的链接现在只在 management.html 中
         if (currentUserRoleGlobal === 'consultant' && !searchTerm && (!category || category === 'all')) { 
-            noArticlesMessage += ' <a href="/article/new" class="button-action">发表您的第一篇文章！</a>'; // 修改
+            // noArticlesMessage += ' <a href="/article/new" class="button-action">发表您的第一篇文章！</a>'; // (移除)
         }
         noArticlesMessage += '</p>';
         articlesContainer.innerHTML = noArticlesMessage;
@@ -1244,8 +1226,29 @@ document.addEventListener('DOMContentLoaded', () => {
     currentAdminIdGlobal = adminIdFromServer; 
     currentUserIdGlobal = userIdFromServer;   
     
-    // 1. 设置全局导航
+    // 1. 设置全局导航 (*** 已被修改为简化版 ***)
     setupNavigation(usernameFromServer, roleFromServer, userIdFromServer);
+    
+    // (*** 新增：动态添加页脚管理链接 ***)
+    if (currentUserRoleGlobal !== 'anonymous') {
+        const footer = document.querySelector('footer');
+        // (修改) 使用 ID 选择器
+        const copyright = document.getElementById('copyrightFooter'); 
+        
+        if (footer && copyright) {
+            const managementLink = document.createElement('p');
+            managementLink.style.marginBottom = '10px';
+            managementLink.style.marginTop = '0';
+            managementLink.innerHTML = `<a href="/management" style="color: #5f6368; text-decoration: underline;">后台管理</a>`;
+            
+            // 插入到版权信息之前
+            footer.insertBefore(managementLink, copyright);
+            
+            // (新增) 确保版权信息没有上外边距
+            copyright.style.marginTop = '0';
+        }
+    }
+
 
     // 2. 根据不同页面路径执行特定的加载函数
     if (path === '/' || path === '/index.html') {
@@ -1326,5 +1329,6 @@ document.addEventListener('DOMContentLoaded', () => {
         // (change-password.html 页面底部的内联脚本会定义 currentUsername)
         setupChangeOwnPasswordForm();
     }
-    // login.html 不需要 main.js 执行任何操作
+    // login.html 和 management.html 不需要 main.js 执行特定操作
+    // (management.html 上的登出按钮由 setupNavigation 中的通用选择器处理)
 });
