@@ -7,7 +7,7 @@ const { authenticate } = require('./auth');
 const userController = require('./userController');
 const articleController = require('./articleController'); // 重命名
 const commentController = require('./commentController'); // 新增
-const { serveStaticFile, sendNotFound, redirect, sendForbidden, sendError, sendBadRequest, serveHtmlWithPlaceholders } = require('./responseUtils');
+const { serveStaticFile, sendNotFound, redirect, sendForbidden, sendError, sendBadRequest, serveHtmlWithPlaceholders, sendUnauthorized } = require('./responseUtils'); // 确保 sendUnauthorized 已导入
 const storage = require('./storage');
 
 const PUBLIC_DIR = path.join(__dirname, 'public');
@@ -179,7 +179,7 @@ module.exports = {
             if (!pathname.startsWith('/api/') && pathname !== '/login' && pathname !== '/register' && pathname !== '/article/view' && pathname !== '/' && pathname !== '/index.html') {
                  return redirect(res, '/login');
             }
-            if (!context.session && (pathname === '/' || pathname === '/index.html' || pathname === '/article/view')) {
+            if (!context.session && (pathname === '/' || pathname === '/index.html' || pathname === '/article/view' || pathname === '/management')) { // (新增) 保护 /management
                 return redirect(res, '/login');
             }
         }
@@ -190,6 +190,9 @@ module.exports = {
         if (pathname === '/api/users/me/password' && method === 'POST') return userController.changeOwnPassword(context);
         if ((pathname === '/' || pathname === '/index.html') && method === 'GET') return articleController.getArticlesPage(context);
         
+        // (新增) 后台管理页面路由
+        if (pathname === '/management' && method === 'GET') return userController.getManagementPage(context);
+
         // 文章 API
         if (pathname === '/api/articles' && method === 'GET') return articleController.getAllArticles(context);
         if (pathname === '/api/articles' && method === 'POST') return articleController.createArticle(context); // 权限：consultant/admin
