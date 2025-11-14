@@ -8,37 +8,32 @@ const USERS_FILE = path.join(DATA_DIR, 'users.json');
 const ARTICLES_FILE = path.join(DATA_DIR, 'articles.json'); 
 const COMMENTS_FILE = path.join(DATA_DIR, 'comments.json'); 
 const SETTINGS_FILE = path.join(DATA_DIR, 'settings.json'); 
-const TRAFFIC_LOG_FILE = path.join(DATA_DIR, 'traffic.log.jsonl'); // (已在上一部添加)
+const TRAFFIC_LOG_FILE = path.join(DATA_DIR, 'traffic.log.jsonl'); 
 const UPLOADS_DIR = path.join(__dirname, 'uploads');
 
+// ( ... HASH 常量, 缓存, 默认设置 ... )
 const HASH_ITERATIONS = 100000;
 const HASH_KEYLEN = 64;
 const HASH_DIGEST = 'sha512';
 const SALT_LEN = 16;
-
-// (新增) 用于统计的内存缓存
 let trafficStatsCache = {
     totalViews: 0
 };
-
-// 默认设置
 const DEFAULT_SETTINGS = {
     articlesPerPage: 10
 };
 
+// ( ... generateSalt, hashPassword, readJsonFile, writeJsonFile, deleteComments... 无修改 ... )
 function generateSalt() {
     return crypto.randomBytes(SALT_LEN).toString('hex');
 }
-
 function hashPassword(password, salt) {
     if (!password) return '';
     return crypto.pbkdf2Sync(password, salt, HASH_ITERATIONS, HASH_KEYLEN, HASH_DIGEST).toString('hex');
 }
-
 function readJsonFile(filePath, defaultValue = []) { 
     try {
         if (!fs.existsSync(filePath)) {
-            // ( ... 无修改 ... )
             if (filePath === USERS_FILE || filePath === ARTICLES_FILE || filePath === COMMENTS_FILE) {
                 fs.writeFileSync(filePath, '[]', 'utf8');
                 return [];
@@ -64,17 +59,13 @@ function readJsonFile(filePath, defaultValue = []) {
         return defaultValue; 
     }
 }
-
 function writeJsonFile(filePath, data) {
-    // ( ... 无修改 ... )
     try {
         fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf8');
     } catch (e) {
         console.error(`写入 JSON 文件 ${filePath} 失败:`, e);
     }
 }
-
-// ( ... deleteCommentsForArticle, deleteCommentsForUser 无修改 ...)
 function deleteCommentsForArticle(articleId) {
     let comments = readJsonFile(COMMENTS_FILE);
     const initialLength = comments.length;
@@ -100,20 +91,18 @@ module.exports = {
     hashPassword,
     generateSalt,
 
-    // --- (修改) 流量统计函数 ---
+    // --- 流量统计函数 ---
     
-    // (新增) 服务器启动时调用一次，读取日志文件以初始化计数器
+    // ( initializeTrafficStats - 无修改 )
     initializeTrafficStats: () => {
         let count = 0;
         try {
             if (fs.existsSync(TRAFFIC_LOG_FILE)) {
                 const content = fs.readFileSync(TRAFFIC_LOG_FILE, 'utf8');
                 if (content.trim() !== '') {
-                    // 计算文件中的非空行数
                     count = content.split('\n').filter(line => line.trim() !== '').length;
                 }
             } else {
-                // 如果文件不存在，创建它
                 fs.writeFileSync(TRAFFIC_LOG_FILE, '', 'utf8');
             }
         } catch (e) {
@@ -123,7 +112,7 @@ module.exports = {
         console.log(`流量统计已初始化：总访问量 ${count}`);
     },
 
-    // (修改) logTraffic 现在也更新内存缓存
+    // ( logTraffic - 无修改 )
     logTraffic: (req, parsedUrl) => {
         if (!fs.existsSync(DATA_DIR)) {
             try {
@@ -133,7 +122,6 @@ module.exports = {
                  return; 
             }
         }
-
         try {
             const logEntry = {
                 timestamp: new Date().toISOString(),
@@ -144,26 +132,114 @@ module.exports = {
                 referrer: req.headers['referer'] || ''
             };
             const logLine = JSON.stringify(logEntry) + '\n';
-
-            // 异步追加文件
             fs.appendFile(TRAFFIC_LOG_FILE, logLine, 'utf8', (err) => {
                 if (err) {
                     console.error("写入流量日志失败:", err);
                 }
             });
-
-            // (新增) 立即更新内存缓存
             trafficStatsCache.totalViews += 1;
-
         } catch (e) {
             console.error("构建流量日志失败:", e);
         }
     },
 
-    // (新增) 获取缓存中的统计数据 (非常快)
+    // ( getTrafficStats - 无修改 )
     getTrafficStats: () => {
-        // 直接返回内存中的对象
         return trafficStatsCache;
+    },
+
+    // ( *** 新增 *** ) 异步读取和解析日志文件以获取详细统计
+    getDetailedTrafficStats: async () => {
+        return new Promise((resolve, reject) => {
+            fs.readFile(TRAFFIC_LOG_FILE, 'utf8', (err, data) => {
+                if (err) {
+                    console.error("读取详细统计日志失败:", err);
+                    return reject(new Error("读取日志文件失败。"));
+                }
+                
+                try {
+                    const lines = data.split('\n').filter(line => line.trim() !== '');
+                    const stats = {
+                        totalViewsLog: lines.length,
+                        uniqueVisitors: 0,
+                        byPage: {},
+                        byDate: {},
+                        byReferrer: {}
+                    };
+                    const uniqueIPs = new Set();
+                    
+                    lines.forEach(line => {
+                        try {
+                            const entry = JSON.parse(line);
+                            
+                            // 1. 独立访客
+                            if (entry.ip) uniqueIPs.add(entry.ip);
+                            
+                            // 2. 按页面
+                            const page = entry.pathname || '/';
+                            stats.byPage[page] = (stats.byPage[page] || 0) + 1;
+                            
+                            // 3. 按日期 (只取 YYYY-MM-DD)
+                            const date = entry.timestamp ? entry.timestamp.substring(0, 10) : '未知日期';
+                            stats.byDate[date] = (stats.byDate[date] || 0) + 1;
+
+                            // 4. 按来源
+                            let referrer = entry.referrer || '(direct)';
+                            if (referrer.startsWith('http')) {
+                                try {
+                                    referrer = new URL(referrer).hostname; // 只取域名
+                                } catch (e) {
+                                    // 保持原始 referrer (如果 URL 格式不正确)
+                                }
+                            }
+                            if (referrer === '') referrer = '(direct)';
+                            stats.byReferrer[referrer] = (stats.byReferrer[referrer] || 0) + 1;
+
+                        } catch (parseErr) {
+                            // 忽略损坏的行
+                        }
+                    });
+                    
+                    stats.uniqueVisitors = uniqueIPs.size;
+                    
+                    // (新增) 辅助函数：排序 Map 并取前 N 个
+                    const sortAndSlice = (obj, limit = 15) => {
+                        return Object.entries(obj)
+                            .sort(([,a], [,b]) => b - a) // 按访问量降序
+                            .slice(0, limit)
+                            .reduce((acc, [key, value]) => {
+                                acc[key] = value;
+                                return acc;
+                            }, {});
+                    };
+                    
+                    // (新增) 辅助函数：按日期键排序
+                    const sortDates = (obj, limit = 15) => {
+                         return Object.entries(obj)
+                            .sort(([keyA], [keyB]) => keyB.localeCompare(keyA)) // 按日期降序
+                            .slice(0, limit)
+                            .reduce((acc, [key, value]) => {
+                                acc[key] = value;
+                                return acc;
+                            }, {});
+                    };
+
+                    // 返回处理后的数据
+                    resolve({
+                        totalViewsLog: stats.totalViewsLog,
+                        uniqueVisitors: stats.uniqueVisitors,
+                        // 只返回排序后的前 15 条
+                        byPage: sortAndSlice(stats.byPage, 15),
+                        byDate: sortDates(stats.byDate, 15),
+                        byReferrer: sortAndSlice(stats.byReferrer, 15)
+                    });
+
+                } catch (processErr) {
+                     console.error("处理详细统计失败:", processErr);
+                     reject(new Error("处理日志数据失败。"));
+                }
+            });
+        });
     },
     // --- (统计结束) ---
 
@@ -187,13 +263,10 @@ module.exports = {
         writeJsonFile(SETTINGS_FILE, newSettings);
         return newSettings;
     },
-    // --- (设置结束) ---
-
-
-    // --- 用户函数 (无修改) ---
+    
+    // ( ... 其余 User, Article, Comment 函数均无修改 ... )
     getUsers: () => readJsonFile(USERS_FILE),
     saveUser: (userData) => {
-        // ( ... 无修改 ... )
         const users = readJsonFile(USERS_FILE);
         let userToSave = { ...userData };
         let isUpdating = false;
@@ -244,17 +317,14 @@ module.exports = {
         return safeUser;
     },
     findUserByUsername: (username) => {
-        // ( ... 无修改 ... )
         const user = readJsonFile(USERS_FILE).find(u => u.username === username);
         return user || null;
     },
     findUserById: (id) => {
-        // ( ... 无修改 ... )
         const user = readJsonFile(USERS_FILE).find(u => u.id === id);
         return user || null;
     },
     deleteUser: (userId) => {
-        // ( ... 无修改 ... )
         let users = readJsonFile(USERS_FILE);
         const initialLength = users.length;
         users = users.filter(u => u.id !== userId);
@@ -284,11 +354,8 @@ module.exports = {
         }
         return false;
     },
-
-    // --- 文章 (Article) 函数 (无修改) ---
     getArticles: () => readJsonFile(ARTICLES_FILE),
     saveArticle: (article) => {
-        // ( ... 无修改 ... )
         const articles = readJsonFile(ARTICLES_FILE);
         if (!article.id) {
             article.id = `article_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
@@ -317,7 +384,6 @@ module.exports = {
     },
     findArticleById: (id) => readJsonFile(ARTICLES_FILE).find(n => n.id === id),
     deleteArticle: (articleId) => {
-        // ( ... 无修改 ... )
         let articles = readJsonFile(ARTICLES_FILE);
         const articleToDelete = articles.find(n => n.id === articleId);
         if (!articleToDelete) return false;
@@ -337,15 +403,11 @@ module.exports = {
         }
         return false;
     },
-
-    // --- 评论 (Comment) 函数 (无修改) ---
     getComments: (articleId) => {
-        // ( ... 无修改 ... )
         return readJsonFile(COMMENTS_FILE).filter(c => c.articleId === articleId)
                .sort((a,b) => new Date(a.createdAt) - new Date(b.createdAt));
     },
     saveComment: (comment) => {
-        // ( ... 无修改 ... )
         const comments = readJsonFile(COMMENTS_FILE);
         if (!comment.id) {
             comment.id = `comment_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
@@ -364,7 +426,6 @@ module.exports = {
     },
     findCommentById: (id) => readJsonFile(COMMENTS_FILE).find(c => c.id === id),
     deleteComment: (commentId) => {
-        // ( ... 无修改 ... )
         let comments = readJsonFile(COMMENTS_FILE);
         const initialLength = comments.length;
         comments = comments.filter(c => c.id !== commentId);
