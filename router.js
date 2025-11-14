@@ -7,7 +7,7 @@ const { authenticate } = require('./auth');
 const userController = require('./userController');
 const articleController = require('./articleController'); // 重命名
 const commentController = require('./commentController'); // 新增
-const { serveStaticFile, sendNotFound, redirect, sendForbidden, sendError, sendBadRequest, serveHtmlWithPlaceholders, sendUnauthorized } = require('./responseUtils'); // 确保 sendUnauthorized 已导入
+const { serveStaticFile, sendNotFound, redirect, sendForbidden, sendError, sendBadRequest, serveHtmlWithPlaceholders, sendUnauthorized } = require('./responseUtils');
 const storage = require('./storage');
 
 const PUBLIC_DIR = path.join(__dirname, 'public');
@@ -139,6 +139,15 @@ module.exports = {
             }
         }
 
+        // --- (新增) 流量统计 ---
+        // 在处理完静态文件后，记录所有其他请求（页面、API等）
+        // 这是一个“即发即忘”的操作，不会阻塞响应
+        // (我们也排除了 favicon.ico，因为它很占日志)
+        if (pathname !== '/favicon.ico') {
+            storage.logTraffic(req, parsedUrl);
+        }
+        // --- (新增结束) ---
+
         // --- 公共页面和 API (无需登录或匿名即可访问) ---
         if (pathname === '/login' && method === 'GET') return userController.getLoginPage(context);
         if (pathname === '/login' && method === 'POST') return userController.loginUser(context);
@@ -194,12 +203,14 @@ module.exports = {
         if (pathname === '/management' && method === 'GET') return userController.getManagementPage(context);
 
         // 文章 API
-        if (pathname === '/api/articles' && method === 'GET') return articleController.getAllArticles(context);
         if (pathname === '/api/articles' && method === 'POST') return articleController.createArticle(context); // 权限：consultant/admin
         if (pathname.startsWith('/api/articles/') && !pathname.includes('/comments') && method === 'GET') return articleController.getArticleById(context); // 权限：consultant/admin
         if (pathname.startsWith('/api/articles/') && !pathname.includes('/comments') && method === 'PUT') return articleController.updateArticle(context); // 权限：consultant(owner)/admin
         if (pathname.startsWith('/api/articles/') && !pathname.includes('/comments') && method === 'DELETE') return articleController.deleteArticleById(context); // 权限：consultant(owner)/admin
         
+        // (注意) /api/articles [GET] 路由现在由匿名和登录用户共享
+        if (pathname === '/api/articles' && method === 'GET') return articleController.getAllArticles(context);
+
         // 文章页面
         if (pathname === '/article/new' && method === 'GET') return articleController.getArticleFormPage(context, null); // 权限：consultant/admin
         if (pathname === '/article/edit' && method === 'GET') { // 权限：consultant(owner)/admin
