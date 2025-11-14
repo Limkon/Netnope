@@ -15,6 +15,7 @@ const UPLOADS_DIR = storage.UPLOADS_DIR;
 
 // (parseMultipartFormData 函数保持不变)
 function parseMultipartFormData(rawBuffer, contentTypeHeader) {
+    // ( ... 无修改 ... )
     const boundaryMatch = contentTypeHeader.match(/boundary=(.+)/);
     if (!boundaryMatch) {
         console.warn("解析 multipart/form-data 失败：找不到 boundary。");
@@ -86,6 +87,7 @@ module.exports = {
         let body = {}; let files = {};
 
         if ((method === 'POST' || method === 'PUT') && rawBuffer && rawBuffer.length > 0) {
+            // ( ... 无修改: body 解析 ... )
             const contentType = headers['content-type'] || '';
             if (contentType.includes('application/x-www-form-urlencoded')) {
                 try { body = querystring.parse(rawBuffer.toString('utf8')); }
@@ -104,7 +106,7 @@ module.exports = {
         const context = { req, res, pathname, method, query, files, body, rawBuffer, session: null };
         context.session = authenticate(req);
 
-        // --- 静态文件路由 (CSS, JS, Uploads) ---
+        // --- 静态文件路由 (CSS, JS, Uploads) (无修改) ---
         if (method === 'GET') {
             if (pathname.startsWith('/css/') || pathname.startsWith('/js/')) {
                 const staticFilePath = path.join(PUBLIC_DIR, pathname);
@@ -112,6 +114,7 @@ module.exports = {
                 else return sendForbidden(res, "禁止访问此路径的静态资源。");
             }
             if (pathname.startsWith('/uploads/')) {
+                // ( ... 无修改: uploads 权限检查 ... )
                 if (!context.session) {
                     return sendForbidden(res, "您需要登录或启用匿名访问才能下载附件。");
                 }
@@ -123,9 +126,7 @@ module.exports = {
                 if (!fs.existsSync(fullPath)) {
                     return sendNotFound(res, "请求的附件不存在。");
                 }
-                
                 const article = storage.getArticles().find(n => n.attachment && n.attachment.path === requestedFileRelativePath);
-                
                 if (!article || article.status !== 'published') {
                     if (!context.session || (context.session.role !== 'admin' && context.session.userId !== (article ? article.userId : null))) {
                          return sendForbidden(res, "您无权下载此附件（文章未发布或不存在）。");
@@ -135,49 +136,42 @@ module.exports = {
             }
         }
 
-        // --- (修改) 流量统计 ---
-        // (我们也排除了 favicon.ico 和所有 API 请求)
-        // 只有当请求不是 API 调用时才记录流量
+        // --- 流量统计 (无修改) ---
         if (pathname !== '/favicon.ico' && !pathname.startsWith('/api/')) {
             storage.logTraffic(req, parsedUrl);
         }
-        // --- (修改结束) ---
 
-        // --- (新增) 公共 API 路由 ---
+        // --- 公共 API 路由 (无修改) ---
         if (pathname === '/api/stats' && method === 'GET') {
             return userController.getPublicSiteStats(context);
         }
         
-        // --- 公共页面和 API (无需登录或匿名即可访问) ---
+        // --- 公共页面和 API (无修改) ---
         if (pathname === '/login' && method === 'GET') return userController.getLoginPage(context);
         if (pathname === '/login' && method === 'POST') return userController.loginUser(context);
         if (pathname === '/register' && method === 'GET') return userController.getRegisterPage(context);
         if (pathname === '/api/users/register' && method === 'POST') return userController.registerUser(context);
         if (pathname === '/article/view' && method === 'GET') return articleController.getArticleViewPage(context); 
 
-        // 匿名用户 (session.role === 'anonymous') 的路由
+        // --- 匿名用户路由 (无修改) ---
         if (context.session && context.session.role === 'anonymous') {
             if ((pathname === '/' || pathname === '/index.html') && method === 'GET') return articleController.getArticlesPage(context); 
             if (pathname === '/api/articles' && method === 'GET') return articleController.getAllArticles(context); 
             if (pathname.startsWith('/api/articles/') && pathname.endsWith('/comments') && method === 'GET') return commentController.getCommentsForArticle(context); 
-            
             if (pathname.startsWith('/api/articles/') && method === 'GET' && !pathname.endsWith('/comments')) {
                 return sendForbidden(res, "匿名用户无权直接访问此API。");
             }
-
             if (method !== 'GET' || (pathname !== '/' && pathname !== '/index.html' && pathname !== '/article/view' && pathname !== '/api/articles' && !pathname.endsWith('/comments'))) {
-                // (注意：/api/stats 已经在上面被处理并返回了)
                 if (pathname.startsWith('/api/')) return sendForbidden(res, "匿名用户无权执行此操作。");
                 return redirect(res, '/login');
             }
         }
 
-        // --- 需要会话 (session) 的路由 (如果 session 为 null 则拦截) ---
+        // --- 会话检查 (无修改) ---
         if (!context.session || context.session.role === 'anonymous') {
             if (pathname === '/api/articles' && !context.session) {
                  return sendUnauthorized(res, "请先登录后再操作。");
             }
-            // (修改) 允许 /api/stats 通过
             if (pathname.startsWith('/api/') && pathname !== '/api/articles' && !pathname.endsWith('/comments') && pathname !== '/api/stats') { 
                  return sendUnauthorized(res, "请先登录后再操作。");
             }
@@ -189,35 +183,29 @@ module.exports = {
             }
         }
 
-        // --- 登录用户 (member, consultant, admin) 路由 ---
+        // --- 登录用户路由 (无修改) ---
         if (pathname === '/logout' && method === 'POST') return userController.logoutUser(context);
         if (pathname === '/change-password' && method === 'GET') return userController.getChangePasswordPage(context);
         if (pathname === '/api/users/me/password' && method === 'POST') return userController.changeOwnPassword(context);
         if ((pathname === '/' || pathname === '/index.html') && method === 'GET') return articleController.getArticlesPage(context);
-        
         if (pathname === '/management' && method === 'GET') return userController.getManagementPage(context);
-
-        // 文章 API
         if (pathname === '/api/articles' && method === 'GET') return articleController.getAllArticles(context);
         if (pathname === '/api/articles' && method === 'POST') return articleController.createArticle(context); 
         if (pathname.startsWith('/api/articles/') && !pathname.includes('/comments') && method === 'GET') return articleController.getArticleById(context); 
         if (pathname.startsWith('/api/articles/') && !pathname.includes('/comments') && method === 'PUT') return articleController.updateArticle(context); 
         if (pathname.startsWith('/api/articles/') && !pathname.includes('/comments') && method === 'DELETE') return articleController.deleteArticleById(context); 
-        
-        // 文章页面
         if (pathname === '/article/new' && method === 'GET') return articleController.getArticleFormPage(context, null); 
         if (pathname === '/article/edit' && method === 'GET') { 
             if (!query.id) return sendBadRequest(res, "缺少文章 ID 进行编辑。");
             return articleController.getArticleFormPage(context, query.id);
         }
-
-        // 评论 API (需要登录)
         if (pathname.startsWith('/api/articles/') && pathname.endsWith('/comments') && method === 'GET') return commentController.getCommentsForArticle(context);
         if (pathname.startsWith('/api/articles/') && pathname.endsWith('/comments') && method === 'POST') return commentController.createComment(context); 
         if (pathname.startsWith('/api/comments/') && method === 'DELETE') return commentController.deleteCommentById(context); 
 
-        // --- 仅限 Admin 路由 ---
+        // --- (修改) 仅限 Admin 路由 ---
         if (context.session && context.session.role === 'admin') {
+            // ( ... /admin/users, /api/admin/users, /api/admin/settings, /api/admin/articles/.../pin 无修改 ... )
             if (pathname === '/admin/users' && method === 'GET') return userController.getAdminUsersPage(context);
             if (pathname === '/api/admin/users' && method === 'GET') return userController.listAllUsers(context);
             if (pathname === '/api/admin/users' && method === 'POST') return userController.createUserByAdmin(context);
@@ -225,13 +213,20 @@ module.exports = {
                 return userController.updateUserPasswordByAdmin(context);
             }
             if (pathname.startsWith('/api/admin/users/') && method === 'DELETE') return userController.deleteUserByAdmin(context);
-            
             if (pathname === '/api/admin/settings' && method === 'GET') return userController.getSiteSettings(context);
             if (pathname === '/api/admin/settings' && method === 'POST') return userController.updateSiteSettings(context);
-
             if (pathname.startsWith('/api/admin/articles/') && pathname.endsWith('/pin') && method === 'PUT') {
                 return articleController.toggleArticlePinStatus(context);
             }
+
+            // ( *** 新增 *** ) 详细统计路由
+            if (pathname === '/admin/stats' && method === 'GET') {
+                return userController.getAdminStatsPage(context);
+            }
+            if (pathname === '/api/admin/stats' && method === 'GET') {
+                return userController.getAdminStatsApi(context);
+            }
+
         } else {
             if (pathname.startsWith('/admin') || pathname.startsWith('/api/admin')) {
                 return sendForbidden(res, "您没有权限访问此管理员功能。");
