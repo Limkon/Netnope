@@ -95,6 +95,23 @@ module.exports = {
             context.res.end(JSON.stringify({ message: "注册过程中发生错误，请稍后再试。" }));
         }
     },
+    
+    // --- (新增) 后台管理页面 ---
+    getManagementPage: (context) => {
+        // 此路由已在 router.js 中被保护，但双重检查无害
+        if (!context.session || context.session.role === 'anonymous') {
+            return redirect(context.res, '/login');
+        }
+        
+        const placeholders = {
+            ...getGeneralNavData(context.session),
+            // 用于控制按钮显示的标志
+            isAdmin: context.session.role === 'admin',
+            canPublish: context.session.role === 'admin' || context.session.role === 'consultant'
+        };
+        
+        serveHtmlWithPlaceholders(context.res, path.join(PUBLIC_DIR, 'management.html'), placeholders);
+    },
 
     getAdminUsersPage: (context) => {
         if (!context.session || context.session.role !== 'admin') {
@@ -267,7 +284,7 @@ module.exports = {
         }
     },
 
-    // --- (新增) 站点设置 API ---
+    // --- (无修改) 站点设置 API ---
     getSiteSettings: (context) => {
         // 确保只有管理员可以访问
         if (!context.session || context.session.role !== 'admin') {
