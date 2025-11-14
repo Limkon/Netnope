@@ -5,13 +5,13 @@ let currentUsernameGlobal = '访客';
 let currentUserRoleGlobal = 'anonymous'; 
 let currentAdminIdGlobal = ''; 
 let currentUserIdGlobal = ''; 
-let savedRange = null; // 用于保存富文本编辑器的选区
-// (新增) 用于首页文章列表的状态
+let savedRange = null; 
 let currentArticleListPage = 1;
 let currentArticleListSearch = '';
 let currentArticleListCategory = 'all';
 
 // --- 通用函数 ---
+// ( ... fetchData, displayMessage, escapeHtml 无修改 ... )
 async function fetchData(url, options = {}) {
     try {
         const response = await fetch(url, options);
@@ -31,8 +31,6 @@ async function fetchData(url, options = {}) {
             console.error(`API 请求失败 (${response.status}):`, errorData);
             const errorMessage = (typeof errorData === 'object' && errorData !== null && errorData.message) ? errorData.message : (errorData || response.statusText);
             if ((response.status === 401 || response.status === 403) && currentUserRoleGlobal !== 'anonymous') {
-                 // 减少打扰，特别是当403是预期行为时 (例如 member 尝试访问 admin 页面)
-                 // alert('操作未授权或会话已过期，请重新登录。');
                  console.warn("操作未授权或会话已过期。");
             }
             throw new Error(`服务器响应错误: ${response.status} ${errorMessage}`);
@@ -55,7 +53,6 @@ async function fetchData(url, options = {}) {
         return null;
     }
 }
-
 function displayMessage(message, type = 'info', elementId = 'globalMessageArea') {
     const container = document.getElementById(elementId);
     if (container) {
@@ -67,60 +64,44 @@ function displayMessage(message, type = 'info', elementId = 'globalMessageArea')
         else if (message) alert(message);
     }
 }
-
 function escapeHtml(unsafe) {
     if (typeof unsafe !== 'string') return String(unsafe);
     return unsafe.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
 }
 
+// ( ... setupNavigation, handleLogout 无修改 ... )
 function setupNavigation(username, role, userId) {
-    // (*** 简化后的导航栏 ***)
     const isValidUser = username && username !== "{{username}}" && username !== "访客";
     const isValidRole = role && role !== "{{userRole}}" && role !== "anonymous";
     const isValidUserId = userId && userId !== "{{userId}}";
-
     currentUsernameGlobal = isValidUser ? username : '访客';
     currentUserRoleGlobal = isValidRole ? role : 'anonymous';
     currentUserIdGlobal = isValidUserId ? userId : '';
-
     const navContainer = document.getElementById('mainNav');
     const usernameDisplaySpan = document.getElementById('usernameDisplay'); 
-
     if (usernameDisplaySpan) {
-        // 适用于 admin.html 和 change-password.html 顶部的独立显示
         usernameDisplaySpan.textContent = escapeHtml(currentUsernameGlobal);
     }
-    
-    // (修改) 通用的登出按钮处理
     document.querySelectorAll('#logoutButton:not([data-listener-attached])').forEach(button => {
         if (!button.closest('#mainNav')) { 
             button.addEventListener('click', handleLogout);
             button.setAttribute('data-listener-attached', 'true');
         }
     });
-
     if (!navContainer) { 
-        // 如果页面没有 mainNav (例如 login.html), 则退出
         return;
     }
-
     let navHtml = `<span class="welcome-user">欢迎, <strong id="usernameDisplayInNav">${escapeHtml(currentUsernameGlobal)}</strong>!</span>`;
-    
     if (currentUserRoleGlobal === 'anonymous') {
-        // 匿名用户：只显示欢迎语
+        // 匿名
     } else {
-        // 登录用户：只显示 "返回列表" (如果不在列表页)
         if (window.location.pathname !== '/' && window.location.pathname !== '/index.html') {
              navHtml += `<a href="/" class="button-action">返回文章列表</a>`;
         }
     }
-    
     navContainer.innerHTML = navHtml;
 }
-
-
 async function handleLogout() {
-    // (无修改)
     if (!confirm("您确定要登出吗？")) return;
     try {
         await fetchData('/logout', { method: 'POST' });
@@ -132,9 +113,25 @@ async function handleLogout() {
     }
 }
 
-// --- 文章 (Article) 相关 (无修改) ---
+// --- (新增) 统计加载函数 ---
+async function loadPublicStats() {
+    const statsSpan = document.getElementById('traffic-stats-views');
+    if (!statsSpan) return;
 
-// (渲染分类过滤器 - 无修改)
+    // 使用 fetchData (它有内置的错误处理)
+    const data = await fetchData('/api/stats');
+    
+    if (data && data.totalViews !== undefined) {
+        // 使用 toLocaleString() 来添加千位分隔符 (例如 1,234)
+        statsSpan.textContent = data.totalViews.toLocaleString('zh-CN');
+    } else {
+        statsSpan.textContent = 'N/A';
+    }
+}
+
+
+// --- 文章 (Article) 相关 (无修改) ---
+// ( ... renderCategoryFilter, renderPagination, loadArticles, togglePinStatus, deleteArticle 无修改 ... )
 function renderCategoryFilter(categories, selectedCategory) {
     const categorySelect = document.getElementById('categoryFilterSelect');
     if (!categorySelect) return;
@@ -149,45 +146,36 @@ function renderCategoryFilter(categories, selectedCategory) {
         categorySelect.appendChild(option);
     });
 }
-
-// (渲染分页控件 - 无修改)
 function renderPagination(totalPages, currentPage, searchTerm, category) {
     const paginationContainer = document.getElementById('paginationContainer');
     if (!paginationContainer) return;
-    
     paginationContainer.innerHTML = '';
     if (totalPages <= 1) return;
-
     const ul = document.createElement('ul');
     ul.className = 'pagination';
-
     const createPageItem = (pageText, pageNumber, isDisabled = false, isActive = false) => {
         const li = document.createElement('li');
         li.className = 'pagination-item';
         if (isDisabled) li.classList.add('disabled');
         if (isActive) li.classList.add('active');
-        
         const a = document.createElement('a');
         a.className = 'pagination-link';
         a.textContent = pageText;
-        
         if (!isDisabled && !isActive && pageNumber) {
-            a.href = '#'; // 使其可点击
+            a.href = '#'; 
             a.dataset.page = pageNumber;
             a.addEventListener('click', (e) => {
                 e.preventDefault();
-                currentArticleListPage = pageNumber; // 更新全局状态
+                currentArticleListPage = pageNumber; 
                 loadArticles(searchTerm, pageNumber, category);
             });
         } else if (isDisabled || isActive) {
             a.href = '#';
-            a.onclick = (e) => e.preventDefault(); // 阻止默认行为
+            a.onclick = (e) => e.preventDefault(); 
         }
-        
         li.appendChild(a);
         return li;
     };
-    // ( ... 分页 ... )
     ul.appendChild(createPageItem('«', currentPage - 1, currentPage === 1));
     let startPage = Math.max(1, currentPage - 3);
     let endPage = Math.min(totalPages, currentPage + 3);
@@ -203,48 +191,35 @@ function renderPagination(totalPages, currentPage, searchTerm, category) {
         ul.appendChild(createPageItem(totalPages, totalPages));
     }
     ul.appendChild(createPageItem('»', currentPage + 1, currentPage === totalPages));
-    // ( ... 分页结束 ... )
     paginationContainer.appendChild(ul);
 }
-
-
-// (loadArticles 函数 - 无修改)
 async function loadArticles(searchTerm = '', page = 1, category = 'all') { 
     const articlesContainer = document.getElementById('articlesContainer'); 
     const globalMessageArea = document.getElementById('globalMessageArea');
     const clearSearchButton = document.getElementById('clearSearchButton');
     const categorySelect = document.getElementById('categoryFilterSelect');
-
     currentArticleListPage = page;
     currentArticleListSearch = searchTerm;
     currentArticleListCategory = category;
-
     if (globalMessageArea) displayMessage('', 'info', 'globalMessageArea');
     if (!articlesContainer) return;
     articlesContainer.innerHTML = '<p>正在加载文章...</p>'; 
-
     const params = new URLSearchParams();
     if (searchTerm) params.set('search', searchTerm);
     if (page > 1) params.set('page', page);
     if (category && category !== 'all') params.set('category', category);
-    
     let apiUrl = `/api/articles?${params.toString()}`; 
-
     const data = await fetchData(apiUrl);
-    
     const paginationContainer = document.getElementById('paginationContainer');
     if(paginationContainer) paginationContainer.innerHTML = '';
-
     if (!data || !data.articles) {
         articlesContainer.innerHTML = `<p class="error-message">无法加载文章。${searchTerm ? '请尝试其他关键字或清除搜索。' : '请检查网络连接或稍后再试。'}</p>`;
         if (searchTerm && clearSearchButton) clearSearchButton.style.display = 'inline-flex';
         return;
     }
-    
     if (data.categories) {
         renderCategoryFilter(data.categories, category);
     }
-    
     const articles = Array.isArray(data.articles) ? data.articles : [];
     if (articles.length === 0) {
         let noArticlesMessage = `<p>没有找到文章。`;
@@ -252,7 +227,6 @@ async function loadArticles(searchTerm = '', page = 1, category = 'all') {
         if (category && category !== 'all') noArticlesMessage += ` (在分类 "${escapeHtml(category)}" 下)`;
         noArticlesMessage += '</p>';
         articlesContainer.innerHTML = noArticlesMessage;
-        
         if ((searchTerm || (category && category !== 'all')) && clearSearchButton) {
             clearSearchButton.style.display = 'inline-flex';
         } else if (clearSearchButton) {
@@ -260,29 +234,24 @@ async function loadArticles(searchTerm = '', page = 1, category = 'all') {
         }
         return;
     }
-
     const ul = document.createElement('ul');
     ul.className = 'note-list';
     articles.forEach(article => {
         const li = document.createElement('li');
         li.className = 'note-item';
         li.id = `article-${article.id}`;
-        
         if (article.isPinned) {
             li.classList.add('pinned');
         }
-
         let ownerInfo = (article.ownerUsername) ? `<span class="note-owner">(作者: ${escapeHtml(article.ownerUsername)})</span>` : '';
         if (currentUserRoleGlobal === 'consultant' && article.userId === currentUserIdGlobal && article.status === 'draft') {
             ownerInfo += ` <span class="article-status-draft">(草稿)</span>`;
         }
-        
         let titleHtml = escapeHtml(article.title);
         const tempDiv = document.createElement("div");
         tempDiv.innerHTML = article.content; 
         const textContentForPreview = tempDiv.textContent || tempDiv.innerText || ""; 
         let contentPreviewHtml = escapeHtml(textContentForPreview.substring(0, 150) + (textContentForPreview.length > 150 ? '...' : ''));
-
         if (searchTerm) {
             try {
                 const regex = new RegExp(`(${escapeHtml(searchTerm).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
@@ -292,13 +261,11 @@ async function loadArticles(searchTerm = '', page = 1, category = 'all') {
                 console.warn("搜索词高亮失败:", e);
             }
         }
-        
         let attachmentHtml = '';
         if (article.attachment && article.attachment.path) { 
             const attachmentUrl = `/uploads/${encodeURIComponent(article.attachment.path)}`;
             attachmentHtml = `<div class="note-attachment">附件: <a href="${attachmentUrl}" target="_blank" title="下载 ${escapeHtml(article.attachment.originalName)}">${escapeHtml(article.attachment.originalName)}</a></div>`;
         }
-        
         let actionsHtml = '';
         if (currentUserRoleGlobal === 'admin' || (currentUserRoleGlobal === 'consultant' && article.userId === currentUserIdGlobal)) { 
             actionsHtml = `
@@ -315,11 +282,9 @@ async function loadArticles(searchTerm = '', page = 1, category = 'all') {
                         : ''}
                 </div>`;
         }
-        
         const titleLink = `<a href="/article/view?id=${article.id}" class="note-title-link">${titleHtml}</a>`;
         const categoryHtml = article.category ? `<span class="article-category">分类: ${escapeHtml(article.category)}</span>` : '';
         const pinHtml = article.isPinned ? ' <span class="article-pinned-badge">[置顶]</span>' : '';
-
         li.innerHTML = `
             <div>
                 <h3>${titleLink} ${ownerInfo} ${pinHtml}</h3>
@@ -337,34 +302,25 @@ async function loadArticles(searchTerm = '', page = 1, category = 'all') {
     });
     articlesContainer.innerHTML = '';
     articlesContainer.appendChild(ul);
-    
     renderPagination(data.totalPages, data.currentPage, searchTerm, category);
-    
     if ((searchTerm || (category && category !== 'all')) && clearSearchButton) {
         clearSearchButton.style.display = 'inline-flex';
     } else if (clearSearchButton) {
         clearSearchButton.style.display = 'none';
     }
 }
-
-// (togglePinStatus - 无修改)
 async function togglePinStatus(articleId, isCurrentlyPinned) {
     const actionText = isCurrentlyPinned ? '取消置顶' : '置顶';
     if (!confirm(`您确定要 ${actionText} 这篇文章吗？`)) return;
-
     displayMessage('正在更新置顶状态...', 'info', 'globalMessageArea');
-    
     const result = await fetchData(`/api/admin/articles/${articleId}/pin`, { 
         method: 'PUT'
     });
-
     if (result && result.message) {
         displayMessage(result.message, 'success', 'globalMessageArea');
         loadArticles(currentArticleListSearch, currentArticleListPage, currentArticleListCategory);
     }
 }
-
-// (deleteArticle - 无修改)
 async function deleteArticle(articleId, articleTitle) { 
     if (!confirm(`您确定要删除文章 "${articleTitle}" 吗？此操作将删除文章、附件和所有评论，无法复原。`)) return;
     const result = await fetchData(`/api/articles/${articleId}`, { method: 'DELETE' }); 
@@ -377,13 +333,12 @@ async function deleteArticle(articleId, articleTitle) {
     }
 }
 
-// (initializeRichTextEditor - 无修改)
+// ( ... initializeRichTextEditor, setupArticleForm, loadArticleForEditing 无修改 ... )
 let isSubmittingNote = false;
 function initializeRichTextEditor() {
     const toolbar = document.getElementById('richTextToolbar');
     const contentArea = document.getElementById('richContent');
     if (!toolbar || !contentArea) return;
-
     function saveSelection() {
         if (window.getSelection && window.getSelection().rangeCount > 0) {
             const selection = window.getSelection();
@@ -393,7 +348,6 @@ function initializeRichTextEditor() {
         }
         return null;
     }
-
     function restoreSelection(range) {
         if (range) {
             contentArea.focus(); 
@@ -404,30 +358,23 @@ function initializeRichTextEditor() {
             contentArea.focus(); 
         }
     }
-    
     contentArea.addEventListener('focus', () => { savedRange = saveSelection(); });
     contentArea.addEventListener('blur', () => { savedRange = saveSelection(); });
     contentArea.addEventListener('click', () => { savedRange = saveSelection(); });
     contentArea.addEventListener('keyup', () => { savedRange = saveSelection(); });
     toolbar.addEventListener('mousedown', () => { savedRange = saveSelection(); });
-
-
     const fontNameSelector = document.getElementById('fontNameSelector');
     const fontSizeSelector = document.getElementById('fontSizeSelector');
     const foreColorPicker = document.getElementById('foreColorPicker');
     const insertLocalImageButton = document.getElementById('insertLocalImageButton');
     const imageUploadInput = document.getElementById('imageUploadInput');
-
     toolbar.addEventListener('click', (event) => {
         const targetButton = event.target.closest('button[data-command]');
         if (targetButton) {
             event.preventDefault();
             const command = targetButton.dataset.command;
-            
             restoreSelection(savedRange); 
-
             if (command === 'createLink') {
-                // ( ... createLink 逻辑 ... )
                 const selection = window.getSelection();
                 let defaultUrl = 'https://';
                 if (selection && selection.rangeCount > 0 && !selection.isCollapsed) {
@@ -451,11 +398,9 @@ function initializeRichTextEditor() {
             } else {
                 document.execCommand(command, false, null); 
             }
-            
             savedRange = saveSelection(); 
         }
     });
-
     if (fontNameSelector) {
         fontNameSelector.addEventListener('change', (event) => {
             restoreSelection(savedRange);
@@ -481,14 +426,12 @@ function initializeRichTextEditor() {
             savedRange = saveSelection(); 
         });
     }
-
     if (insertLocalImageButton && imageUploadInput) {
         insertLocalImageButton.addEventListener('click', () => {
             savedRange = saveSelection(); 
             imageUploadInput.click();
         });
         imageUploadInput.addEventListener('change', (event) => {
-            // ( ... image upload 逻辑 ... )
             const file = event.target.files[0];
             if (file && file.type.startsWith('image/')) {
                 const reader = new FileReader();
@@ -505,42 +448,33 @@ function initializeRichTextEditor() {
         });
     }
 }
-
-// (setupArticleForm - 无修改)
 function setupArticleForm() { 
     const articleForm = document.getElementById('articleForm');
     const richContent = document.getElementById('richContent');
     const hiddenContent = document.getElementById('hiddenContent');
     const saveButton = document.getElementById('saveArticleButton');
-    
     if (articleForm && richContent && hiddenContent && saveButton) {
         articleForm.addEventListener('submit', async (event) => {
             event.preventDefault();
             if (isSubmittingNote) return; 
             isSubmittingNote = true;
             saveButton.disabled = true; saveButton.textContent = '保存中...';
-            
             hiddenContent.value = richContent.innerHTML;
             const formData = new FormData(articleForm);
-            
             if (!formData.has('content') || formData.get('content') === '') {
                  formData.set('content', richContent.innerHTML); 
             }
-
             if (typeof isAdminUser !== 'undefined' && isAdminUser) {
                 const isPinnedCheckbox = document.getElementById('isPinned');
                 if (isPinnedCheckbox && !isPinnedCheckbox.checked) {
                     formData.set('isPinned', 'false'); 
                 }
             }
-            
             const articleId = document.getElementById('articleId').value;
             const url = articleId ? `/api/articles/${articleId}` : '/api/articles';
             const method = articleId ? 'PUT' : 'POST';
-            
             displayMessage('', 'info', 'formMessage');
             const result = await fetchData(url, { method: method, body: formData });
-            
             if (result) {
                 if (result.id && result.title) {
                     displayMessage(articleId ? '文章已成功更新！' : '文章已成功创建！', 'success', 'formMessage');
@@ -551,29 +485,23 @@ function setupArticleForm() {
                      setTimeout(() => { window.location.href = '/'; }, 1500);
                 }
             }
-            
             isSubmittingNote = false;
             saveButton.disabled = false; saveButton.textContent = '保存文章';
         });
     }
 }
-
-// (loadArticleForEditing - 无修改)
 async function loadArticleForEditing(articleId) { 
     const article = await fetchData(`/api/articles/${articleId}`); 
     const saveButton = document.getElementById('saveArticleButton');
-    
     if (article) {
         document.getElementById('title').value = article.title;
         document.getElementById('richContent').innerHTML = article.content;
         document.getElementById('category').value = article.category || ''; 
         document.getElementById('status').value = article.status || 'draft';
-        
         const isPinnedCheckbox = document.getElementById('isPinned');
         if (isPinnedCheckbox) {
             isPinnedCheckbox.checked = article.isPinned || false;
         }
-
         const currentAttachmentDiv = document.getElementById('currentAttachment');
         const removeAttachmentContainer = document.getElementById('removeAttachmentContainer');
         if (article.attachment && article.attachment.path) {
@@ -592,22 +520,18 @@ async function loadArticleForEditing(articleId) {
 }
 
 // --- 评论 (Comment) 相关 (无修改) ---
-// (loadComments - 无修改)
+// ( ... loadComments, setupCommentForm, deleteComment 无修改 ... )
 async function loadComments(articleId) {
     const commentsContainer = document.getElementById('commentsContainer');
     if (!commentsContainer) return;
-    
     const commentsData = await fetchData(`/api/articles/${articleId}/comments`);
     const commentsList = document.getElementById('commentsList');
     if (!commentsList) return;
-
     if (!commentsData) {
         commentsList.innerHTML = '<li class="error-message">无法加载评论。</li>';
         return;
     }
-    
     const comments = Array.isArray(commentsData) ? commentsData : [];
-    
     if (comments.length === 0) {
         commentsList.innerHTML = '<li>暂无评论。</li>';
     } else {
@@ -616,12 +540,10 @@ async function loadComments(articleId) {
             const li = document.createElement('li');
             li.className = 'comment-item';
             li.id = `comment-${comment.id}`;
-            
             let deleteButton = '';
             if (comment.canDelete) {
                  deleteButton = `<button class="button-danger button-small" onclick="deleteComment('${comment.id}')">删除</button>`;
             }
-
             li.innerHTML = `
                 <div class="comment-meta">
                     <div>
@@ -636,21 +558,16 @@ async function loadComments(articleId) {
         });
     }
 }
-
-// (setupCommentForm - 无修改)
 async function setupCommentForm(articleId) {
     const commentForm = document.getElementById('commentForm');
     const commentButton = document.getElementById('submitCommentButton');
     if (!commentForm || !commentButton) return;
-
     commentForm.addEventListener('submit', async (event) => {
         event.preventDefault();
         commentButton.disabled = true;
         commentButton.textContent = '提交中...';
-        
         const contentInput = document.getElementById('commentContent');
         const content = contentInput.value;
-        
         displayMessage('', 'info', 'commentMessage');
         if (!content || content.trim() === '') {
             displayMessage('评论内容不能为空。', 'error', 'commentMessage');
@@ -658,13 +575,11 @@ async function setupCommentForm(articleId) {
             commentButton.textContent = '提交评论';
             return;
         }
-
         const result = await fetchData(`/api/articles/${articleId}/comments`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ content: content })
         });
-
         if (result && result.id) {
             displayMessage('评论成功！', 'success', 'commentMessage');
             contentInput.value = ''; 
@@ -693,16 +608,12 @@ async function setupCommentForm(articleId) {
         } else if (result && result.message) {
             displayMessage(result.message, 'error', 'commentMessage');
         }
-
         commentButton.disabled = false;
         commentButton.textContent = '提交评论';
     });
 }
-
-// (deleteComment - 无修改)
 async function deleteComment(commentId) {
     if (!confirm('您确定要删除这条评论吗？')) return;
-    
     const result = await fetchData(`/api/comments/${commentId}`, { method: 'DELETE' });
     if (result && result.message) {
         displayMessage(result.message, 'success', 'commentMessage');
@@ -719,7 +630,7 @@ async function deleteComment(commentId) {
 
 
 // --- Admin 相关 (无修改) ---
-// (loadUsersForAdmin - 无修改)
+// ( ... loadUsersForAdmin, showPasswordResetForm, handleUpdatePasswordByAdmin, setupAdminUserForm, setupSiteSettingsForm, deleteUserByAdmin 无修改 ... )
 async function loadUsersForAdmin(currentAdminId) { 
     const userListUl = document.getElementById('userList');
     if (!userListUl) return;
@@ -740,17 +651,14 @@ async function loadUsersForAdmin(currentAdminId) {
         li.className = 'user-item';
         li.id = `user-admin-${user.id}`;
         const userInfoSpan = document.createElement('span');
-        // ( ... 角色翻译 ... )
         let roleDisplay = escapeHtml(user.role);
         if (user.role === 'admin') roleDisplay = '管理员 (admin)';
         else if (user.role === 'consultant') roleDisplay = '咨询师 (consultant)';
         else if (user.role === 'member') roleDisplay = '会员 (member)';
         else if (user.role === 'anonymous') roleDisplay = '匿名 (anyone)';
-
         userInfoSpan.innerHTML = `<strong>${escapeHtml(user.username)}</strong> (ID: ${user.id}, 角色: ${roleDisplay})`;
         li.appendChild(userInfoSpan);
         const actionsDiv = document.createElement('div');
-        // ( ... 动作按钮 ... )
         actionsDiv.className = 'user-item-actions';
         actionsDiv.style.display = 'flex';
         actionsDiv.style.gap = '10px';
@@ -780,32 +688,25 @@ async function loadUsersForAdmin(currentAdminId) {
         userListUl.appendChild(li);
     });
 }
-
-// (showPasswordResetForm - 无修改)
 let isUpdatingPasswordByAdmin = false; 
 function showPasswordResetForm(userId, username, listItemElement, userRole) { 
     const existingForms = document.querySelectorAll('.password-edit-form-container');
     existingForms.forEach(form => form.remove());
     const formContainer = document.createElement('div');
     formContainer.className = 'password-edit-form-container';
-    // ( ... 样式 ... )
     formContainer.style.marginTop = '10px';
     formContainer.style.padding = '15px';
     formContainer.style.border = '1px solid #ccc';
     formContainer.style.borderRadius = '4px';
     formContainer.style.backgroundColor = '#f9f9f9';
-    
     const form = document.createElement('form');
     form.id = `passwordEditForm-${userId}`;
-    
     const saveButton = document.createElement('button');
     saveButton.type = 'submit';
     saveButton.className = 'button-action';
     saveButton.textContent = '保存新密码';
     saveButton.style.marginRight = '10px';
-
     form.onsubmit = (event) => handleUpdatePasswordByAdmin(event, userId, username, saveButton); 
-
     const currentUserP = document.createElement('p');
     currentUserP.innerHTML = `正在为用户 <strong>${escapeHtml(username)}</strong> (角色: ${userRole}) 重设密码。`;
     currentUserP.style.marginBottom = '10px';
@@ -818,7 +719,6 @@ function showPasswordResetForm(userId, username, listItemElement, userRole) {
     passwordInput.type = 'password';
     passwordInput.id = `newPass-${userId}`;
     passwordInput.name = 'newPassword';
-    // ( ... placeholder ... )
     if (userRole === 'admin' || userRole === 'consultant') {
         passwordInput.placeholder = "管理员/咨询师密码不能为空";
     } else if (userRole === 'anonymous') {
@@ -829,14 +729,12 @@ function showPasswordResetForm(userId, username, listItemElement, userRole) {
     }
     passwordInput.style.marginBottom = '10px';
     passwordInput.style.width = 'calc(100% - 16px)';
-    
     const cancelButton = document.createElement('button');
     cancelButton.type = 'button';
     cancelButton.className = 'button-action button-cancel';
     cancelButton.textContent = '取消';
     cancelButton.onclick = () => formContainer.remove();
     form.appendChild(currentUserP);
-    // ( ... 匿名检查 ... )
     if (userRole !== 'anonymous') {
         form.appendChild(passwordLabel);
         form.appendChild(passwordInput);
@@ -852,37 +750,30 @@ function showPasswordResetForm(userId, username, listItemElement, userRole) {
         actionsDiv.appendChild(cancelButton);
         form.appendChild(actionsDiv);
     }
-
     formContainer.appendChild(form);
     listItemElement.appendChild(formContainer);
     if (userRole !== 'anonymous') {
         passwordInput.focus();
     }
 }
-
-// (handleUpdatePasswordByAdmin - 无修改)
 async function handleUpdatePasswordByAdmin(event, userId, username, saveButtonElement) {
     event.preventDefault();
     if (isUpdatingPasswordByAdmin) return;
-
     isUpdatingPasswordByAdmin = true;
     if(saveButtonElement) {
         saveButtonElement.disabled = true;
         saveButtonElement.textContent = '保存中...';
     }
-
     const form = event.target;
     const newPasswordInput = form.newPassword;
     const newPassword = newPasswordInput.value;
     const messageContainerId = 'adminMessages';
     displayMessage('正在更新密码...', 'info', messageContainerId);
-    
     const result = await fetchData(`/api/admin/users/${userId}/password`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ newPassword: newPassword })
     });
-    
     if (result && result.message && (result.message.includes("成功") || !result.message.toLowerCase().includes("错误"))) {
         displayMessage(result.message, 'success', messageContainerId);
         const formContainer = form.closest('.password-edit-form-container');
@@ -890,32 +781,25 @@ async function handleUpdatePasswordByAdmin(event, userId, username, saveButtonEl
     } else if (result && result.message) {
         displayMessage(result.message, 'error', messageContainerId);
     }
-
     isUpdatingPasswordByAdmin = false;
     if(saveButtonElement) {
         saveButtonElement.disabled = false;
         saveButtonElement.textContent = '保存新密码';
     }
 }
-
-// (setupAdminUserForm - 无修改)
 let isAdminAddingUser = false; 
 function setupAdminUserForm() {
     const addUserForm = document.getElementById('addUserForm');
     const addUserButton = addUserForm ? addUserForm.querySelector('button[type="submit"]') : null;
-
     if (addUserForm && addUserButton) {
         addUserForm.addEventListener('submit', async (event) => {
             event.preventDefault();
             if (isAdminAddingUser) return; 
-
             isAdminAddingUser = true;
             addUserButton.disabled = true;
             addUserButton.textContent = '正在添加...';
-
             const formData = new FormData(addUserForm);
             const data = Object.fromEntries(formData.entries());
-            // ( ... 验证 ... )
             if (!data.username || data.username.trim() === '') {
                 displayMessage('用户名不能为空。', 'error', 'adminMessages');
                 isAdminAddingUser = false;
@@ -934,7 +818,6 @@ function setupAdminUserForm() {
                 data.role = 'anonymous'; 
                 data.password = ''; 
             }
-
             displayMessage('', 'info', 'adminMessages'); 
             const result = await fetchData('/api/admin/users', {
                 method: 'POST',
@@ -948,55 +831,43 @@ function setupAdminUserForm() {
             } else if (result && result.message) {
                  displayMessage(result.message, 'error', 'adminMessages');
             }
-            
             isAdminAddingUser = false;
             addUserButton.disabled = false;
             addUserButton.textContent = '新建用户';
         });
     }
 }
-
-// (setupSiteSettingsForm - 无修改)
 let isSavingSettings = false;
 function setupSiteSettingsForm() {
     const settingsForm = document.getElementById('siteSettingsForm');
     const saveButton = document.getElementById('saveSettingsButton');
-    
     if (settingsForm && saveButton) {
         settingsForm.addEventListener('submit', async (event) => {
             event.preventDefault();
             if (isSavingSettings) return;
-
             isSavingSettings = true;
             saveButton.disabled = true;
             saveButton.textContent = '保存中...';
-            
             const articlesPerPageInput = document.getElementById('articlesPerPage');
             const articlesPerPage = articlesPerPageInput.value;
-
             displayMessage('', 'info', 'adminMessages'); 
-            
             const result = await fetchData('/api/admin/settings', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ articlesPerPage: articlesPerPage })
             });
-
             if (result && result.message) {
                  displayMessage(result.message, 'success', 'adminMessages');
                  if(result.settings && result.settings.articlesPerPage) {
                      articlesPerPageInput.value = result.settings.articlesPerPage;
                  }
             }
-            
             isSavingSettings = false;
             saveButton.disabled = false;
             saveButton.textContent = '保存设置';
         });
     }
 }
-
-// (deleteUserByAdmin - 无修改)
 async function deleteUserByAdmin(userId, username) {
     if (username === 'anyone') {
         alert("不能删除 'anyone' 用户。");
@@ -1014,7 +885,7 @@ async function deleteUserByAdmin(userId, username) {
 }
 
 // --- 注册 (Registration) (无修改) ---
-// (setupRegistrationForm - 无修改)
+// ( ... setupRegistrationForm 无修改 ... )
 let isRegistering = false;
 function setupRegistrationForm() {
     const registerForm = document.getElementById('registerForm');
@@ -1061,13 +932,12 @@ function setupRegistrationForm() {
 }
 
 // --- 修改密码 (Change Password) (无修改) ---
-// (setupChangeOwnPasswordForm - 无修改)
+// ( ... setupChangeOwnPasswordForm 无修改 ... )
 let isChangingOwnPassword = false;
 function setupChangeOwnPasswordForm() {
     const form = document.getElementById('changeOwnPasswordForm');
     const submitButton = document.getElementById('submitChangePassword');
     const messageContainerId = 'changePasswordMessage';
-
     if (form && submitButton) {
         form.addEventListener('submit', async (event) => {
             event.preventDefault();
@@ -1084,7 +954,6 @@ function setupChangeOwnPasswordForm() {
                 displayMessage('管理员或咨询师的新密码不能为空。', 'error', messageContainerId);
                 return;
             }
-
             isChangingOwnPassword = true;
             submitButton.disabled = true;
             submitButton.textContent = '正在提交...';
@@ -1140,14 +1009,12 @@ document.addEventListener('DOMContentLoaded', () => {
     // 1. (无修改) 设置全局导航
     setupNavigation(usernameFromServer, roleFromServer, userIdFromServer);
     
-    // 2. (*** 新增 ***) 在特定页面顶部显示“发表文章”按钮
-    // (只在 index.html 和 register.html 布局中)
+    // 2. (无修改) 在特定页面顶部显示“发表文章”按钮
     if (path === '/' || path === '/index.html' || path === '/register') {
         if (currentUserRoleGlobal === 'consultant' || currentUserRoleGlobal === 'admin') {
             const publishButton = document.getElementById('publishArticleButton');
             if (publishButton) {
                 publishButton.style.display = 'inline-flex';
-                // (新增) 调整清除按钮的 flex-grow，使其不会被压缩
                 const clearSearchButton = document.getElementById('clearSearchButton');
                 if (clearSearchButton) {
                     clearSearchButton.style.flexGrow = '0';
@@ -1156,20 +1023,27 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // 3. (无修改) 动态添加页脚管理链接
+    // 3. (*** 修改 ***) 动态添加页脚统计和管理链接
     const footer = document.querySelector('footer');
     const copyright = document.getElementById('copyrightFooter'); 
     
     if (footer && copyright) {
+        
+        // (新增) 注入统计占位符
+        const statsElement = document.createElement('p');
+        statsElement.style.marginBottom = '10px';
+        statsElement.style.marginTop = '0';
+        statsElement.innerHTML = `总访问量: <span id="traffic-stats-views">...</span>`; // 使用 ... 作为加载提示
+        footer.insertBefore(statsElement, copyright);
+
+        // (无修改) 注入管理链接
         const isUserLoggedIn = (currentUserRoleGlobal !== 'anonymous');
         const linkUrl = isUserLoggedIn ? '/management' : '/login';
         const linkText = '后台管理'; 
-
         const managementLink = document.createElement('p');
         managementLink.style.marginBottom = '10px';
         managementLink.style.marginTop = '0';
         managementLink.innerHTML = `<a href="${linkUrl}" style="color: #5f6368; text-decoration: underline;">${escapeHtml(linkText)}</a>`;
-        
         footer.insertBefore(managementLink, copyright);
         
         copyright.style.marginTop = '0';
@@ -1178,24 +1052,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // 4. (无修改) 根据不同页面路径执行特定的加载函数
     if (path === '/' || path === '/index.html') {
-        // (*** 修改：处理分页和过滤 ***)
+        // ( ... index.html 逻辑 ... )
         const urlParams = new URLSearchParams(window.location.search);
         currentArticleListSearch = urlParams.get('search') || '';
         currentArticleListPage = parseInt(urlParams.get('page'), 10) || 1;
         currentArticleListCategory = urlParams.get('category') || 'all';
-
         const searchInput = document.getElementById('searchInput');
         const categorySelect = document.getElementById('categoryFilterSelect');
-
         if (searchInput && currentArticleListSearch) {
             searchInput.value = currentArticleListSearch;
         }
-        
         loadArticles(currentArticleListSearch, currentArticleListPage, currentArticleListCategory); 
-        
         const clearSearchButton = document.getElementById('clearSearchButton');
         const searchForm = document.getElementById('searchForm');
-
         if (searchForm && searchInput && categorySelect && clearSearchButton) {
              searchForm.addEventListener('submit', (event) => {
                 event.preventDefault();
@@ -1203,13 +1072,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 const category = categorySelect.value;
                 loadArticles(searchTerm, 1, category); 
             });
-            
             categorySelect.addEventListener('change', () => {
                 const searchTerm = searchInput.value.trim();
                 const category = categorySelect.value;
                 loadArticles(searchTerm, 1, category);
             });
-
             clearSearchButton.addEventListener('click', () => {
                 searchInput.value = '';
                 categorySelect.value = 'all'; 
@@ -1217,6 +1084,7 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         }
     } else if (path.startsWith('/article/')) { 
+        // ( ... article 逻辑 ... )
         if (path.startsWith('/article/new') || path.startsWith('/article/edit')) { 
             initializeRichTextEditor();
             setupArticleForm(); 
@@ -1230,6 +1098,7 @@ document.addEventListener('DOMContentLoaded', () => {
             setupCommentForm(articleIdFromServer); 
         }
     } else if (path === '/admin/users') {
+        // ( ... admin 逻辑 ... )
         loadUsersForAdmin(currentAdminIdGlobal); 
         setupAdminUserForm();
         setupSiteSettingsForm(); 
@@ -1238,5 +1107,7 @@ document.addEventListener('DOMContentLoaded', () => {
     } else if (path === '/change-password') {
         setupChangeOwnPasswordForm();
     }
-    // login.html 和 management.html 不需要 main.js 执行特定操作
+
+    // 5. (新增) 在所有页面加载完毕后，获取统计数据
+    loadPublicStats();
 });
