@@ -20,7 +20,10 @@
                     <option value="all">所有分类</option>
                     </select>
             </div>
-            <button id="clearSearchButton" class="button-action button-cancel" style="min-width: 90px; background-color: #6c757d; border-color: #6c757d; display: none;">清除</button> </div>
+
+            <a href="/article/new" id="publishArticleButton" class="button-action" style="display: none; min-width: 90px; flex-grow: 1; background-color: #28a745; border-color: #28a745;">发表新文章</a>
+            
+            <button id="clearSearchButton" class="button-action button-cancel" style="min-width: 90px; background-color: #6c757d; border-color: #6c757d; display: none; flex-grow: 1;">清除</button> </div>
 
         <h2>文章列表</h2> <div id="globalMessageArea" style="margin-bottom: 15px;"></div>
         <div id="articlesContainer">
