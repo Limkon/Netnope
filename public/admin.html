@@ -9,7 +9,8 @@
     <header>
         <h1>网络福利资源分享网站 - 管理员面板</h1> <nav>
             <span class="welcome-user">管理员: <strong id="adminUsernameDisplay">{{adminUsername}}</strong></span>
-            <a href="/" class="button-action">返回文章列表</a> <button id="logoutButton" class="button-danger">登出</button>
+            <a href="/" class="button-action">返回文章列表</a> 
+            <button id="logoutButton" class="button-danger">登出</button>
         </nav>
     </header>
     <div class="container">
@@ -56,12 +57,18 @@
         </ul>
     </div>
     <footer>
-        <p>&copy; 2025 网络福利资源分享网站。</p> </footer>
+        <p id="copyrightFooter">&copy; 2025 网络福利资源分享网站。</p> </footer>
     <script src="/js/main.js"></script>
     <script>
         const currentAdminUsername = "{{adminUsername}}";
         const currentAdminId = "{{adminUserId}}";
         const initialArticlesPerPage = "{{articlesPerPage}}"; // (新增)
+
+        // (新增) 为 main.js 提供标准变量
+        const currentUsernameFromServer = "{{adminUsername}}";
+        const currentUserRoleFromServer = "admin";
+        const currentUserIdFromServer = "{{adminUserId}}";
+
 
         document.addEventListener('DOMContentLoaded', () => {
             // setupNavigation (在 main.js 中处理), loadUsersForAdmin, setupAdminUserForm
