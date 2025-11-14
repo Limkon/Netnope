@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>详细统计 - 网络福利资源分享网站</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <style>
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+        .stats-card {
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 20px;
+            background: #f9f9f9;
+        }
+        .stats-card h3 {
+            margin-top: 0;
+            border-bottom: 1px solid #ccc;
+            padding-bottom: 10px;
+        }
+        .stats-card ul {
+            padding-left: 20px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .stats-card li {
+            margin-bottom: 8px;
+            display: flex;
+            justify-content: space-between;
+        }
+        .stats-card li .count {
+            font-weight: bold;
+            margin-left: 15px;
+            color: #1a73e8;
+        }
+        .stats-card .stat-value {
+             font-size: 2rem;
+             font-weight: 500;
+             color: #1a73e8;
+             margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>网络福利资源分享网站</h1>
+        <nav id="mainNav">
+            </nav>
+    </header>
+    <div class="container">
+        <h2>详细访问统计</h2>
+        <div id="statsMessageArea"></div>
+
+        <div class="stats-grid">
+            <div class="stats-card">
+                <h3>概览</h3>
+                <p>总访问量 (来自缓存):</p>
+                <div class="stat-value" id="stats-total-views-cached">...</div>
+                <p>总访问量 (来自日志文件):</p>
+                <div class="stat-value" id="stats-total-views-log">...</div>
+                <p>独立访客 (Unique IPs):</p>
+                <div class="stat-value" id="stats-unique-visitors">...</div>
+            </div>
+
+            <div class="stats-card">
+                <h3 id="stats-by-page-title">按页面浏览 (Top 15)</h3>
+                <ul id="stats-by-page-list">
+                    <li>正在加载...</li>
+                </ul>
+            </div>
+
+            <div class="stats-card">
+                <h3 id="stats-by-date-title">按日期浏览 (最近 15 天)</h3>
+                <ul id="stats-by-date-list">
+                    <li>正在加载...</li>
+                </ul>
+            </div>
+
+            <div class="stats-card">
+                <h3 id="stats-by-referrer-title">按来源 (Top 15)</h3>
+                <ul id="stats-by-referrer-list">
+                    <li>正在加载...</li>
+                </ul>
+            </div>
+        </div>
+
+    </div>
+    <footer>
+        <p id="copyrightFooter">&copy; 2025 网络福利资源分享网站。</p>
+    </footer>
+    <script src="/js/main.js"></script>
+    <script>
+        // 这些变量由服务器模板注入
+        const currentUsernameFromServer = "{{username}}";
+        const currentUserRoleFromServer = "{{userRole}}";
+        const currentUserIdFromServer = "{{userId}}";
+        // main.js 中的 DOMContentLoaded 会自动处理 setupNavigation 和 loadDetailedStats
+    </script>
+</body>
+</html>
