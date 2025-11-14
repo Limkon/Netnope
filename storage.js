@@ -8,6 +8,8 @@ const USERS_FILE = path.join(DATA_DIR, 'users.json');
 const ARTICLES_FILE = path.join(DATA_DIR, 'articles.json'); // 重命名
 const COMMENTS_FILE = path.join(DATA_DIR, 'comments.json'); // 新增
 const SETTINGS_FILE = path.join(DATA_DIR, 'settings.json'); // 新增：站点设置
+// (新增) 流量日志文件，使用 .jsonl 扩展名表示“每行一个JSON对象”
+const TRAFFIC_LOG_FILE = path.join(DATA_DIR, 'traffic.log.jsonl');
 const UPLOADS_DIR = path.join(__dirname, 'uploads');
 
 const HASH_ITERATIONS = 100000;
@@ -94,6 +96,48 @@ module.exports = {
     UPLOADS_DIR,
     hashPassword,
     generateSalt,
+
+    // --- (新增) 流量统计函数 ---
+    logTraffic: (req, parsedUrl) => {
+        // 确保 data 目录存在 (虽然 server.js 应该已经做了)
+        if (!fs.existsSync(DATA_DIR)) {
+            try {
+                fs.mkdirSync(DATA_DIR, { recursive: true });
+            } catch (mkdirErr) {
+                 console.error("创建 data 目录失败 (logTraffic):", mkdirErr);
+                 return; // 无法创建目录，退出
+            }
+        }
+
+        try {
+            const logEntry = {
+                timestamp: new Date().toISOString(),
+                // 尝试获取真实 IP (如果经过代理) 或直接 IP
+                ip: req.headers['x-forwarded-for'] || req.socket.remoteAddress || req.connection.remoteAddress,
+                method: req.method,
+                pathname: parsedUrl.pathname,
+                // query: parsedUrl.query, // (可选) 如果需要记录查询参数
+                userAgent: req.headers['user-agent'] || '',
+                referrer: req.headers['referer'] || ''
+            };
+
+            // 转换为 JSON-per-line (JSONL) 格式
+            const logLine = JSON.stringify(logEntry) + '\n';
+
+            // 异步“即发即忘”追加，不阻塞主线程
+            fs.appendFile(TRAFFIC_LOG_FILE, logLine, 'utf8', (err) => {
+                if (err) {
+                    console.error("写入流量日志失败:", err);
+                }
+            });
+
+        } catch (e) {
+            // 捕获构建 logEntry 时可能发生的同步错误
+            console.error("构建流量日志失败:", e);
+        }
+    },
+    // --- (新增结束) ---
+
 
     // --- (新增) 设置函数 ---
     getSettings: () => {
