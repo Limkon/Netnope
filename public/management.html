@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>后台管理 - 网络福利资源分享网站</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <style>
+        .management-container {
+            max-width: 600px;
+            margin: 20px auto;
+        }
+        .management-actions {
+            list-style: none;
+            padding: 0;
+        }
+        .management-actions li {
+            margin-bottom: 15px;
+        }
+        /* 确保按钮占据全宽以保持整洁 */
+        .management-actions .button-action,
+        .management-actions .button-danger {
+            width: 100%;
+            padding: 1rem;
+            font-size: 1.1rem;
+            box-sizing: border-box; /* 确保 padding 不会破坏宽度 */
+            display: block; /* 确保 <a> 标签表现为块级 */
+            text-align: center; /* 居中文本 */
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>网络福利资源分享网站</h1>
+        <nav id="mainNav">
+            </nav>
+    </header>
+    <div class="container management-container">
+        <h2>后台管理</h2>
+        
+        <ul class="management-actions">
+            {{#if canPublish}}
+            <li>
+                <a href="/article/new" class="button-action">发表新文章</a>
+            </li>
+            {{/if}}
+            
+            <li>
+                <a href="/change-password" class="button-action">修改我的密码</a>
+            </li>
+            
+            {{#if isAdmin}}
+            <li>
+                <a href="/admin/users" class="button-action">管理所有用户</a>
+            </li>
+            {{/if}}
+            
+            <li>
+                <button id="logoutButton" class="button-danger">登出系统</button>
+            </li>
+        </ul>
+
+    </div>
+    <footer>
+        <p id="copyrightFooter">&copy; 2025 网络福利资源分享网站。</p>
+    </footer>
+    <script src="/js/main.js"></script>
+    <script>
+        // 这些变量由服务器模板注入
+        const currentUsernameFromServer = "{{username}}";
+        const currentUserRoleFromServer = "{{userRole}}";
+        const currentUserIdFromServer = "{{userId}}";
+        // main.js 中的 DOMContentLoaded 会自动处理 setupNavigation 和登出按钮的事件
+    </script>
+</body>
+</html>
