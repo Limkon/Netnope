@@ -11,7 +11,7 @@ let currentArticleListSearch = '';
 let currentArticleListCategory = 'all';
 
 // --- 通用函数 ---
-// ( ... fetchData, displayMessage, escapeHtml 无修改 ... )
+// ( ... fetchData, displayMessage, escapeHtml, setupNavigation, handleLogout 无修改 ... )
 async function fetchData(url, options = {}) {
     try {
         const response = await fetch(url, options);
@@ -49,6 +49,7 @@ async function fetchData(url, options = {}) {
         if (document.getElementById('registerMessage')) msgElementId = 'registerMessage'; 
         if (document.getElementById('changePasswordMessage')) msgElementId = 'changePasswordMessage';
         if (document.getElementById('commentMessage')) msgElementId = 'commentMessage'; 
+        if (document.getElementById('statsMessageArea')) msgElementId = 'statsMessageArea'; // (新增)
         displayMessage(messageToDisplay, 'error', msgElementId);
         return null;
     }
@@ -68,8 +69,6 @@ function escapeHtml(unsafe) {
     if (typeof unsafe !== 'string') return String(unsafe);
     return unsafe.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
 }
-
-// ( ... setupNavigation, handleLogout 无修改 ... )
 function setupNavigation(username, role, userId) {
     const isValidUser = username && username !== "{{username}}" && username !== "访客";
     const isValidRole = role && role !== "{{userRole}}" && role !== "anonymous";
@@ -95,8 +94,15 @@ function setupNavigation(username, role, userId) {
     if (currentUserRoleGlobal === 'anonymous') {
         // 匿名
     } else {
-        if (window.location.pathname !== '/' && window.location.pathname !== '/index.html') {
-             navHtml += `<a href="/" class="button-action">返回文章列表</a>`;
+        // (修改) admin/stats 页面也需要 "返回列表"
+        const currentPath = window.location.pathname;
+        if (currentPath !== '/' && currentPath !== '/index.html') {
+             // (修改) 如果在 admin 页面，返回 management，否则返回首页
+             if (currentPath === '/admin/users' || currentPath === '/admin/stats') {
+                 navHtml += `<a href="/management" class="button-action">返回管理中心</a>`;
+             } else {
+                 navHtml += `<a href="/" class="button-action">返回文章列表</a>`;
+             }
         }
     }
     navContainer.innerHTML = navHtml;
@@ -113,20 +119,66 @@ async function handleLogout() {
     }
 }
 
-// --- (新增) 统计加载函数 ---
+// --- 统计加载函数 ---
+// ( loadPublicStats - 无修改 )
 async function loadPublicStats() {
     const statsSpan = document.getElementById('traffic-stats-views');
     if (!statsSpan) return;
-
-    // 使用 fetchData (它有内置的错误处理)
     const data = await fetchData('/api/stats');
-    
     if (data && data.totalViews !== undefined) {
-        // 使用 toLocaleString() 来添加千位分隔符 (例如 1,234)
         statsSpan.textContent = data.totalViews.toLocaleString('zh-CN');
     } else {
         statsSpan.textContent = 'N/A';
     }
+}
+
+// ( *** 新增 *** ) 详细统计加载函数
+async function loadDetailedStats() {
+    displayMessage('正在加载详细统计... (这可能需要几秒钟)', 'info', 'statsMessageArea');
+    const data = await fetchData('/api/admin/stats');
+    
+    if (!data) {
+        // fetchData 内部已经显示了错误
+        displayMessage('加载统计失败。', 'error', 'statsMessageArea');
+        return;
+    }
+    
+    displayMessage('', 'info', 'statsMessageArea'); // 清除加载提示
+
+    // 填充概览
+    document.getElementById('stats-total-views-cached').textContent = data.cachedTotalViews.toLocaleString('zh-CN');
+    document.getElementById('stats-total-views-log').textContent = data.totalViewsLog.toLocaleString('zh-CN');
+    document.getElementById('stats-unique-visitors').textContent = data.uniqueVisitors.toLocaleString('zh-CN');
+
+    // 辅助函数：渲染列表
+    const renderList = (elementId, dataObject, titleElementId, titlePrefix) => {
+        const listElement = document.getElementById(elementId);
+        const titleElement = document.getElementById(titleElementId);
+        if (!listElement) return;
+        
+        const entries = Object.entries(dataObject);
+        if (entries.length === 0) {
+            listElement.innerHTML = '<li>暂无数据。</li>';
+            return;
+        }
+
+        listElement.innerHTML = ''; // 清空
+        entries.forEach(([key, value]) => {
+            const li = document.createElement('li');
+            // 对 key (例如页面路径) 也进行转义
+            li.innerHTML = `<span>${escapeHtml(key)}</span> <span class="count">${value.toLocaleString('zh-CN')}</span>`;
+            listElement.appendChild(li);
+        });
+        
+        if (titleElement) {
+            titleElement.textContent = `${titlePrefix} (Top ${entries.length})`;
+        }
+    };
+    
+    // 渲染所有卡片
+    renderList('stats-by-page-list', data.byPage, 'stats-by-page-title', '按页面浏览');
+    renderList('stats-by-date-list', data.byDate, 'stats-by-date-title', '按日期浏览');
+    renderList('stats-by-referrer-list', data.byReferrer, 'stats-by-referrer-title', '按来源');
 }
 
 
@@ -1023,20 +1075,18 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // 3. (*** 修改 ***) 动态添加页脚统计和管理链接
+    // 3. (无修改) 动态添加页脚统计和管理链接
     const footer = document.querySelector('footer');
     const copyright = document.getElementById('copyrightFooter'); 
     
     if (footer && copyright) {
         
-        // (新增) 注入统计占位符
         const statsElement = document.createElement('p');
         statsElement.style.marginBottom = '10px';
         statsElement.style.marginTop = '0';
-        statsElement.innerHTML = `总访问量: <span id="traffic-stats-views">...</span>`; // 使用 ... 作为加载提示
+        statsElement.innerHTML = `总访问量: <span id="traffic-stats-views">...</span>`; 
         footer.insertBefore(statsElement, copyright);
 
-        // (无修改) 注入管理链接
         const isUserLoggedIn = (currentUserRoleGlobal !== 'anonymous');
         const linkUrl = isUserLoggedIn ? '/management' : '/login';
         const linkText = '后台管理'; 
@@ -1050,7 +1100,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
 
-    // 4. (无修改) 根据不同页面路径执行特定的加载函数
+    // 4. (*** 修改 ***) 根据不同页面路径执行特定的加载函数
     if (path === '/' || path === '/index.html') {
         // ( ... index.html 逻辑 ... )
         const urlParams = new URLSearchParams(window.location.search);
@@ -1106,8 +1156,11 @@ document.addEventListener('DOMContentLoaded', () => {
         setupRegistrationForm();
     } else if (path === '/change-password') {
         setupChangeOwnPasswordForm();
+    } else if (path === '/admin/stats') { // (*** 新增 ***)
+        // 调用新的详细统计加载器
+        loadDetailedStats();
     }
 
-    // 5. (新增) 在所有页面加载完毕后，获取统计数据
+    // 5. (无修改) 在所有页面加载完毕后，获取统计数据
     loadPublicStats();
 });
