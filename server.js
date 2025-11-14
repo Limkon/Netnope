@@ -38,6 +38,7 @@ function initializeDirectories() {
         storage.getSettings(); // 这将调用 readJsonFile 并创建默认文件
         console.log(`文件 ${path.join(DATA_DIR, 'settings.json')} 已创建。`);
     }
+    // (注意) traffic.log.jsonl 将由 initializeTrafficStats 自动创建
 }
 
 function initializeAdminUser() {
@@ -68,8 +69,10 @@ const server = http.createServer((req, res) => {
 
 server.listen(PORT, () => {
     initializeDirectories();
-    // "anyone" 用户现在由管理员通过用户管理界面手动创建/删除。
     initializeAdminUser(); 
+    // (新增) 初始化流量统计计数器
+    storage.initializeTrafficStats(); 
+    
     console.log(`服务器正在监听 http://localhost:${PORT}/`);
     console.log("提示：密码已加密存储。");
 });
