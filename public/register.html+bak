@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title> 记事本</title>
+    <title> 网络福利资源分享网站</title>
     <link rel="stylesheet" href="/css/style.css">
     <style>
         .placeholder-content {
@@ -30,7 +30,7 @@
         </div>
     </div>
     <footer>
-        <p>&copy; 2025 记事本。</p>
+        <p>&copy; 2025 网络福利资源分享网站。</p>
     </footer>
     </body>
 </html>
