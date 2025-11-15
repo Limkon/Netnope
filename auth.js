@@ -71,7 +71,7 @@ module.exports = {
             console.log('提供匿名用户访问权限。');
             return {
                 userId: anyoneUser.id, // 或者一个特殊的匿名ID
-                username: 'anyone',
+                username: '匿名用戶', // <-- 修改点
                 role: 'anonymous',
                 isAnonymous: true // 添加一个标记
             };
