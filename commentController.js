@@ -34,9 +34,16 @@ module.exports = {
         // 获取评论并附加上下文信息（例如评论者用户名）
         const comments = storage.getComments(articleId).map(comment => {
             const user = storage.findUserById(comment.userId);
+            
+            // (*** 新增修改 ***)
+            let displayName = '未知用户';
+            if (user) {
+                displayName = (user.username === 'anyone') ? '匿名用戶' : user.username;
+            }
+            
             return {
                 ...comment,
-                username: user ? user.username : '未知用户',
+                username: displayName, // <-- 修改点
                 // 允许删除吗？(管理员或评论作者)
                 canDelete: context.session && (context.session.role === 'admin' || context.session.userId === comment.userId)
             };
@@ -79,9 +86,16 @@ module.exports = {
         if (savedComment) {
             // 返回附带用户名的评论
             const user = storage.findUserById(savedComment.userId);
+            
+            // (*** 新增修改 ***)
+            let displayName = '未知用户';
+            if (user) {
+                displayName = (user.username === 'anyone') ? '匿名用戶' : user.username;
+            }
+
             const commentWithUser = {
                 ...savedComment,
-                username: user ? user.username : '未知用户',
+                username: displayName, // <-- 修改点
                 canDelete: true // 作者本人总能删除
             };
             serveJson(context.res, commentWithUser, 201);
