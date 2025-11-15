@@ -153,11 +153,23 @@ module.exports = {
         if (pathname === '/api/users/register' && method === 'POST') return userController.registerUser(context);
         if (pathname === '/article/view' && method === 'GET') return articleController.getArticleViewPage(context); 
 
-        // --- 匿名用户路由 (无修改) ---
+        // --- 匿名用户路由 (*** 此处修改 ***) ---
         if (context.session && context.session.role === 'anonymous') {
             if ((pathname === '/' || pathname === '/index.html') && method === 'GET') return articleController.getArticlesPage(context); 
             if (pathname === '/api/articles' && method === 'GET') return articleController.getAllArticles(context); 
-            if (pathname.startsWith('/api/articles/') && pathname.endsWith('/comments') && method === 'GET') return commentController.getCommentsForArticle(context); 
+            
+            // 允许 GET 评论
+            if (pathname.startsWith('/api/articles/') && pathname.endsWith('/comments') && method === 'GET') {
+                return commentController.getCommentsForArticle(context); 
+            }
+            
+            // (*** 新增修改 ***)
+            // 允许 POST 评论
+            if (pathname.startsWith('/api/articles/') && pathname.endsWith('/comments') && method === 'POST') {
+                return commentController.createComment(context); 
+            }
+            // (*** 修改结束 ***)
+
             if (pathname.startsWith('/api/articles/') && method === 'GET' && !pathname.endsWith('/comments')) {
                 return sendForbidden(res, "匿名用户无权直接访问此API。");
             }
