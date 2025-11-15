@@ -35,7 +35,6 @@ module.exports = {
         const comments = storage.getComments(articleId).map(comment => {
             const user = storage.findUserById(comment.userId);
             
-            // (*** 新增修改 ***)
             let displayName = '未知用户';
             if (user) {
                 displayName = (user.username === 'anyone') ? '匿名用戶' : user.username;
@@ -43,9 +42,13 @@ module.exports = {
             
             return {
                 ...comment,
-                username: displayName, // <-- 修改点
-                // 允许删除吗？(管理员或评论作者)
-                canDelete: context.session && (context.session.role === 'admin' || context.session.userId === comment.userId)
+                username: displayName, 
+                // 允许删除吗？(管理员) 或 (评论作者 且 作者不是匿名用戶)
+                // (*** 此处修改确保匿名用戶看不到删除按钮 ***)
+                canDelete: context.session && (
+                    context.session.role === 'admin' || 
+                    (context.session.userId === comment.userId && context.session.role !== 'anonymous')
+                ) 
             };
         });
         
@@ -54,7 +57,7 @@ module.exports = {
 
     // API: 创建评论
     createComment: (context) => {
-        // 权限检查：(修改) 允许 'anonymous' (即 'anyone' 用户)
+        // 权限检查：允许 'anonymous' (即 'anyone' 用户)
         if (!context.session || (context.session.role !== 'member' && context.session.role !== 'consultant' && context.session.role !== 'anonymous')) {
             return sendForbidden(context.res, "您必须登录才能发表评论。");
         }
@@ -87,7 +90,6 @@ module.exports = {
             // 返回附带用户名的评论
             const user = storage.findUserById(savedComment.userId);
             
-            // (*** 新增修改 ***)
             let displayName = '未知用户';
             if (user) {
                 displayName = (user.username === 'anyone') ? '匿名用戶' : user.username;
@@ -95,8 +97,9 @@ module.exports = {
 
             const commentWithUser = {
                 ...savedComment,
-                username: displayName, // <-- 修改点
-                canDelete: true // 作者本人总能删除
+                username: displayName, 
+                // (*** 此处修改确保匿名用戶刚发布的评论也没有删除按钮 ***)
+                canDelete: context.session.role !== 'anonymous' 
             };
             serveJson(context.res, commentWithUser, 201);
         } else {
@@ -118,8 +121,12 @@ module.exports = {
             return sendNotFound(context.res, "找不到要删除的评论。");
         }
 
-        // 权限检查：必须是 admin 或 评论作者
-        if (!context.session || (context.session.role !== 'admin' && commentToDelete.userId !== context.session.userId)) {
+        // (*** 此处修改确保匿名用戶无权调用删除API ***)
+        // 权限检查：必须是 admin 或 (评论作者 且 作者不是匿名用戶)
+        if (!context.session || (
+            context.session.role !== 'admin' && 
+            (commentToDelete.userId !== context.session.userId || context.session.role === 'anonymous')
+        )) {
             return sendForbidden(context.res, "您无权删除此评论。");
         }
 
