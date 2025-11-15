@@ -47,8 +47,8 @@ module.exports = {
 
     // API: 创建评论
     createComment: (context) => {
-        // 权限检查：必须是登录用户 (member 或 consultant)
-        if (!context.session || (context.session.role !== 'member' && context.session.role !== 'consultant')) {
+        // 权限检查：(修改) 允许 'anonymous' (即 'anyone' 用户)
+        if (!context.session || (context.session.role !== 'member' && context.session.role !== 'consultant' && context.session.role !== 'anonymous')) {
             return sendForbidden(context.res, "您必须登录才能发表评论。");
         }
         
