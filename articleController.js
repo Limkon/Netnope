@@ -115,13 +115,15 @@ module.exports = {
             // 编辑权限：admin 或 (consultant 且是作者)
             canEdit: context.session && context.session.role !== 'anonymous' && 
                      (context.session.role === 'admin' || (context.session.role === 'consultant' && article.userId === sessionUserId)),
-            // 评论权限：登录用户 (member 或 consultant)
-            canComment: context.session && (context.session.role === 'member' || context.session.role === 'consultant'),
             
-            // --- (修复) ---
-            // 添加一个简单的布尔值，用于替换模板中 '==' 的复杂比较
-            isAnonymous: (sessionRole === 'anonymous')
-            // --- (修复结束) ---
+            // (修改 1) 评论权限：登录用户 (member 或 consultant) 或 匿名用户 (anonymous)
+            canComment: context.session && (context.session.role === 'member' || context.session.role === 'consultant' || context.session.role === 'anonymous'),
+            
+            // --- (修改 2) ---
+            // 将此标志的含义更改为“是否显示‘登录后评论’”
+            // 仅当用户*没有*会话时 (即：已登出 且 'anyone' 匿名访问未启用) 才显示
+            isAnonymous: (!context.session)
+            // --- (修改结束) ---
         };
         // 页面重命名为 view-article.html
         serveHtmlWithPlaceholders(context.res, path.join(PUBLIC_DIR, 'view-article.html'), templateData);
