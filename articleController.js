@@ -17,12 +17,31 @@ const UPLOADS_DIR = storage.UPLOADS_DIR;
 
 // 辅助函数，用于获取传递给模板的导航数据
 function getNavData(session) {
+    // (*** 新增修改 ***)
+    // 如果会话用户名是 'anyone' (来自旧 auth.js) 或 '匿名用戶' (来自新 auth.js)
+    // 确保返回 '匿名用戶'
+    let sessionUsername = '访客';
+    if (session) {
+        if (session.username === 'anyone' || (session.role === 'anonymous' && session.username === '匿名用戶')) {
+            sessionUsername = '匿名用戶';
+        } else if (session.username) {
+            sessionUsername = session.username;
+        }
+    }
+    
     return {
-        username: session ? session.username : '访客',
+        username: sessionUsername, // <-- 修改点
         userRole: session ? session.role : 'anonymous',
         userId: session ? session.userId : ''
     };
 }
+
+// (*** 新增辅助函数 ***)
+function getDisplayName(user) {
+    if (!user) return '未知用户';
+    return (user.username === 'anyone') ? '匿名用戶' : user.username;
+}
+
 
 function sanitizeAndMakeUniqueFilename(originalFilename, userId) {
     let safeName = originalFilename.replace(/[\\/:*?"<>|]/g, '_');
@@ -104,7 +123,7 @@ module.exports = {
             articleContent: article.content, // 注意：富文本XSS风险
             articleId: article.id,
             articleCategory: article.category || '未分类', 
-            articleOwnerUsername: owner ? owner.username : '未知用户',
+            articleOwnerUsername: getDisplayName(owner), // <-- 修改点
             articleCreatedAt: new Date(article.createdAt).toLocaleString('zh-CN'),
             articleUpdatedAt: new Date(article.updatedAt).toLocaleString('zh-CN'),
             articleAttachmentPath: article.attachment ? article.attachment.path : null,
@@ -199,7 +218,7 @@ module.exports = {
             .slice(startIndex, endIndex) // 再分页
             .map(article => { // 最后附加作者信息
                 const owner = storage.findUserById(article.userId);
-                return { ...article, ownerUsername: owner ? owner.username : '未知用户' };
+                return { ...article, ownerUsername: getDisplayName(owner) }; // <-- 修改点
             });
 
         // (修改) 返回包含分页和分类信息的数据结构
