@@ -6,69 +6,180 @@
     <title>后台管理 - 网络福利资源分享网站</title>
     <link rel="stylesheet" href="/css/style.css">
     <style>
-        .management-container {
-            max-width: 600px;
+        .management-dashboard {
+            max-width: 800px;
             margin: 20px auto;
         }
-        .management-actions {
+        /* 用户身份概览看板 */
+        .user-id-banner {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 15px;
+            padding: 16px 20px;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            margin-bottom: 25px;
+        }
+        .user-badge {
+            display: inline-block;
+            padding: 2px 10px;
+            border-radius: 4px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            background: rgba(0, 210, 255, 0.15);
+            color: var(--cyber-cyan);
+            border: 1px solid rgba(0, 210, 255, 0.35);
+        }
+        /* 高密度网格操作区 */
+        .management-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 16px;
             list-style: none;
             padding: 0;
+            margin: 0;
         }
-        .management-actions li {
-            margin-bottom: 15px;
+        .mgmt-card {
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 20px;
+            background: var(--bg-surface);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            transition: all 0.25s ease;
+            text-decoration: none;
         }
-        /* 确保按钮占据全宽以保持整洁 */
-        .management-actions .button-action,
-        .management-actions .button-danger {
+        .mgmt-card:hover {
+            transform: translateY(-2px);
+            border-color: var(--cyber-blue);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.5), 0 0 12px rgba(0, 210, 255, 0.2);
+        }
+        .mgmt-card-title {
+            font-size: 1.15rem;
+            font-weight: 600;
+            color: #fff;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .mgmt-card-desc {
+            font-size: 0.88rem;
+            color: var(--text-secondary);
+            margin-bottom: 16px;
+            line-height: 1.5;
+        }
+        .mgmt-card-btn {
+            align-self: flex-start;
             width: 100%;
-            padding: 1rem;
-            font-size: 1.1rem;
-            box-sizing: border-box; /* 确保 padding 不会破坏宽度 */
-            display: block; /* 确保 <a> 标签表现为块级 */
-            text-align: center; /* 居中文本 */
+            text-align: center;
         }
     </style>
 </head>
 <body>
+    <!-- 顶部统一高密度科技导航栏 -->
     <header>
-        <h1>网络福利资源分享网站</h1>
-        <nav id="mainNav">
+        <div class="navbar-inner">
+            <h1>
+                <a href="/">
+                    <span style="font-size: 1.6rem; filter: drop-shadow(0 0 8px rgba(0, 242, 254, 0.6));">⚡</span>
+                    网络福利资源分享
+                </a>
+            </h1>
+            <nav id="mainNav">
+                <!-- 由 main.js 动态挂载统一导航 -->
             </nav>
+        </div>
     </header>
-    <div class="container management-container">
-        <h2>后台管理</h2>
+
+    <div class="container management-dashboard">
+        <h2>🛠️ 系统管理中枢</h2>
         
-        <ul class="management-actions">
+        <!-- 用户身份状态卡 -->
+        <div class="user-id-banner">
+            <div>
+                <span style="color: var(--text-muted); font-size: 0.9rem;">当前登录账户:</span>
+                <strong style="font-size: 1.1rem; color: #fff; margin-left: 6px;">{{username}}</strong>
+            </div>
+            <div>
+                <span class="user-badge">角色: {{userRole}}</span>
+            </div>
+        </div>
+
+        <!-- 磁贴卡片操作网格 -->
+        <ul class="management-grid">
             
-            <li>
-                <a href="/change-password" class="button-action">修改我的密码</a>
+            <!-- 密码修改 -->
+            <li class="mgmt-card">
+                <div>
+                    <div class="mgmt-card-title">
+                        <span>🔐</span>
+                        <span>账户密码</span>
+                    </div>
+                    <div class="mgmt-card-desc">定期更新您的登录凭证，确保您的个人账户与文章安全。</div>
+                </div>
+                <a href="/change-password" class="button-action mgmt-card-btn">修改密码</a>
             </li>
             
             {{#if isAdmin}}
-            <li>
-                <a href="/admin/users" class="button-action">管理所有用户</a>
+            <!-- 管理员：用户管理 -->
+            <li class="mgmt-card" style="border-left: 3px solid var(--cyber-purple);">
+                <div>
+                    <div class="mgmt-card-title">
+                        <span>👥</span>
+                        <span>用户与权限管理</span>
+                    </div>
+                    <div class="mgmt-card-desc">新建成员、分配管理员或咨询师角色、重置全员密码及系统设置。</div>
+                </div>
+                <a href="/admin/users" class="button-action mgmt-card-btn" style="background: linear-gradient(135deg, #7928ca, #4338ca); border-color: rgba(121, 40, 202, 0.5);">
+                    管理所有用户
+                </a>
             </li>
-            <li>
-                <a href="/admin/stats" class="button-action" style="background-color: #17a2b8; border-color: #17a2b8;">查看详细访问统计</a>
+
+            <!-- 管理员：访问统计 -->
+            <li class="mgmt-card" style="border-left: 3px solid var(--cyber-green);">
+                <div>
+                    <div class="mgmt-card-title">
+                        <span>📊</span>
+                        <span>高密访问监控</span>
+                    </div>
+                    <div class="mgmt-card-desc">查看实时流量日志、独立访客 IP 分布、热门资源页面及来源解析。</div>
+                </div>
+                <a href="/admin/stats" class="button-action mgmt-card-btn" style="background: linear-gradient(135deg, #059669, #10b981); border-color: rgba(16, 185, 129, 0.5);">
+                    查看详细访问统计
+                </a>
             </li>
             {{/if}}
             
-            <li>
-                <button id="logoutButton" class="button-danger">登出系统</button>
+            <!-- 安全登出 -->
+            <li class="mgmt-card" style="border-left: 3px solid var(--cyber-danger);">
+                <div>
+                    <div class="mgmt-card-title">
+                        <span>🚪</span>
+                        <span>安全会话注销</span>
+                    </div>
+                    <div class="mgmt-card-desc">清除浏览器本地 Cookie 与服务器鉴权 Session 会话凭证。</div>
+                </div>
+                <button id="logoutButton" class="button-danger mgmt-card-btn">登出系统</button>
             </li>
         </ul>
-
     </div>
+
+    <!-- 全局页脚 -->
     <footer>
         <p id="copyrightFooter">&copy; 2025 网络福利资源分享网站。</p>
     </footer>
+
     <script src="/js/main.js"></script>
     <script>
-        // 这些变量由服务器模板注入
+        // 供客户端脚本读取的基础参数
         const currentUsernameFromServer = "{{username}}";
         const currentUserRoleFromServer = "{{userRole}}";
         const currentUserIdFromServer = "{{userId}}";
-        // main.js 中的 DOMContentLoaded 会自动处理 setupNavigation 和登出按钮的事件
     </script>
 </body>
 </html>
