@@ -3,49 +3,138 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>首页 - 网络福利资源分享网站</title> <link rel="stylesheet" href="/css/style.css">
+    <title>用户注册 - 网络福利资源分享网站</title>
+    <link rel="stylesheet" href="/css/style.css">
 </head>
 <body>
+    <!-- 顶部统一高密度科技导航栏 -->
     <header>
-        <h1>网络福利资源分享网站</h1> <nav id="mainNav">
+        <div class="navbar-inner">
+            <h1>
+                <a href="/">
+                    <span style="font-size: 1.6rem; filter: drop-shadow(0 0 8px rgba(0, 242, 254, 0.6));">⚡</span>
+                    网络福利资源分享
+                </a>
+            </h1>
+            <nav>
+                <a href="/" class="nav-link">← 返回首页</a>
+                <a href="/login" class="nav-link">已有账户？直接登录</a>
             </nav>
+        </div>
     </header>
+
     <div class="container">
-        <div class="toolbar-actions" style="margin-bottom: 20px; display: flex; flex-wrap: wrap; gap: 10px; align-items: center;">
-            <form id="searchForm" style="display: flex; gap: 10px; flex-grow: 1; min-width: 200px;">
-                <input type="search" id="searchInput" name="search" placeholder="输入关键字搜索文章..." style="flex-grow: 1; padding: 0.5rem; border: 1px solid #ccc; border-radius: 0.25rem; min-height:38px; box-sizing:border-box;">
-                <button type="submit" class="button-action" style="min-width: 70px;">搜索</button> </form>
-            <div class="category-filter" style="flex-grow: 1; min-width: 150px;">
-                 <select id="categoryFilterSelect" name="category" style="width: 100%; padding: 0.5rem; border: 1px solid #ccc; border-radius: 0.25rem; min-height:38px; box-sizing:border-box;">
-                    <option value="all">所有分类</option>
-                    </select>
-            </div>
+        <div class="form-container">
+            <h2>
+                <span>📝 新成员加入</span>
+                <span style="font-size: 0.85rem; font-weight: normal; color: var(--text-muted); margin-left: auto;">
+                    默认赋予会员角色
+                </span>
+            </h2>
 
-            <a href="/article/new" id="publishArticleButton" class="button-action" style="display: none; min-width: 90px; flex-grow: 1; background-color: #28a745; border-color: #28a745;">发表新文章</a>
-            
-            <button id="clearSearchButton" class="button-action button-cancel" style="min-width: 90px; background-color: #6c757d; border-color: #6c757d; display: none; flex-grow: 1;">清除</button> </div>
+            <div id="registerMessage" style="margin-bottom: 15px;"></div>
 
-        <h2>文章列表</h2> <div id="globalMessageArea" style="margin-bottom: 15px;"></div>
-        <div id="articlesContainer">
-            <p>正在加载文章...</p> </div>
-        
-        <div id="paginationContainer" style="margin-top: 25px; text-align: center;">
-            </div>
+            <form id="registerForm" class="form-styled">
+                <div>
+                    <label for="username">用户名 <span style="color: var(--cyber-pink);">*</span>:</label>
+                    <input 
+                        type="text" 
+                        id="username" 
+                        name="username" 
+                        placeholder="输入您的专属用户名" 
+                        required 
+                        autocomplete="username"
+                    >
+                </div>
 
+                <div>
+                    <label for="password">密码:</label>
+                    <input 
+                        type="password" 
+                        id="password" 
+                        name="password" 
+                        placeholder="设置登录密码 (普通会员可为空)" 
+                        autocomplete="new-password"
+                    >
+                </div>
+
+                <div>
+                    <label for="confirmPassword">确认密码:</label>
+                    <input 
+                        type="password" 
+                        id="confirmPassword" 
+                        name="confirmPassword" 
+                        placeholder="再次确认您的登录密码" 
+                        autocomplete="new-password"
+                    >
+                </div>
+
+                <div class="form-actions" style="margin-top: 25px;">
+                    <button type="submit" id="registerButton" class="button-action" style="flex-grow: 1;">确认注册账户</button>
+                    <a href="/login" class="button-action button-cancel" style="flex-grow: 1;">返回登录界面</a>
+                </div>
+            </form>
+        </div>
     </div>
+
+    <!-- 全局页脚 -->
     <footer>
-        <p id="copyrightFooter">&copy; 2025 网络福利资源分享网站。</p> </footer>
+        <p id="copyrightFooter">&copy; 2025 网络福利资源分享网站。</p>
+    </footer>
+
     <script src="/js/main.js"></script>
     <script>
-        // 这些变量由服务器模板注入
-        const currentUsernameFromServer = "{{username}}";
-        const currentUserRoleFromServer = "{{userRole}}";
-        const currentUserIdFromServer = "{{userId}}";
+        const registerForm = document.getElementById('registerForm');
+        const registerButton = document.getElementById('registerButton');
 
-        document.addEventListener('DOMContentLoaded', () => {
-            // 注意：首页的 setupNavigation 和 loadArticles(loadNotes)
-            // 已被移入 main.js 的 DOMContentLoaded 主处理程序中
-        });
+        if (registerForm && registerButton) {
+            registerForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                displayMessage('', 'info', 'registerMessage');
+
+                const username = document.getElementById('username').value.trim();
+                const password = document.getElementById('password').value;
+                const confirmPassword = document.getElementById('confirmPassword').value;
+
+                if (!username) {
+                    displayMessage('用户名不能为空。', 'error', 'registerMessage');
+                    return;
+                }
+
+                if (password !== confirmPassword) {
+                    displayMessage('两次输入的密码不一致，请仔细核对。', 'error', 'registerMessage');
+                    return;
+                }
+
+                registerButton.disabled = true;
+                registerButton.textContent = '正在注册中...';
+
+                try {
+                    const response = await fetch('/api/users/register', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ username, password })
+                    });
+
+                    const data = await response.json();
+
+                    if (response.ok && data.id) {
+                        displayMessage('注册成功！正在跳转至登录界面...', 'success', 'registerMessage');
+                        setTimeout(() => {
+                            window.location.href = '/login?registered=true';
+                        }, 1200);
+                    } else {
+                        displayMessage(data.message || '注册失败，请稍后再试。', 'error', 'registerMessage');
+                        registerButton.disabled = false;
+                        registerButton.textContent = '确认注册账户';
+                    }
+                } catch (err) {
+                    displayMessage('与服务器通讯发生异常，请检查网络。', 'error', 'registerMessage');
+                    registerButton.disabled = false;
+                    registerButton.textContent = '确认注册账户';
+                }
+            });
+        }
     </script>
 </body>
 </html>
