@@ -3,65 +3,103 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>登录 - 网络福利资源分享网站</title>
+    <title>用户登录 - 网络福利资源分享网站</title>
     <link rel="stylesheet" href="/css/style.css">
 </head>
 <body>
+    <!-- 顶部统一高密度科技导航栏 -->
     <header>
-        <h1>网络福利资源分享网站</h1>
+        <div class="navbar-inner">
+            <h1>
+                <a href="/">
+                    <span style="font-size: 1.6rem; filter: drop-shadow(0 0 8px rgba(0, 242, 254, 0.6));">⚡</span>
+                    网络福利资源分享
+                </a>
+            </h1>
+            <nav>
+                <a href="/" class="nav-link">← 返回首页</a>
+            </nav>
+        </div>
     </header>
+
     <div class="container">
         <div class="form-container">
-            <h2>用户登录</h2>
+            <h2>
+                <span>🔑 登录鉴权终端</span>
+                <span style="font-size: 0.85rem; font-weight: normal; color: var(--text-muted); margin-left: auto;">
+                    身份校验
+                </span>
+            </h2>
+
             {{#if error_message}}
             <div class="error-message" id="errorMessage">{{error_message}}</div>
             {{/if}}
-            <form id="loginForm" method="POST" action="/login">
+
+            <form id="loginForm" method="POST" action="/login" class="form-styled">
                 <div>
-                    <label for="username">用户名:</label>
-                    <input type="text" id="username" name="username" value="{{username_value}}" required>
+                    <label for="username">用户名 <span style="color: var(--cyber-pink);">*</span>:</label>
+                    <input 
+                        type="text" 
+                        id="username" 
+                        name="username" 
+                        value="{{username_value}}" 
+                        placeholder="输入您的账号用户名" 
+                        required 
+                        autocomplete="username"
+                    >
                 </div>
+
                 <div>
                     <label for="password">密码:</label>
-                    <input type="password" id="password" name="password">
+                    <input 
+                        type="password" 
+                        id="password" 
+                        name="password" 
+                        placeholder="输入您的密码凭证" 
+                        autocomplete="current-password"
+                    >
                 </div>
-                <div class="form-actions">
-                    <button type="submit" class="button-action">登录</button>
-                    <a href="/register" class="button-action" style="background-color: #6c757d; border-color: #6c757d;">注册新账户</a>
+
+                <div class="form-actions" style="margin-top: 25px;">
+                    <button type="submit" class="button-action" style="flex-grow: 1;">立即登录</button>
+                    <a href="/register" class="button-action button-cancel" style="flex-grow: 1;">前往注册新账户</a>
                 </div>
             </form>
         </div>
-        </div>
+    </div>
+
+    <!-- 全局页脚 -->
     <footer>
         <p id="copyrightFooter">&copy; 2025 网络福利资源分享网站。</p>
     </footer>
+
     <script>
         const form = document.getElementById('loginForm');
         const errorMessageDiv = document.getElementById('errorMessage');
-        if (form && errorMessageDiv) {
-            form.addEventListener('input', () => {});
-        }
         if (errorMessageDiv && !errorMessageDiv.textContent.trim()) {
             errorMessageDiv.style.display = 'none';
         }
+
+        // 解析 URL 参数中的登出或注册成功提示
         const urlParams = new URLSearchParams(window.location.search);
+        const container = document.querySelector('.form-container');
+
         if (urlParams.has('logged_out')) {
             const successMsgDiv = document.createElement('div');
             successMsgDiv.className = 'success-message';
-            successMsgDiv.textContent = '您已成功登出。';
-            const container = document.querySelector('.form-container'); // 插入到新容器内
+            successMsgDiv.textContent = '✅ 您已安全退出系统会话。';
             if (form) {
                 container.insertBefore(successMsgDiv, form);
             } else {
                 container.appendChild(successMsgDiv);
             }
         }
+
         if (urlParams.has('registered')) {
             const successMsgDiv = document.createElement('div');
             successMsgDiv.className = 'success-message';
-            successMsgDiv.textContent = '注册成功！现在您可以登录了。';
-            const container = document.querySelector('.form-container'); // 插入到新容器内
-             if (form) {
+            successMsgDiv.textContent = '🎉 账户注册成功！现在您可以直接输入凭证登录。';
+            if (form) {
                 container.insertBefore(successMsgDiv, form);
             } else {
                 container.appendChild(successMsgDiv);
