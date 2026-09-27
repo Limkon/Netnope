@@ -3,34 +3,72 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title> 网络福利资源分享网站</title>
+    <title>注册 - 网络福利资源分享网站</title>
     <link rel="stylesheet" href="/css/style.css">
     <style>
         .placeholder-content {
             text-align: center;
-            padding: 50px 20px;
-            font-size: 1.5rem;
-            color: #5f6368;
+            padding: 60px 20px;
+            font-size: 1.4rem;
+            color: var(--text-secondary);
+            background: var(--bg-surface);
+            border: 1px dashed var(--border-color);
+            border-radius: 8px;
+            margin-top: 15px;
+        }
+        .placeholder-icon {
+            font-size: 3rem;
+            display: block;
+            margin-bottom: 15px;
+            filter: drop-shadow(0 0 10px rgba(0, 210, 255, 0.4));
         }
     </style>
 </head>
 <body>
+    <!-- 顶部统一高密度科技导航栏 -->
     <header>
-        <h1>网络福利资源分享网站</h1>
-        <nav>
+        <div class="navbar-inner">
+            <h1>
+                <a href="/">
+                    <span style="font-size: 1.6rem; filter: drop-shadow(0 0 8px rgba(0, 242, 254, 0.6));">⚡</span>
+                    网络福利资源分享
+                </a>
+            </h1>
+            <nav id="mainNav">
+                <!-- 接入全站统一导航 -->
             </nav>
+        </div>
     </header>
+
     <div class="container">
-        <h2></h2>
+        <h2>
+            <span>用户注册</span>
+            <span style="font-size: 0.85rem; font-weight: normal; color: var(--text-muted); margin-left: auto;">
+                系统公告
+            </span>
+        </h2>
+
+        <!-- 保持原有的提示内容 -->
         <div class="placeholder-content">
-            <p>此功能暂时未开放，敬请期待！</p>
+            <span class="placeholder-icon">🚧</span>
+            <p style="margin: 0; color: var(--text-primary); font-weight: 500;">此功能暂时未开放，敬请期待！</p>
             <div style="margin-top: 30px;">
                 <a href="/" class="button-action">返回首页</a>
             </div>
         </div>
     </div>
+
+    <!-- 全局页脚 -->
     <footer>
-        <p>&copy; 2025 网络福利资源分享网站。</p>
+        <p id="copyrightFooter">&copy; 2025 网络福利资源分享网站。</p>
     </footer>
-    </body>
+
+    <script src="/js/main.js"></script>
+    <script>
+        // 传递导航所需的基础变量
+        const currentUsernameFromServer = "{{username}}";
+        const currentUserRoleFromServer = "{{userRole}}";
+        const currentUserIdFromServer = "{{userId}}";
+    </script>
+</body>
 </html>
