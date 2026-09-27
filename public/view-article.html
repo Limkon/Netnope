@@ -6,201 +6,195 @@
     <title>{{articleTitle}} - 网络福利资源分享网站</title>
     <link rel="stylesheet" href="/css/style.css">
     <style>
+        /* 针对文章详情正文的科技主题专属调优 */
         .note-view-content {
-            padding: 15px;
-            border: 1px solid #eee;
-            background-color: #fdfdfd;
-            border-radius: 5px;
-            margin-top: 10px;
+            padding: 24px;
+            border: 1px solid var(--border-color);
+            background-color: var(--bg-surface);
+            border-radius: 8px;
+            margin-top: 15px;
             word-wrap: break-word; 
             overflow-wrap: break-word; 
+            color: var(--text-primary);
+            line-height: 1.8;
+            font-size: 1.02rem;
         }
         .note-view-content img { 
             max-width: 100%;
             height: auto;
             display: block; 
-            margin: 10px 0; 
+            margin: 15px auto; 
+            border-radius: 6px;
+            border: 1px solid var(--border-color);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
+        }
+        .note-view-content a {
+            color: var(--cyber-blue);
+            text-decoration: underline;
+        }
+        .note-view-content a:hover {
+            color: var(--cyber-cyan);
         }
         .note-view-meta {
-            font-size: 0.85em;
-            color: #666;
-            margin-top: 15px;
-            padding-top: 10px;
-            border-top: 1px dashed #eee;
+            font-size: 0.88rem;
+            color: var(--text-secondary);
+            margin-top: 20px;
+            padding: 14px 18px;
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+        .note-view-meta p {
+            margin: 0;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .note-view-meta strong {
+            color: var(--text-primary);
         }
         .note-view-attachment {
             margin-top: 15px;
-        }
-        
-        /* (新增) 置顶标签样式 */
-        .article-pinned-badge {
-            display: inline-block;
-            background-color: #ffc107; /* 警告黄 */
-            color: #333;
-            padding: 3px 8px;
-            font-size: 0.9em;
-            font-weight: bold;
-            border-radius: 4px;
-            margin-left: 10px;
-            vertical-align: middle;
-        }
-
-        /* 新增评论样式 (已内联, 保证生效) */
-        .comments-section {
-            margin-top: 30px;
-            padding-top: 20px;
-            border-top: 1px solid #ccc;
-        }
-        #commentsList {
-            list-style-type: none;
-            padding: 0;
-            margin-bottom: 20px;
-        }
-        .comment-item {
-            border: 1px solid #e0e0e0;
-            background: #f9f9f9;
-            padding: 12px 15px;
-            border-radius: 5px;
-            margin-bottom: 10px;
-        }
-        .comment-meta {
-            font-size: 0.9em;
-            color: #555;
-            margin-bottom: 5px;
+            padding: 12px 18px;
+            background: rgba(0, 210, 255, 0.05);
+            border: 1px dashed rgba(0, 210, 255, 0.35);
+            border-radius: 6px;
             display: flex;
-            justify-content: space-between;
             align-items: center;
+            gap: 10px;
+            font-size: 0.95rem;
         }
-        .comment-meta strong {
-            color: #1a73e8;
-            font-size: 1.05em;
+        .note-view-attachment a {
+            color: var(--cyber-cyan);
+            font-weight: 500;
+            text-decoration: none;
         }
-        .comment-meta span {
-            font-size: 0.9em;
-            color: #777;
-            margin-left: 10px;
+        .note-view-attachment a:hover {
+            text-decoration: underline;
         }
-        .comment-content {
-            word-wrap: break-word;
-            margin-bottom: 8px;
-            color: #333;
-        }
-        .comment-actions {
-            text-align: right;
-        }
-        .button-danger.button-small {
-            padding: 0.2rem 0.5rem;
-            font-size: 0.8rem;
-            min-height: 24px;
-            min-width: 50px;
-            line-height: 1.4;
-        }
-        #commentForm textarea {
-            min-height: 80px;
-            margin-bottom: 10px;
-        }
-        #commentForm .form-actions {
-            margin-top: 0; 
+        .filesize-tag {
+            color: var(--text-muted);
+            font-size: 0.82rem;
+            background: rgba(255, 255, 255, 0.05);
+            padding: 2px 6px;
+            border-radius: 4px;
         }
     </style>
 </head>
 <body>
+    <!-- 顶部统一高密度科技导航栏 -->
     <header>
-        <h1>网络福利资源分享网站</h1>
-        <nav id="mainNav">
+        <div class="navbar-inner">
+            <h1>
+                <a href="/">
+                    <span style="font-size: 1.6rem; filter: drop-shadow(0 0 8px rgba(0, 242, 254, 0.6));">⚡</span>
+                    网络福利资源分享
+                </a>
+            </h1>
+            <nav id="mainNav">
+                <!-- 由 main.js 动态挂载导航链接与身份状态 -->
             </nav>
+        </div>
     </header>
+
     <div class="container"> 
-        <h2 id="articleViewTitle">
-            {{articleTitle}}
+        <!-- 文章标题区与置顶徽章 -->
+        <h2 id="articleViewTitle" style="display: flex; align-items: center; flex-wrap: wrap; gap: 10px;">
+            <span>{{articleTitle}}</span>
             {{#if isPinned}}
-            <span class="article-pinned-badge">[置顶]</span>
+            <span class="article-pinned-badge">★ 置顶精选</span>
             {{/if}}
         </h2>
         
+        <!-- 文章元数据属性栏 -->
+        <div class="note-view-meta">
+            <p>👤 作者: <strong>{{articleOwnerUsername}}</strong></p>
+            <p>🏷️ 分类: <span class="article-category">{{articleCategory}}</span></p>
+            <p>📅 发布时间: <span>{{articleCreatedAt}}</span></p>
+            <p>🔄 更新于: <span>{{articleUpdatedAt}}</span></p>
+        </div>
+
+        <!-- 正文展示区域 -->
         <div class="note-view-content" id="articleViewContent">
             {{{articleContent}}}
         </div>
 
+        <!-- 附件下载区域 (若存在) -->
         {{#if articleAttachmentPath}}
         <div class="note-view-attachment">
-            <strong>附件:</strong> 
+            <span style="font-size: 1.2rem;">📎</span>
+            <strong>资源附件:</strong> 
             <a href="/uploads/{{articleAttachmentPath}}" target="_blank" title="下载 {{articleAttachmentOriginalName}}">
                 {{articleAttachmentOriginalName}}
             </a>
             {{#if articleAttachmentSizeKB}}
-            <span>({{articleAttachmentSizeKB}} KB)</span>
+            <span class="filesize-tag">({{articleAttachmentSizeKB}} KB)</span>
             {{/if}} 
         </div>
         {{/if}} 
-        
-        <div class="note-view-meta">
-            <p>作者: {{articleOwnerUsername}}</p>
-            <p>分类: {{articleCategory}}</p>
-            <p>创建时间: {{articleCreatedAt}}</p>
-            <p>最后更新: {{articleUpdatedAt}}</p>
-        </div>
 
-        <div class="form-actions" style="margin-top: 30px;">
-            <a href="/" class="button-action">返回列表</a>
+        <!-- 底部快捷操作栏 -->
+        <div class="form-actions" style="margin-top: 30px; border-top: 1px solid var(--border-color); padding-top: 20px;">
+            <a href="/" class="button-action button-cancel">← 返回文章列表</a>
             {{#if canEdit}} 
             <a href="/article/edit?id={{articleId}}" class="button-action">编辑此文章</a>
             {{/if}} 
         </div>
 
+        <!-- 互动评论区 -->
         <div id="commentsContainer" class="comments-section">
-            <h3>评论区</h3>
+            <h3 style="color: #fff; margin-top: 0; font-size: 1.3rem;">💬 评论交流区</h3>
             <div id="commentMessage"></div>
             
             <ul id="commentsList">
-                <li>正在加载评论...</li>
+                <li style="color: var(--text-muted);">正在加载评论...</li>
             </ul>
 
             {{#if canComment}}
-            <form id="commentForm" class="form-styled">
-                <h4>发表评论</h4>
+            <form id="commentForm" class="form-styled" style="margin-top: 20px;">
+                <h4 style="color: var(--text-primary); margin-bottom: 10px;">发表新见解</h4>
                 <div>
                     <label for="commentContent" class="sr-only">您的评论:</label>
-                    <textarea id="commentContent" name="content" placeholder="请输入您的评论..." required></textarea>
+                    <textarea id="commentContent" name="content" placeholder="输入友善的讨论内容..." required></textarea>
                 </div>
-                <div class="form-actions" style="margin-top: 0;">
+                <div class="form-actions" style="margin-top: 10px;">
                     <button type="submit" id="submitCommentButton" class="button-action">提交评论</button>
                 </div>
             </form>
             {{/if}}
 
             {{#if isAnonymous}}
-            <p style="margin-top: 15px;"><a href="/login">登录</a> 后才能发表评论。</p>
+            <p style="margin-top: 15px; color: var(--text-secondary);">
+                如需发表评论，请先 <a href="/login" style="color: var(--cyber-cyan);">登录系统</a>。
+            </p>
             {{/if}}
-            </div>
-        </div> 
+        </div>
+    </div> 
+
+    <!-- 全局页脚 -->
     <footer>
         <p id="copyrightFooter">&copy; 2025 网络福利资源分享网站。</p>
     </footer>
+
     <script src="/js/main.js"></script>
     <script>
-        // 从服务器端模板获取初始用户信息 (供 main.js 使用)
+        // 供客户端脚本读取的模板注入变量
         const currentUsernameFromServer = "{{username}}"; 
         const currentUserRoleFromServer = "{{userRole}}";   
         const currentUserIdFromServer = "{{userId}}";
-        const currentArticleId = "{{articleId}}"; // 新增，用于加载评论
+        const currentArticleId = "{{articleId}}";
 
         document.addEventListener('DOMContentLoaded', () => {
-            // main.js 中的 DOMContentLoaded 会自动处理:
-            // setupNavigation, loadComments, setupCommentForm
-
             const articleTitleElement = document.getElementById('articleViewTitle');
             if (articleTitleElement && articleTitleElement.textContent) { 
-                 // (修改) 去除徽章文本
                  let titleText = articleTitleElement.textContent || "{{articleTitle}}";
-                 if (titleText.includes('[置顶]')) {
-                     titleText = titleText.replace(/\[置顶\]/g, '').trim();
+                 if (titleText.includes('★ 置顶精选')) {
+                     titleText = titleText.replace(/★ 置顶精选/g, '').trim();
                  }
                  document.title = `${titleText} - 网络福利资源分享网站`;
-            } else if ("{{articleTitle}}") { 
-                 document.title = `{{articleTitle}} - 网络福利资源分享网站`;
-            } else {
-                 document.title = `查看文章 - 网络福利资源分享网站`; 
             }
         });
     </script>
